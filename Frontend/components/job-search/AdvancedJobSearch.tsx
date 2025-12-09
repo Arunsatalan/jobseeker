@@ -25,6 +25,7 @@ import {
   Heart,
   Share2,
   ChevronRight,
+  ChevronDown,
   Filter,
   Sliders,
   Calendar,
@@ -106,6 +107,8 @@ export default function AdvancedJobSearch() {
   const [filteredJobs, setFilteredJobs] = useState<Job[]>(MOCK_SOFTWARE_ENGINEER_JOBS.slice(0, 10))
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [bookmarkedJobs, setBookmarkedJobs] = useState<Set<string>>(new Set())
+  const [savedJobs, setSavedJobs] = useState<Job[]>([])
+  const [showSavedJobs, setShowSavedJobs] = useState(false)
   const [loading, setLoading] = useState(false)
   const [totalResults, setTotalResults] = useState(MOCK_SOFTWARE_ENGINEER_JOBS.length)
 
@@ -131,6 +134,17 @@ export default function AdvancedJobSearch() {
   
   // Lock body scroll when needed (future: for mobile modal)
   useBodyScrollLock(false)
+
+  // Load saved jobs from localStorage on mount
+  useEffect(() => {
+    const savedJobIds = localStorage.getItem('savedJobs')
+    if (savedJobIds) {
+      const ids = JSON.parse(savedJobIds) as string[]
+      const savedJobObjects = MOCK_SOFTWARE_ENGINEER_JOBS.filter(job => ids.includes(job.id))
+      setSavedJobs(savedJobObjects)
+      setBookmarkedJobs(new Set(ids))
+    }
+  }, [])
 
   // Get selected job
   const selectedJob = selectedJobId 
@@ -310,13 +324,32 @@ export default function AdvancedJobSearch() {
 
   const handleBookmark = (jobId: string, e?: React.MouseEvent) => {
     e?.stopPropagation()
+
+    const job = allJobs.find(j => j.id === jobId)
+    if (!job) return
+
     setBookmarkedJobs(prev => {
       const newSet = new Set(prev)
-      if (newSet.has(jobId)) {
+      const isCurrentlyBookmarked = newSet.has(jobId)
+
+      if (isCurrentlyBookmarked) {
+        // Remove from saved jobs
         newSet.delete(jobId)
+        setSavedJobs(prevSaved => prevSaved.filter(j => j.id !== jobId))
       } else {
+        // Add to saved jobs (only if not already there)
         newSet.add(jobId)
+        setSavedJobs(prevSaved => {
+          // Check if job is already saved to prevent duplicates
+          const isAlreadySaved = prevSaved.some(j => j.id === jobId)
+          return isAlreadySaved ? prevSaved : [...prevSaved, job]
+        })
       }
+
+      // Save to localStorage
+      const savedJobIds = Array.from(newSet)
+      localStorage.setItem('savedJobs', JSON.stringify(savedJobIds))
+
       return newSet
     })
   }
@@ -464,51 +497,228 @@ export default function AdvancedJobSearch() {
           
           {/* ========== LEFT PANEL: JOB LIST ========== */}
           <div className="lg:col-span-1 flex flex-col">
-            {/* Filter Bar */}
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sliders className="h-5 w-5 text-gray-600" />
-                <span className="text-sm font-semibold text-gray-900">
-                  {filteredJobs.length} Jobs
-                </span>
-                {activeFilterCount > 0 && (
-                  <Badge className="bg-blue-100 text-blue-700 ml-2">
-                    {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={() => setShowFilters(!showFilters)}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                >
-                  <Filter className="h-4 w-4" />
-                  {showFilters ? 'Hide' : 'Show'}
-                </Button>
-                {activeFilterCount > 0 && (
-                  <Button
-                    onClick={handleClearFilters}
-                    variant="ghost"
-                    size="sm"
-                    className="text-blue-600 hover:text-blue-700"
-                  >
-                    Reset
-                  </Button>
-                )}
-              </div>
+            {/* ===== JOB COUNT (LEFT) ===== */}
+            <div className="mb-4 flex items-center gap-2">
+              <Filter className="h-5 w-5 text-gray-600 shrink-0" />
+              <span className="text-sm font-semibold text-gray-900">
+                {filteredJobs.length} Jobs
+              </span>
+              {activeFilterCount > 0 && (
+                <Badge className="bg-blue-100 text-blue-700 animate-pulse ml-2 shrink-0">
+                  {activeFilterCount}
+                </Badge>
+              )}
             </div>
 
-            {/* Expandable Filter Panel */}
-            {showFilters && (
-              <Card className="mb-4 p-4 border-gray-200">
-                <FilterPanel 
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  jobTypes={JOB_TYPES}
+            {/* ===== FLOATING BUTTONS (RIGHT BOTTOM CORNER) ===== */}
+            <div className="fixed bottom-6 right-6 z-20 flex flex-col gap-3">
+              {/* Saved Jobs Button */}
+              <button
+                onClick={() => setShowSavedJobs(!showSavedJobs)}
+                aria-expanded={showSavedJobs}
+                aria-controls="saved-jobs-panel"
+                className="flex items-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+              >
+                <Heart className={`h-5 w-5 ${savedJobs.length > 0 ? 'fill-white' : ''}`} />
+                {savedJobs.length > 0 && (
+                  <span className="bg-white text-green-600 text-xs font-bold rounded-full px-2 py-0.5">
+                    {savedJobs.length}
+                  </span>
+                )}
+              </button>
+
+              {/* Filter Button */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                aria-expanded={showFilters}
+                aria-controls="filter-panel"
+                className="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+              >
+                <Sliders className="h-5 w-5" />
+                <ChevronDown
+                  className={`h-5 w-5 transition-transform duration-300 ${
+                    showFilters ? 'rotate-180' : 'rotate-0'
+                  }`}
                 />
-              </Card>
+              </button>
+            </div>
+
+            {/* ===== EXPANDABLE FILTER PANEL (RIGHT SIDE) ===== */}
+            {showFilters && (
+              <>
+                {/* Backdrop */}
+                <div
+                  className="fixed inset-0 bg-black/50 z-20"
+                  onClick={() => setShowFilters(false)}
+                />
+
+                {/* Filter Panel Modal - Right Side Below Header */}
+                <div className="fixed top-48 right-6 z-30 w-96 max-h-[calc(100vh-200px)] overflow-y-auto animate-in fade-in slide-in-from-right-4 duration-300">
+                  <Card className="p-6 border-l-4 border-l-blue-500 border-gray-200 bg-white shadow-2xl">
+                    {/* Header with Close Button */}
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-bold text-gray-900">Filter Jobs</h2>
+                      <button
+                        onClick={() => setShowFilters(false)}
+                        aria-label="Close filter panel"
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <X className="h-6 w-6 text-gray-600 hover:text-gray-900" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Live Preview Counter */}
+                      {activeFilterCount > 0 && (
+                        <div className="bg-blue-100 text-blue-900 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                          <span>✓ {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active</span>
+                        </div>
+                      )}
+
+                      {/* Filter Panel Content */}
+                      <FilterPanel 
+                        filters={filters}
+                        onFilterChange={handleFilterChange}
+                        jobTypes={JOB_TYPES}
+                      />
+
+                      {/* Action Buttons */}
+                      <div className="pt-3 border-t border-gray-300 flex gap-2 sticky bottom-0 bg-white py-3">
+                        <Button
+                          onClick={() => setShowFilters(false)}
+                          className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
+                        >
+                          Close
+                        </Button>
+                        {activeFilterCount > 0 && (
+                          <Button
+                            onClick={handleClearFilters}
+                            variant="outline"
+                            className="flex-1 text-gray-700 hover:text-gray-900"
+                          >
+                            Reset All
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </>
+            )}
+
+            {/* ===== EXPANDABLE SAVED JOBS PANEL (RIGHT SIDE) ===== */}
+            {showSavedJobs && (
+              <>
+                {/* Backdrop */}
+                <div
+                  className="fixed inset-0 bg-black/50 z-20"
+                  onClick={() => setShowSavedJobs(false)}
+                />
+
+                {/* Saved Jobs Panel - Right Side */}
+                <div className="fixed top-48 right-6 z-30 w-96 max-h-[calc(100vh-200px)] overflow-y-auto animate-in fade-in slide-in-from-right-4 duration-300">
+                  <Card className="p-6 border-l-4 border-l-green-500 border-gray-200 bg-white shadow-2xl">
+                    {/* Header with Close Button */}
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <Heart className="h-6 w-6 text-green-600" />
+                        Schedule ({savedJobs.length})
+                      </h2>
+                      <button
+                        onClick={() => setShowSavedJobs(false)}
+                        aria-label="Close schedule panel"
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <X className="h-6 w-6 text-gray-600 hover:text-gray-900" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {savedJobs.length > 0 ? (
+                        <div className="space-y-3 max-h-96 overflow-y-auto">
+                          {savedJobs.map((job) => (
+                            <div
+                              key={job.id}
+                              className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                              onClick={() => {
+                                setSelectedJobId(job.id)
+                                setShowSavedJobs(false)
+                              }}
+                            >
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="font-semibold text-gray-900 text-sm line-clamp-2">
+                                    {job.title}
+                                  </h3>
+                                  <p className="text-xs text-gray-600 line-clamp-1">
+                                    {job.company}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleBookmark(job.id, e)
+                                  }}
+                                  className="p-1 hover:bg-red-50 rounded transition-colors shrink-0"
+                                  title="Remove from schedule"
+                                >
+                                  <X className="h-4 w-4 text-red-500" />
+                                </button>
+                              </div>
+
+                              <div className="flex items-center gap-2 text-xs text-gray-600">
+                                <MapPin className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                                <span className="line-clamp-1">{job.location}</span>
+                                <span className="text-gray-400">•</span>
+                                <Badge variant="outline" className="text-xs py-0">
+                                  {job.jobType}
+                                </Badge>
+                              </div>
+
+                              {job.salary && (
+                                <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
+                                  <DollarSign className="h-3.5 w-3.5" />
+                                  <span className="font-semibold">{job.salary}</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8">
+                          <Heart className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                          <h3 className="text-gray-900 font-semibold mb-1">No scheduled jobs yet</h3>
+                          <p className="text-gray-600 text-sm">Click the bookmark icon on jobs to schedule them here</p>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="pt-3 border-t border-gray-300 flex gap-2">
+                        <Button
+                          onClick={() => setShowSavedJobs(false)}
+                          className="flex-1 bg-gray-600 hover:bg-gray-700 text-white"
+                        >
+                          Close
+                        </Button>
+                        {savedJobs.length > 0 && (
+                          <Button
+                            onClick={() => {
+                              // Clear all saved jobs
+                              setSavedJobs([])
+                              setBookmarkedJobs(new Set())
+                              localStorage.removeItem('savedJobs')
+                            }}
+                            variant="outline"
+                            className="flex-1 text-red-600 hover:text-red-700 hover:border-red-300"
+                          >
+                            Clear All
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </>
             )}
 
             {/* Results Summary */}
