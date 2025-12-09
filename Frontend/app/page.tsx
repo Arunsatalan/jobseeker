@@ -25,61 +25,281 @@ import {
   FileText,
   MessageSquare,
   ChevronDown,
+  Wrench,
+  BookOpen,
+  Menu,
+  X,
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
+import { useRouter, usePathname } from "next/navigation"
 export default function Home() {
   const [isJobsDropdownOpen,setIsJobsDropdownOpen]= useState(false);
+  const [isCareerToolsDropdownOpen, setIsCareerToolsDropdownOpen] = useState(false);
+  const [isEmployersDropdownOpen, setIsEmployersDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
+  const dropdownRef = useRef(null);
+  const careerToolsRef = useRef(null);
+  const employersRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsJobsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (careerToolsRef.current && !careerToolsRef.current.contains(event.target)) {
+        setIsCareerToolsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (employersRef.current && !employersRef.current.contains(event.target)) {
+        setIsEmployersDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const jobSubmenuItems = [
-     { emoji: "🔍", title: "Search Jobs", href: "/jobs", description: "Core job search page with filters (location, role, salary, type). Most-used entry point." },
-    { emoji: "🌎", title: "Remote & Hybrid Jobs", href: "/jobs/remote", description: "2025 trend: 60–70% of applicants filter for remote. Immediate need." },
-    { emoji: "🧑‍🎓", title: "Newcomer-Friendly", href: "/jobs/newcomer", description: "High demand: immigrants, students, PR holders want jobs with visa/training support." },
-    { emoji: "🎓", title: "Entry-Level Jobs", href: "/jobs/entry-level", description: "Essential for grads, students, career switchers. \"No experience\" filter = high CTR." },
-    { emoji: "💼", title: "Top Employers Hiring", href: "/jobs/top-employers", description: "Employer branding page: showcases top orgs (RBC, Air Canada, etc.) with their open roles." },
-    { emoji: "🔧", title: "Skilled Trades & Tech", href: "/jobs/tech-trades", description: "Focus for blue-collar (mechanics, electricians, etc.) and tech (devs, analysts)." },
-    { emoji: "📈", title: "High Paying Jobs", href: "/jobs/high-paying", description: "For motivated seekers. Based on roles with $80K+ or above-industry average." },
-    { emoji: "🕒", title: "Part-Time / Freelance", href: "/jobs/part-time", description: "Covers students, side hustlers, semi-retired workers. High relevance." },
-    { emoji: "🌱", title: "Internships & Co-ops", href: "/jobs/internships", description: "Critical for students and newcomers building Canadian work experience." },
+    { emoji: "🔍", title: "Search Jobs", href: "/jobs" },
+    { emoji: "🌎", title: "Remote & Hybrid Jobs", href: "/jobs/remote" },
+    { emoji: "🧑‍🎓", title: "Newcomer-Friendly", href: "/jobs/newcomer" },
+    { emoji: "🎓", title: "Entry-Level Jobs", href: "/jobs/entry-level" },
+    { emoji: "💼", title: "Top Employers Hiring", href: "/jobs/top-employers" },
+    { emoji: "🔧", title: "Skilled Trades & Tech", href: "/jobs/tech-trades" },
+    { emoji: "📈", title: "High Paying Jobs", href: "/jobs/high-paying" },
+    { emoji: "🕒", title: "Part-Time / Freelance", href: "/jobs/part-time" },
+    { emoji: "🌱", title: "Internships & Co-ops", href: "/jobs/internships" },
+  ]
+
+  const careerToolsSubmenuItems = [
+    { emoji: "📄", title: "Resume Analyzer", href: "/tools/resume-analyzer" },
+    { emoji: "👤", title: "Profile Builder", href: "/tools/profile-builder" },
+    { emoji: "🎤", title: "Interview Prep", href: "/tools/interview-prep" },
+    { emoji: "💰", title: "Salary Explorer", href: "/tools/salary-explorer" },
+  ]
+
+  const employersSubmenuItems = [
+    { emoji: "📝", title: "Post a Job (Free Trial)", href: "/employers/post-job" },
+    { emoji: "👥", title: "Candidate Preview", href: "/employers/candidates-preview" },
+    { emoji: "💳", title: "Pricing & Plans", href: "/employers/pricing" },
+    { emoji: "❓", title: "Why CanadaJobs?", href: "/employers/why-us" },
+    { emoji: "📚", title: "Hiring Guide (Free)", href: "/resources/hiring-playbook" },
   ]
   return (
     <div className="min-h-screen bg-gradient-to-br from-secondary-50 via-white to-accent-50">
+      {/* Sidebar */}
+      <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-white/95 backdrop-blur-2xl border-r border-white/20 shadow-2xl transform transition-transform duration-300 ease-in-out ${
+        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      } hidden lg:block`}>
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-8">
+            <span className="text-xl font-bold text-gray-800">Menu</span>
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-2 rounded-lg text-gray-600 hover:text-primary-500 hover:bg-primary-50"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <nav className="space-y-4">
+            <div>
+              <button
+                onClick={() => setIsJobsDropdownOpen(!isJobsDropdownOpen)}
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-left text-gray-600 hover:text-primary-500 hover:bg-primary-50"
+              >
+                <Search className="h-4 w-4" />
+                Find Jobs
+                <ChevronDown className="h-4 w-4 ml-auto" />
+              </button>
+              {isJobsDropdownOpen && (
+                <div className="ml-6 mt-2 space-y-1">
+                  {jobSubmenuItems.map((item, index) => (
+                    <Link
+                      key={index}
+                      href={item.href}
+                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-primary-50"
+                      onClick={() => setIsSidebarOpen(false)}
+                    >
+                      <span className="text-lg">{item.emoji}</span>
+                      <div className="text-sm">{item.title}</div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <button
+                onClick={() => setIsCareerToolsDropdownOpen(!isCareerToolsDropdownOpen)}
+                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-left text-gray-600 hover:text-primary-500 hover:bg-primary-50"
+              >
+                <Wrench className="h-4 w-4" />
+                Career Tools
+                <ChevronDown className="h-4 w-4 ml-auto" />
+              </button>
+              {isCareerToolsDropdownOpen && (
+                <div className="ml-6 mt-2 space-y-1">
+                  {careerToolsSubmenuItems.map((item, index) => (
+                    <Link
+                      key={index}
+                      href={item.href}
+                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-primary-50"
+                      onClick={() => setIsSidebarOpen(false)}
+                    >
+                      <span className="text-lg">{item.emoji}</span>
+                      <div className="text-sm">{item.title}</div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Link
+              href="/employers"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:text-primary-500 hover:bg-primary-50"
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <Building2 className="h-4 w-4" />
+              For Employers
+            </Link>
+            <Link
+              href="/resources"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:text-primary-500 hover:bg-primary-50"
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <BookOpen className="h-4 w-4" />
+              Resources
+            </Link>
+          </nav>
+        </div>
+      </div>
+
+      {/* Overlay for sidebar */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 z-30 hidden lg:block"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
+
       {/* Navigation */}
-        <nav className="fixed top-0 left-0 right-0 z-50 border-b border-gray-100 bg-white/80 backdrop-blur-xl">
+        <nav className="fixed top-0 left-0 right-0 z-50 bg-white/50 backdrop-blur-2xl">
         <div className="container mx-auto px-4">
-          <div className="flex h-20 items-center justify-between">
-            <div className="flex items-center gap-10">
+          <div className="flex h-16 items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                className="hidden lg:block p-2 rounded-lg text-gray-600 hover:text-primary-500 hover:bg-primary-50 transition-all duration-200"
+              >
+                {isSidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
               <Link href="/" className="flex items-center gap-2.5">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-primary-500 to-secondary-400">
                   <Briefcase className="h-5 w-5 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-gray-800">CanadaJobs</span>
               </Link>
-              <div className="hidden items-center gap-8 lg:flex">
+              <div className="hidden items-center gap-10 xl:flex">
                 <div className="relative">
                   <button
                     onClick={() => setIsJobsDropdownOpen(!isJobsDropdownOpen)}
-                    className="flex items-center gap-1 text-sm font-medium text-gray-600 transition-colors hover:text-primary-500"
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+                      isJobsDropdownOpen
+                        ? 'text-primary-500 border-b-2 border-primary-500'
+                        : 'text-gray-600 hover:text-primary-500'
+                    }`}
                   >
+                    <Search className="h-4 w-4" />
                     Find Jobs
                     <ChevronDown className="h-4 w-4" />
                   </button>
                   {isJobsDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-2 w-80 rounded-lg border border-gray-200 bg-white p-4 shadow-lg">
-                      <div className="space-y-3">
+                    <div ref={dropdownRef} className="absolute top-full left-0 mt-2 w-80 rounded-xl border border-white/20 bg-white/60 backdrop-blur-2xl p-3 shadow-2xl">
+                      <div className="grid grid-cols-2 gap-2">
                         {jobSubmenuItems.map((item, index) => (
                           <Link
                             key={index}
                             href={item.href}
-                            className="block rounded-md p-3 transition-colors hover:bg-gray-50"
+                            className="flex items-center gap-2 rounded-lg p-2 transition-all duration-200 hover:bg-primary-50/80 hover:shadow-md hover:-translate-y-0.5"
                             onClick={() => setIsJobsDropdownOpen(false)}
                           >
-                            <div className="flex items-start gap-3">
-                              <span className="text-lg">{item.emoji}</span>
-                              <div>
-                                <div className="font-medium text-gray-800">{item.title}</div>
-                                <div className="text-sm text-gray-600">{item.description}</div>
-                              </div>
-                            </div>
+                            <span className="text-lg">{item.emoji}</span>
+                            <div className="font-semibold text-gray-800 text-sm">{item.title}</div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsCareerToolsDropdownOpen(!isCareerToolsDropdownOpen)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+                      pathname.startsWith('/tools')
+                        ? 'text-primary-500 border-b-2 border-primary-500'
+                        : 'text-gray-600 hover:text-primary-500'
+                    }`}
+                  >
+                    <Wrench className="h-4 w-4" />
+                    Career Tools
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                  {isCareerToolsDropdownOpen && (
+                    <div ref={careerToolsRef} className="absolute top-full left-0 mt-2 w-80 rounded-xl border border-white/20 bg-white/60 backdrop-blur-2xl p-3 shadow-2xl">
+                      <div className="grid grid-cols-2 gap-2">
+                        {careerToolsSubmenuItems.map((item, index) => (
+                          <Link
+                            key={index}
+                            href={item.href}
+                            className="flex items-center gap-2 rounded-lg p-2 transition-all duration-200 hover:bg-primary-50/80 hover:shadow-md hover:-translate-y-0.5"
+                            onClick={() => setIsCareerToolsDropdownOpen(false)}
+                          >
+                            <span className="text-lg">{item.emoji}</span>
+                            <div className="font-semibold text-gray-800 text-sm">{item.title}</div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsEmployersDropdownOpen(!isEmployersDropdownOpen)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+                      pathname.startsWith('/employers')
+                        ? 'text-primary-500 border-b-2 border-primary-500'
+                        : 'text-gray-600 hover:text-primary-500'
+                    }`}
+                  >
+                    <Building2 className="h-4 w-4" />
+                    For Employers
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                  {isEmployersDropdownOpen && (
+                    <div ref={employersRef} className="absolute top-full left-0 mt-2 w-80 rounded-xl border border-white/20 bg-white/60 backdrop-blur-2xl p-3 shadow-2xl">
+                      <div className="grid grid-cols-1 gap-2">
+                        {employersSubmenuItems.map((item, index) => (
+                          <Link
+                            key={index}
+                            href={item.href}
+                            className="flex items-center gap-2 rounded-lg p-2 transition-all duration-200 hover:bg-primary-50/80 hover:shadow-md hover:-translate-y-0.5"
+                            onClick={() => setIsEmployersDropdownOpen(false)}
+                          >
+                            <span className="text-lg">{item.emoji}</span>
+                            <div className="font-semibold text-gray-800 text-sm">{item.title}</div>
                           </Link>
                         ))}
                       </div>
@@ -87,32 +307,130 @@ export default function Home() {
                   )}
                 </div>
                 <Link
-                  href="/tools"
-                  className="text-sm font-medium text-gray-600 transition-colors hover:text-primary-500"
-                >
-                  Career Tools
-                </Link>
-                <Link
-                  href="/employers"
-                  className="text-sm font-medium text-gray-600 transition-colors hover:text-primary-500"
-                >
-                  For Employers
-                </Link>
-                <Link
                   href="/resources"
-                  className="text-sm font-medium text-gray-600 transition-colors hover:text-primary-500"
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    pathname === '/resources'
+                      ? 'text-primary-500 border-b-2 border-primary-500'
+                      : 'text-gray-600 hover:text-primary-500'
+                  }`}
                 >
+                  <BookOpen className="h-4 w-4" />
                   Resources
                 </Link>
               </div>
             </div>
+            {isMobileMenuOpen && (
+              <div className="lg:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-2xl border-t border-white/20 shadow-2xl animate-fade-in">
+                <div className="container mx-auto px-4 py-4 space-y-4">
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setIsJobsDropdownOpen(!isJobsDropdownOpen)}
+                      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-left text-gray-600 hover:text-primary-500 hover:bg-primary-50"
+                    >
+                      <Search className="h-4 w-4" />
+                      Find Jobs
+                      <ChevronDown className="h-4 w-4 ml-auto" />
+                    </button>
+                    {isJobsDropdownOpen && (
+                      <div className="ml-6 space-y-1">
+                        {jobSubmenuItems.map((item, index) => (
+                          <Link
+                            key={index}
+                            href={item.href}
+                            className="flex items-center gap-2 p-2 rounded-lg hover:bg-primary-50"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <span className="text-lg">{item.emoji}</span>
+                            <div className="text-sm">{item.title}</div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setIsCareerToolsDropdownOpen(!isCareerToolsDropdownOpen)}
+                      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-left text-gray-600 hover:text-primary-500 hover:bg-primary-50"
+                    >
+                      <Wrench className="h-4 w-4" />
+                      Career Tools
+                      <ChevronDown className="h-4 w-4 ml-auto" />
+                    </button>
+                    {isCareerToolsDropdownOpen && (
+                      <div className="ml-6 space-y-1">
+                        {careerToolsSubmenuItems.map((item, index) => (
+                          <Link
+                            key={index}
+                            href={item.href}
+                            className="flex items-center gap-2 p-2 rounded-lg hover:bg-primary-50"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <span className="text-lg">{item.emoji}</span>
+                            <div className="text-sm">{item.title}</div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setIsEmployersDropdownOpen(!isEmployersDropdownOpen)}
+                      className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-left text-gray-600 hover:text-primary-500 hover:bg-primary-50"
+                    >
+                      <Building2 className="h-4 w-4" />
+                      For Employers
+                      <ChevronDown className="h-4 w-4 ml-auto" />
+                    </button>
+                    {isEmployersDropdownOpen && (
+                      <div className="ml-6 space-y-1">
+                        {employersSubmenuItems.map((item, index) => (
+                          <Link
+                            key={index}
+                            href={item.href}
+                            className="flex items-center gap-2 p-2 rounded-lg hover:bg-primary-50"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            <span className="text-lg">{item.emoji}</span>
+                            <div className="text-sm">{item.title}</div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Link
+                    href="/resources"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:text-primary-500 hover:bg-primary-50"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    Resources
+                  </Link>
+                  <div className="pt-4 border-t border-gray-200 space-y-2">
+                    <Button variant="ghost" className="w-full justify-start text-gray-600 hover:text-primary-500 hover:bg-primary-50">
+                      Sign In
+                    </Button>
+                    <Button className="w-full rounded-full bg-gradient-to-r from-primary-500 to-secondary-400 text-white shadow-lg transition-all duration-300 hover:shadow-xl">
+                      Get Started
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-4">
-              <Button variant="ghost" className="text-gray-600 hover:text-primary-500 hover:bg-primary-50">
-                Sign In
-              </Button>
-              <Button className="rounded-full bg-gradient-to-r from-primary-500 to-secondary-400 px-6 text-white shadow-lg shadow-primary-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/30">
-                Get Started
-              </Button>
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden p-2 rounded-lg text-gray-600 hover:text-primary-500 hover:bg-primary-50 transition-all duration-200"
+              >
+                {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
+              <div className="hidden md:flex items-center gap-4">
+                <Button variant="ghost" className="text-gray-600 hover:text-primary-500 hover:bg-primary-50">
+                  Sign In
+                </Button>
+                <Button className="rounded-full bg-gradient-to-r from-primary-500 to-secondary-400 px-6 text-white shadow-lg shadow-primary-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/30">
+                  Get Started
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -120,7 +438,7 @@ export default function Home() {
 
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-32 pb-24">
+      <section className="relative overflow-hidden pt-24 pb-24">
         <div className="absolute top-0 right-0 -z-10 h-[600px] w-[600px] rounded-full bg-gradient-to-br from-primary-100/40 to-secondary-100/40 blur-3xl" />
         <div className="absolute bottom-0 left-0 -z-10 h-[400px] w-[400px] rounded-full bg-gradient-to-tr from-accent-100/30 to-primary-100/30 blur-3xl" />
 
@@ -131,9 +449,9 @@ export default function Home() {
               Trusted by 50,000+ Canadian professionals
             </Badge>
 
-            <h1 className="mb-8 text-5xl font-bold leading-tight text-gray-800 md:text-6xl lg:text-7xl">
+            <h1 className="mb-8 text-5xl font-bold leading-tight text-gray-800 md:text-6xl lg:text-7xl animate-fade-in">
               Your Canadian career{" "}
-              <span className="bg-gradient-to-r from-primary-500 to-secondary-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-primary-500 to-secondary-400 bg-clip-text text-transparent animate-pulse">
                 starts here
               </span>
             </h1>
@@ -218,7 +536,8 @@ export default function Home() {
             ].map((stat, i) => (
               <Card
                 key={i}
-                className="rounded-2xl border-2 border-transparent bg-white p-8 shadow-xl transition-all duration-300 hover:border-primary-200 hover:shadow-2xl"
+                className="rounded-2xl border-2 border-transparent bg-white p-8 shadow-xl transition-all duration-500 hover:border-primary-200 hover:shadow-2xl hover:-translate-y-3 hover:scale-105 animate-fade-in-up"
+                style={{ animationDelay: `${i * 0.1}s` }}
               >
                 <div className="bg-gradient-to-r from-primary-500 to-secondary-400 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
                   {stat.value}
@@ -274,7 +593,8 @@ export default function Home() {
             ].map((item, i) => (
               <Card
                 key={i}
-                className="group rounded-2xl border-2 border-transparent bg-white p-8 shadow-lg transition-all duration-300 hover:border-primary-200 hover:shadow-2xl"
+                className="group rounded-2xl border-2 border-transparent bg-white p-8 shadow-lg transition-all duration-500 hover:border-primary-200 hover:shadow-2xl hover:-translate-y-3 hover:scale-105 animate-fade-in-up"
+                style={{ animationDelay: `${i * 0.15}s` }}
               >
                 <div
                   className={`mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl ${
@@ -367,7 +687,8 @@ export default function Home() {
             ].map((feature, i) => (
               <Card
                 key={i}
-                className="group rounded-2xl border-2 border-transparent bg-white p-8 shadow-lg transition-all duration-300 hover:border-primary-200 hover:shadow-2xl"
+                className="group rounded-2xl border-2 border-transparent bg-white p-8 shadow-lg transition-all duration-500 hover:border-primary-200 hover:shadow-2xl hover:-translate-y-3 hover:scale-105 animate-fade-in-up"
+                style={{ animationDelay: `${i * 0.1}s` }}
               >
                 <div
                   className={`mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl ${
@@ -421,7 +742,8 @@ export default function Home() {
             ].map((item, i) => (
               <Card
                 key={i}
-                className="group overflow-hidden rounded-2xl border-2 border-transparent bg-white shadow-lg transition-all duration-300 hover:border-primary-200 hover:shadow-2xl"
+                className="group overflow-hidden rounded-2xl border-2 border-transparent bg-white shadow-lg transition-all duration-500 hover:border-primary-200 hover:shadow-2xl hover:-translate-y-3 hover:scale-105 animate-fade-in-up"
+                style={{ animationDelay: `${i * 0.2}s` }}
               >
                 <div className="h-48 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
                   <div className="h-32 w-32 rounded-xl bg-gradient-to-br from-primary-100 to-secondary-100 flex items-center justify-center">
@@ -523,7 +845,8 @@ export default function Home() {
             ].map((testimonial, i) => (
               <Card
                 key={i}
-                className="rounded-2xl border-2 border-transparent bg-white p-8 shadow-xl transition-all duration-300 hover:border-primary-200 hover:shadow-2xl"
+                className="rounded-2xl border-2 border-transparent bg-white p-8 shadow-xl transition-all duration-500 hover:border-primary-200 hover:shadow-2xl hover:-translate-y-3 hover:scale-105 animate-fade-in-up"
+                style={{ animationDelay: `${i * 0.25}s` }}
               >
                 <Quote className="mb-6 h-10 w-10 text-primary-200" />
                 <p className="mb-8 text-lg text-gray-600 leading-relaxed">"{testimonial.quote}"</p>
@@ -597,7 +920,8 @@ export default function Home() {
             ].map((job, i) => (
               <Card
                 key={i}
-                className="group cursor-pointer rounded-2xl border-2 border-transparent bg-white p-8 shadow-lg transition-all duration-300 hover:border-primary-200 hover:shadow-2xl"
+                className="group cursor-pointer rounded-2xl border-2 border-transparent bg-white p-8 shadow-lg transition-all duration-500 hover:border-primary-200 hover:shadow-2xl hover:-translate-y-3 hover:scale-105 animate-fade-in-up"
+                style={{ animationDelay: `${i * 0.3}s` }}
               >
                 <div className="mb-6 flex items-start justify-between">
                   <div className="flex items-center gap-4">
