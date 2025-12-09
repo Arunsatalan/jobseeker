@@ -34,6 +34,10 @@ import { useState, useRef, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import SignIn from "@/components/signin"
 import SignUp from "@/components/signup"
+import { MOCK_SOFTWARE_ENGINEER_JOBS } from "@/components/job-search/mockSoftwareEngineerJobs"
+import JobCard from "@/components/job-search/JobCard"
+import { Job } from "@/components/job-search/types"
+
 export default function Home() {
   const [isJobsDropdownOpen,setIsJobsDropdownOpen]= useState(false);
   const [isCareerToolsDropdownOpen, setIsCareerToolsDropdownOpen] = useState(false);
@@ -41,11 +45,48 @@ export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
+  const [jobQuery, setJobQuery] = useState('');
+  const [locationQuery, setLocationQuery] = useState('');
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
+  const [showJobResults, setShowJobResults] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const dropdownRef = useRef(null);
   const careerToolsRef = useRef(null);
   const employersRef = useRef(null);
+
+  const handleSearch = () => {
+    // Filter jobs based on search criteria
+    let results = MOCK_SOFTWARE_ENGINEER_JOBS;
+
+    if (jobQuery.trim()) {
+      results = results.filter(job =>
+        job.title.toLowerCase().includes(jobQuery.toLowerCase()) ||
+        job.company.toLowerCase().includes(jobQuery.toLowerCase()) ||
+        job.description.toLowerCase().includes(jobQuery.toLowerCase())
+      );
+    }
+
+    if (locationQuery.trim()) {
+      results = results.filter(job =>
+        job.location.toLowerCase().includes(locationQuery.toLowerCase())
+      );
+    }
+
+    setFilteredJobs(results);
+    setShowJobResults(true);
+
+    // Scroll to results section
+    setTimeout(() => {
+      document.getElementById('job-results')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -403,6 +444,9 @@ export default function Home() {
                     <input
                       type="text"
                       placeholder="Job title, keyword, or company"
+                      value={jobQuery}
+                      onChange={(e) => setJobQuery(e.target.value)}
+                      onKeyPress={handleKeyPress}
                       className="flex-1 bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none"
                     />
                   </div>
@@ -411,10 +455,16 @@ export default function Home() {
                     <input
                       type="text"
                       placeholder="Toronto, Vancouver, Montreal..."
+                      value={locationQuery}
+                      onChange={(e) => setLocationQuery(e.target.value)}
+                      onKeyPress={handleKeyPress}
                       className="flex-1 bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none"
                     />
                   </div>
-                  <Button className="h-full rounded-xl bg-gradient-to-r from-primary-500 to-secondary-400 px-10 py-4 text-white shadow-lg transition-all duration-300 hover:shadow-xl">
+                  <Button 
+                    onClick={handleSearch}
+                    className="h-full rounded-xl bg-gradient-to-r from-primary-500 to-secondary-400 px-10 py-4 text-white shadow-lg transition-all duration-300 hover:shadow-xl"
+                  >
                     Search Jobs
                   </Button>
                 </div>
@@ -423,6 +473,69 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Job Results Section */}
+      {showJobResults && (
+        <section id="job-results" className="py-16 bg-gray-50">
+          <div className="container mx-auto px-4">
+            <div className="mb-8 flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold text-gray-800">
+                  {filteredJobs.length} Job{filteredJobs.length !== 1 ? 's' : ''} Found
+                </h2>
+                <p className="text-gray-600 mt-2">
+                  {jobQuery && locationQuery
+                    ? `Showing results for "${jobQuery}" in ${locationQuery}`
+                    : jobQuery
+                      ? `Showing results for "${jobQuery}"`
+                      : locationQuery
+                        ? `Showing results in ${locationQuery}`
+                        : 'Showing all available jobs'
+                  }
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => setShowJobResults(false)}
+                className="rounded-full"
+              >
+                Clear Results
+              </Button>
+            </div>
+
+            {filteredJobs.length > 0 ? (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredJobs.map((job) => (
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    isSelected={false}
+                    onClick={() => {}}
+                    onBookmark={() => {}}
+                    onViewDetails={() => setIsSignInOpen(true)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <div className="text-6xl mb-4">🔍</div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">No jobs found</h3>
+                <p className="text-gray-600 mb-6">
+                  Try adjusting your search criteria or browse all available jobs.
+                </p>
+                <Button
+                  onClick={() => {
+                    setFilteredJobs(MOCK_SOFTWARE_ENGINEER_JOBS);
+                  }}
+                  className="rounded-full"
+                >
+                  Show All Jobs
+                </Button>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Trusted By Section */}
       <section className="py-16 bg-white">

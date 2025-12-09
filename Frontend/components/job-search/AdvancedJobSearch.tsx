@@ -1,0 +1,962 @@
+"use client"
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { 
+  useScrollIntoView, 
+  useBodyScrollLock, 
+  useFocusTrap,
+  useScrollPositionMemory,
+  useJobListKeyboardNav 
+} from '@/hooks/useScrollBehavior'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { 
+  Search, 
+  MapPin, 
+  Clock, 
+  Building2, 
+  DollarSign, 
+  X, 
+  Eye, 
+  LogIn,
+  Heart,
+  Share2,
+  ChevronRight,
+  Filter,
+  Sliders,
+  Calendar,
+  Briefcase,
+  Users,
+  Globe,
+  BookmarkIcon,
+  CheckCircle2,
+  AlertCircle,
+  TrendingUp,
+  ArrowRight
+} from 'lucide-react'
+import { MOCK_SOFTWARE_ENGINEER_JOBS } from './mockSoftwareEngineerJobs'
+
+interface Job {
+  id: string
+  title: string
+  company: string
+  companyLogo?: string
+  location: string
+  postedTime: string
+  jobType: 'Full-time' | 'Part-time' | 'Contract' | 'Internship' | 'Temporary'
+  salary?: string
+  description: string
+  fullDescription?: string
+  requirements: string[]
+  benefits: string[]
+  badges: string[]
+  isRemote: boolean
+  hasVisaSupport: boolean
+  isEntryLevel: boolean
+  isNew: boolean
+  applicationInstructions: string
+  isBookmarked?: boolean
+}
+
+interface FilterState {
+  datePosted: string
+  salaryMin: number | null
+  salaryMax: number | null
+  jobType: string[]
+  isRemote: boolean | null
+  visaSupport: boolean | null
+}
+
+interface LocationSuggestion {
+  city: string
+  province: string
+}
+
+const LOCATION_SUGGESTIONS: LocationSuggestion[] = [
+  { city: 'Toronto', province: 'ON' },
+  { city: 'Vancouver', province: 'BC' },
+  { city: 'Montreal', province: 'QC' },
+  { city: 'Calgary', province: 'AB' },
+  { city: 'Edmonton', province: 'AB' },
+  { city: 'Ottawa', province: 'ON' },
+  { city: 'Winnipeg', province: 'MB' },
+  { city: 'Quebec City', province: 'QC' },
+]
+
+const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Temporary']
+
+export default function AdvancedJobSearch() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const jobListRef = useRef<HTMLDivElement>(null)
+  const detailPanelRef = useRef<HTMLDivElement>(null)
+  const jobCardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+
+  // Search State
+  const [jobQuery, setJobQuery] = useState('')
+  const [locationQuery, setLocationQuery] = useState('')
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([])
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false)
+
+  // Jobs State
+  const [allJobs, setAllJobs] = useState<Job[]>(MOCK_SOFTWARE_ENGINEER_JOBS)
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>(MOCK_SOFTWARE_ENGINEER_JOBS.slice(0, 10))
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
+  const [bookmarkedJobs, setBookmarkedJobs] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(false)
+  const [totalResults, setTotalResults] = useState(MOCK_SOFTWARE_ENGINEER_JOBS.length)
+
+  // Filter State
+  const [filters, setFilters] = useState<FilterState>({
+    datePosted: 'all',
+    salaryMin: null,
+    salaryMax: null,
+    jobType: [],
+    isRemote: null,
+    visaSupport: null,
+  })
+  const [showFilters, setShowFilters] = useState(false)
+  const [activeFilterCount, setActiveFilterCount] = useState(0)
+
+  // Analytics
+  const [scrollPosition, setScrollPosition] = useState(0)
+
+  // Hooks for scroll management (AFTER all state declarations)
+  const { saveScrollPosition, restoreScrollPosition } = useScrollPositionMemory('jobListScroll')
+  const detailScrollRef = useScrollIntoView(!!selectedJobId, 50)
+  const { ref: modalRef } = useFocusTrap(false) // Focus trap for future modal implementation
+  
+  // Lock body scroll when needed (future: for mobile modal)
+  useBodyScrollLock(false)
+
+  // Get selected job
+  const selectedJob = selectedJobId 
+    ? allJobs.find(job => job.id === selectedJobId) 
+    : filteredJobs[0] || null
+
+  // Update selected job on page load
+  useEffect(() => {
+    if (filteredJobs.length > 0 && !selectedJobId) {
+      setSelectedJobId(filteredJobs[0].id)
+    }
+  }, [filteredJobs])
+
+  // Keyboard navigation for job list
+  useJobListKeyboardNav(
+    filteredJobs,
+    selectedJobId,
+    (id) => setSelectedJobId(id),
+    true
+  )
+
+  // Initialize from URL params
+  useEffect(() => {
+    const job = searchParams.get('job') || ''
+    const location = searchParams.get('location') || ''
+    
+    setJobQuery(job)
+    setLocationQuery(location)
+
+    if (job || location) {
+      handleSearch(job, location, false)
+    }
+  }, [])
+
+  // Handle location suggestions
+  const handleLocationChange = (value: string) => {
+    setLocationQuery(value)
+    if (value.length > 0) {
+      const suggestions = LOCATION_SUGGESTIONS.filter(loc =>
+        loc.city.toLowerCase().includes(value.toLowerCase()) ||
+        loc.province.toLowerCase().includes(value.toLowerCase())
+      )
+      setLocationSuggestions(suggestions)
+      setShowLocationSuggestions(true)
+    } else {
+      setShowLocationSuggestions(false)
+    }
+  }
+
+  const selectLocationSuggestion = (suggestion: LocationSuggestion) => {
+    setLocationQuery(`${suggestion.city}, ${suggestion.province}`)
+    setShowLocationSuggestions(false)
+  }
+
+  // Advanced filtering logic
+  const applyFilters = useCallback((jobs: Job[], filterState: FilterState): Job[] => {
+    let filtered = jobs
+
+    // Date posted filter
+    if (filterState.datePosted !== 'all') {
+      const now = new Date()
+      filtered = filtered.filter(job => {
+        // Parse "X days ago" format
+        const match = job.postedTime.match(/(\d+)/)
+        if (!match) return true
+        const days = parseInt(match[1])
+        
+        switch (filterState.datePosted) {
+          case '7':
+            return days <= 7
+          case '30':
+            return days <= 30
+          case '90':
+            return days <= 90
+          default:
+            return true
+        }
+      })
+    }
+
+    // Salary filter
+    if (filterState.salaryMin !== null || filterState.salaryMax !== null) {
+      filtered = filtered.filter(job => {
+        if (!job.salary) return false
+        // Parse salary like "$120,000 - $160,000"
+        const match = job.salary.match(/\$?([\d,]+)/g)
+        if (!match || match.length < 1) return false
+        const jobMin = parseInt(match[0].replace(/\$|,/g, ''))
+        const jobMax = match[1] ? parseInt(match[1].replace(/\$|,/g, '')) : jobMin
+
+        if (filterState.salaryMin && jobMin < filterState.salaryMin) return false
+        if (filterState.salaryMax && jobMax > filterState.salaryMax) return false
+        return true
+      })
+    }
+
+    // Job type filter
+    if (filterState.jobType.length > 0) {
+      filtered = filtered.filter(job => filterState.jobType.includes(job.jobType))
+    }
+
+    // Remote filter
+    if (filterState.isRemote !== null) {
+      filtered = filtered.filter(job => job.isRemote === filterState.isRemote)
+    }
+
+    // Visa support filter
+    if (filterState.visaSupport !== null) {
+      filtered = filtered.filter(job => job.hasVisaSupport === filterState.visaSupport)
+    }
+
+    return filtered
+  }, [])
+
+  // Main search handler
+  const handleSearch = useCallback(async (jobQ: string, locationQ: string, updateUrl = true) => {
+    setLoading(true)
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 600))
+
+      let results = MOCK_SOFTWARE_ENGINEER_JOBS
+
+      if (jobQ.trim()) {
+        results = results.filter(job =>
+          job.title.toLowerCase().includes(jobQ.toLowerCase()) ||
+          job.company.toLowerCase().includes(jobQ.toLowerCase()) ||
+          job.description.toLowerCase().includes(jobQ.toLowerCase())
+        )
+      }
+
+      if (locationQ.trim()) {
+        results = results.filter(job =>
+          job.location.toLowerCase().includes(locationQ.toLowerCase())
+        )
+      }
+
+      // Apply filters
+      const filteredResults = applyFilters(results, filters)
+
+      setAllJobs(results)
+      setFilteredJobs(filteredResults)
+      setTotalResults(results.length)
+      setSelectedJobId(null)
+
+      if (updateUrl) {
+        const params = new URLSearchParams()
+        if (jobQ.trim()) params.set('job', jobQ.trim())
+        if (locationQ.trim()) params.set('location', locationQ.trim())
+        const queryString = params.toString()
+        router.push(queryString ? `?${queryString}` : '/', { scroll: false })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [applyFilters, filters, router])
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((newFilters: FilterState) => {
+    setFilters(newFilters)
+
+    const filtered = applyFilters(allJobs, newFilters)
+    setFilteredJobs(filtered)
+
+    // Calculate active filters
+    const activeCount = [
+      newFilters.datePosted !== 'all',
+      newFilters.salaryMin !== null,
+      newFilters.salaryMax !== null,
+      newFilters.jobType.length > 0,
+      newFilters.isRemote !== null,
+      newFilters.visaSupport !== null,
+    ].filter(Boolean).length
+
+    setActiveFilterCount(activeCount)
+  }, [applyFilters, allJobs])
+
+  const handleBookmark = (jobId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setBookmarkedJobs(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(jobId)) {
+        newSet.delete(jobId)
+      } else {
+        newSet.add(jobId)
+      }
+      return newSet
+    })
+  }
+
+  const handleJobSelect = useCallback((jobId: string) => {
+    // Save current scroll position before switching jobs
+    saveScrollPosition()
+    
+    // Update selected job
+    setSelectedJobId(jobId)
+
+    // Scroll detail panel into view on desktop
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      setTimeout(() => {
+        detailPanelRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
+      }, 100)
+    }
+  }, [saveScrollPosition])
+
+  const handleShare = (job: Job, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    if (navigator.share) {
+      navigator.share({
+        title: job.title,
+        text: `Check out this job: ${job.title} at ${job.company}`,
+        url: window.location.href,
+      })
+    }
+  }
+
+  const handleApply = (job: Job) => {
+    router.push('/login')
+  }
+
+  const handleClearFilters = () => {
+    const resetFilters: FilterState = {
+      datePosted: 'all',
+      salaryMin: null,
+      salaryMax: null,
+      jobType: [],
+      isRemote: null,
+      visaSupport: null,
+    }
+    handleFilterChange(resetFilters)
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch(jobQuery, locationQuery)
+    }
+  }
+
+  // Calculate days since posted
+  const getDaysSincePosted = (postedTime: string): number => {
+    const match = postedTime.match(/(\d+)/)
+    return match ? parseInt(match[1]) : 0
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* ==================== SEARCH BAR ==================== */}
+      <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          {/* Logo/Title */}
+          <div className="mb-4">
+            <h1 className="text-3xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Find Your Dream Job in Canada
+            </h1>
+            <p className="text-gray-600 text-sm mt-1">
+              Discover top opportunities tailored to your skills
+            </p>
+          </div>
+
+          {/* Search Inputs */}
+          <div className="flex flex-col md:flex-row gap-3">
+            {/* Job Title Input */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+              <Input
+                placeholder="Job title, keyword, or company"
+                value={jobQuery}
+                onChange={(e) => setJobQuery(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="pl-10 h-12 text-base border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Location Input */}
+            <div className="flex-1 relative">
+              <MapPin className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
+              <Input
+                placeholder="City, Province (e.g., Toronto, ON)"
+                value={locationQuery}
+                onChange={(e) => handleLocationChange(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="pl-10 h-12 text-base border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+
+              {/* Location Suggestions Dropdown */}
+              {showLocationSuggestions && locationSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg mt-1 shadow-lg z-50">
+                  {locationSuggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      onClick={() => selectLocationSuggestion(suggestion)}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <MapPin className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-900">{suggestion.city}</span>
+                      <span className="text-gray-500 text-sm">{suggestion.province}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Search Button */}
+            <Button
+              onClick={() => handleSearch(jobQuery, locationQuery)}
+              disabled={loading}
+              className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 flex items-center gap-2 whitespace-nowrap"
+            >
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                  Searching...
+                </>
+              ) : (
+                <>
+                  <Search className="h-5 w-5" />
+                  Find Jobs
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* ==================== MAIN CONTENT ==================== */}
+      <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-300px)]">
+          
+          {/* ========== LEFT PANEL: JOB LIST ========== */}
+          <div className="lg:col-span-1 flex flex-col">
+            {/* Filter Bar */}
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sliders className="h-5 w-5 text-gray-600" />
+                <span className="text-sm font-semibold text-gray-900">
+                  {filteredJobs.length} Jobs
+                </span>
+                {activeFilterCount > 0 && (
+                  <Badge className="bg-blue-100 text-blue-700 ml-2">
+                    {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setShowFilters(!showFilters)}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  {showFilters ? 'Hide' : 'Show'}
+                </Button>
+                {activeFilterCount > 0 && (
+                  <Button
+                    onClick={handleClearFilters}
+                    variant="ghost"
+                    size="sm"
+                    className="text-blue-600 hover:text-blue-700"
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Expandable Filter Panel */}
+            {showFilters && (
+              <Card className="mb-4 p-4 border-gray-200">
+                <FilterPanel 
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  jobTypes={JOB_TYPES}
+                />
+              </Card>
+            )}
+
+            {/* Results Summary */}
+            <div className="text-xs text-gray-600 mb-4">
+              Showing <span className="font-semibold text-gray-900">{filteredJobs.length}</span> of{' '}
+              <span className="font-semibold text-gray-900">{totalResults}</span> jobs
+            </div>
+
+            {/* Scrollable Job List */}
+            <div
+              ref={jobListRef}
+              className="flex-1 overflow-y-auto pr-2 space-y-3"
+              style={{
+                scrollBehavior: 'smooth',
+              }}
+            >
+              {filteredJobs.length > 0 ? (
+                filteredJobs.map((job) => (
+                  <JobCardItem
+                    key={job.id}
+                    job={job}
+                    isSelected={selectedJobId === job.id}
+                    isBookmarked={bookmarkedJobs.has(job.id)}
+                    onClick={() => handleJobSelect(job.id)}
+                    onBookmark={() => handleBookmark(job.id)}
+                  />
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Search className="h-12 w-12 text-gray-300 mb-4" />
+                  <h3 className="text-gray-900 font-semibold mb-1">No jobs found</h3>
+                  <p className="text-gray-600 text-sm">Try adjusting your filters or search terms</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ========== RIGHT PANEL: JOB DETAIL ========== */}
+          <div 
+            ref={detailPanelRef}
+            className="hidden lg:flex lg:col-span-2 flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+          >
+            {selectedJob ? (
+              <>
+                {/* Detail Header */}
+                <div className="bg-linear-to-r from-blue-50 to-indigo-50 border-b border-gray-200 px-6 py-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h1 className="text-2xl font-bold text-gray-900">
+                          {selectedJob.title}
+                        </h1>
+                        {selectedJob.isNew && (
+                          <Badge className="bg-green-500 text-white text-xs font-bold">
+                            NEW
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-lg text-gray-600">{selectedJob.company}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={(e) => handleBookmark(selectedJob.id, e)}
+                        variant="outline"
+                        size="icon"
+                        className={bookmarkedJobs.has(selectedJob.id) ? 'text-red-500 border-red-500' : ''}
+                      >
+                        <Heart
+                          className={`h-5 w-5 ${bookmarkedJobs.has(selectedJob.id) ? 'fill-red-500' : ''}`}
+                        />
+                      </Button>
+                      <Button
+                        onClick={(e) => handleShare(selectedJob, e)}
+                        variant="outline"
+                        size="icon"
+                      >
+                        <Share2 className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Job Meta Info */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <MapPin className="h-5 w-5 text-gray-400" />
+                      <span>{selectedJob.location}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <Clock className="h-5 w-5 text-gray-400" />
+                      <span>Posted {selectedJob.postedTime}</span>
+                    </div>
+                    {selectedJob.salary && (
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <DollarSign className="h-5 w-5 text-green-500" />
+                        <span className="font-semibold text-green-600">{selectedJob.salary}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{selectedJob.jobType}</Badge>
+                    </div>
+                  </div>
+
+                  {/* Badges */}
+                  {selectedJob.badges.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      {selectedJob.badges.map((badge) => (
+                        <Badge
+                          key={badge}
+                          className="bg-blue-100 text-blue-700 border-blue-200"
+                          variant="outline"
+                        >
+                          {badge}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Detail Content - Scrollable */}
+                <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+                  {/* Job Description */}
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900 mb-3">Job Description</h2>
+                    <p className="text-gray-700 leading-relaxed whitespace-pre-line">
+                      {selectedJob.fullDescription || selectedJob.description}
+                    </p>
+                  </div>
+
+                  {/* Requirements */}
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900 mb-3">Key Requirements</h2>
+                    <ul className="space-y-2">
+                      {selectedJob.requirements.map((req, index) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                          <span className="text-gray-700">{req}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Benefits */}
+                  {selectedJob.benefits && selectedJob.benefits.length > 0 && (
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900 mb-3">Benefits & Perks</h2>
+                      <ul className="space-y-2">
+                        {selectedJob.benefits.map((benefit, index) => (
+                          <li key={index} className="flex items-start gap-3">
+                            <TrendingUp className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                            <span className="text-gray-700">{benefit}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Application Instructions */}
+                  {selectedJob.applicationInstructions && (
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900 mb-3">How to Apply</h2>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <p className="text-gray-700">{selectedJob.applicationInstructions}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Detail Footer - CTA */}
+                <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3">
+                  <Button
+                    onClick={() => handleApply(selectedJob)}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold h-12 rounded-lg flex items-center justify-center gap-2"
+                  >
+                    <LogIn className="h-5 w-5" />
+                    Sign In to Apply
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-12 px-6 rounded-lg"
+                  >
+                    Learn More
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <Eye className="h-16 w-16 text-gray-300 mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-1">Select a job to view details</h3>
+                <p className="text-gray-600">Choose a job from the list to see full details and apply</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ==================== JOB CARD COMPONENT ====================
+interface JobCardItemProps {
+  job: Job
+  isSelected: boolean
+  isBookmarked: boolean
+  onClick: () => void
+  onBookmark: () => void
+}
+
+function JobCardItem({ job, isSelected, isBookmarked, onClick, onBookmark }: JobCardItemProps) {
+  const daysSince = parseInt(job.postedTime.match(/(\d+)/)?.[1] || '0')
+  const isRecent = daysSince <= 3
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  // Scroll card into view when selected (for mobile responsiveness)
+  useEffect(() => {
+    if (isSelected && cardRef.current) {
+      // Small delay to ensure state is updated
+      setTimeout(() => {
+        cardRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+        })
+      }, 50)
+    }
+  }, [isSelected])
+
+  return (
+    <Card
+      ref={cardRef}
+      onClick={onClick}
+      className={`p-4 cursor-pointer transition-all duration-200 border-2 ${
+        isSelected
+          ? 'border-blue-500 bg-blue-50 shadow-md'
+          : 'border-transparent hover:border-gray-300 hover:shadow-md'
+      }`}
+    >
+      <CardContent className="p-0 space-y-3">
+        {/* Title & Badges */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-bold text-gray-900 text-sm line-clamp-2">
+                {job.title}
+              </h3>
+              {isRecent && (
+                <Badge className="bg-green-500 text-white text-xs font-bold shrink-0">
+                  NEW
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-gray-600 line-clamp-1">
+              {job.company}
+            </p>
+          </div>
+          <Button
+            onClick={(e) => {
+              e.stopPropagation()
+              onBookmark()
+            }}
+            variant="ghost"
+            size="sm"
+            className="p-1 shrink-0"
+          >
+            <BookmarkIcon
+              className={`h-5 w-5 ${
+                isBookmarked
+                  ? 'fill-yellow-500 text-yellow-500'
+                  : 'text-gray-400 hover:text-yellow-500'
+              }`}
+            />
+          </Button>
+        </div>
+
+        {/* Location & Job Type */}
+        <div className="flex items-center gap-2 text-xs text-gray-600">
+          <MapPin className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+          <span className="line-clamp-1">{job.location}</span>
+          <span className="text-gray-400">•</span>
+          <Badge variant="outline" className="text-xs py-0">
+            {job.jobType}
+          </Badge>
+        </div>
+
+        {/* Meta Info */}
+        <div className="flex items-center gap-2 text-xs text-gray-600">
+          <Clock className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+          <span>{job.postedTime}</span>
+          {job.salary && (
+            <>
+              <span className="text-gray-400">•</span>
+              <DollarSign className="h-3.5 w-3.5 text-green-500 shrink-0" />
+              <span className="text-green-600 font-semibold line-clamp-1">{job.salary}</span>
+            </>
+          )}
+        </div>
+
+        {/* Badges */}
+        {job.badges.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {job.badges.slice(0, 2).map((badge) => (
+              <Badge
+                key={badge}
+                variant="secondary"
+                className="text-xs bg-gray-100 text-gray-700"
+              >
+                {badge}
+              </Badge>
+            ))}
+            {job.badges.length > 2 && (
+              <Badge variant="outline" className="text-xs text-gray-600">
+                +{job.badges.length - 2}
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Quick Stats */}
+        <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+          {job.isRemote && (
+            <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+              <Globe className="h-3 w-3" />
+              Remote
+            </div>
+          )}
+          {job.hasVisaSupport && (
+            <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+              <Users className="h-3 w-3" />
+              Visa
+            </div>
+          )}
+          {job.isEntryLevel && (
+            <div className="flex items-center gap-1 text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded">
+              <Briefcase className="h-3 w-3" />
+              Entry-Level
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ==================== FILTER PANEL COMPONENT ====================
+interface FilterPanelProps {
+  filters: FilterState
+  onFilterChange: (filters: FilterState) => void
+  jobTypes: string[]
+}
+
+function FilterPanel({ filters, onFilterChange, jobTypes }: FilterPanelProps) {
+  const handleDateChange = (date: string) => {
+    onFilterChange({ ...filters, datePosted: date })
+  }
+
+  const handleJobTypeToggle = (type: string) => {
+    const newTypes = filters.jobType.includes(type)
+      ? filters.jobType.filter(t => t !== type)
+      : [...filters.jobType, type]
+    onFilterChange({ ...filters, jobType: newTypes })
+  }
+
+  const handleRemoteToggle = () => {
+    onFilterChange({
+      ...filters,
+      isRemote: filters.isRemote === true ? null : true,
+    })
+  }
+
+  const handleVisaToggle = () => {
+    onFilterChange({
+      ...filters,
+      visaSupport: filters.visaSupport === true ? null : true,
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Date Posted */}
+      <div>
+        <label className="text-sm font-semibold text-gray-900 mb-2 block">
+          Date Posted
+        </label>
+        <div className="space-y-2">
+          {[
+            { value: 'all', label: 'All Time' },
+            { value: '7', label: 'Last 7 days' },
+            { value: '30', label: 'Last 30 days' },
+            { value: '90', label: 'Last 90 days' },
+          ].map(option => (
+            <button
+              key={option.value}
+              onClick={() => handleDateChange(option.value)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                filters.datePosted === option.value
+                  ? 'bg-blue-100 text-blue-700 font-semibold'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Job Type */}
+      <div>
+        <label className="text-sm font-semibold text-gray-900 mb-2 block">
+          Job Type
+        </label>
+        <div className="space-y-2">
+          {jobTypes.map(type => (
+            <label key={type} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.jobType.includes(type)}
+                onChange={() => handleJobTypeToggle(type)}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm text-gray-700">{type}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Remote */}
+      <div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filters.isRemote === true}
+            onChange={handleRemoteToggle}
+            className="rounded border-gray-300"
+          />
+          <span className="text-sm font-semibold text-gray-700">Remote Only</span>
+        </label>
+      </div>
+
+      {/* Visa Support */}
+      <div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={filters.visaSupport === true}
+            onChange={handleVisaToggle}
+            className="rounded border-gray-300"
+          />
+          <span className="text-sm font-semibold text-gray-700">Visa Support</span>
+        </label>
+      </div>
+    </div>
+  )
+}

@@ -17,6 +17,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface SignInProps {
   onClose?: () => void
@@ -24,6 +25,7 @@ interface SignInProps {
 }
 
 export default function SignIn({ onClose, onSwitchToSignUp }: SignInProps) {
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -37,6 +39,8 @@ export default function SignIn({ onClose, onSwitchToSignUp }: SignInProps) {
     await new Promise(resolve => setTimeout(resolve, 2000))
     setIsLoading(false)
     // Handle sign in logic here
+    // Navigate to home page after successful login
+    router.push('/')
   }
 
   const handleSocialLogin = (provider: string) => {
@@ -45,7 +49,7 @@ export default function SignIn({ onClose, onSwitchToSignUp }: SignInProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <Card className="relative w-full max-w-md mx-4 rounded-3xl border-0 bg-white/95 backdrop-blur-2xl shadow-2xl p-8 animate-fade-in-up">
         {onClose && (
           <button
@@ -57,7 +61,7 @@ export default function SignIn({ onClose, onSwitchToSignUp }: SignInProps) {
         )}
 
         <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-r from-primary-500 to-secondary-400 mb-4">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-r from-primary-500 to-secondary-400 mb-4">
             <Sparkles className="h-8 w-8 text-white" />
           </div>
           <h2 className="text-3xl font-bold text-gray-800 mb-2">Welcome Back</h2>
@@ -129,7 +133,7 @@ export default function SignIn({ onClose, onSwitchToSignUp }: SignInProps) {
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full h-12 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-400 text-white font-semibold shadow-lg shadow-primary-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/30 hover:scale-105"
+            className="w-full h-12 rounded-xl bg-linear-to-r from-primary-500 to-secondary-400 text-white font-semibold shadow-lg shadow-primary-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/30 hover:scale-105"
           >
             {isLoading ? (
               <div className="flex items-center space-x-2">
