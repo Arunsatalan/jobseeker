@@ -32,12 +32,15 @@ import {
 } from "lucide-react"
 import { useState, useRef, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
+import SignIn from "@/components/signin"
+import SignUp from "@/components/signup"
 export default function Home() {
   const [isJobsDropdownOpen,setIsJobsDropdownOpen]= useState(false);
   const [isCareerToolsDropdownOpen, setIsCareerToolsDropdownOpen] = useState(false);
   const [isEmployersDropdownOpen, setIsEmployersDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSignInOpen, setIsSignInOpen] = useState(false);
+  const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const dropdownRef = useRef(null);
@@ -102,115 +105,17 @@ export default function Home() {
   ]
   return (
     <div className="min-h-screen bg-gradient-to-br from-secondary-50 via-white to-accent-50">
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-40 w-64 bg-white/95 backdrop-blur-2xl border-r border-white/20 shadow-2xl transform transition-transform duration-300 ease-in-out ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } hidden lg:block`}>
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-8">
-            <span className="text-xl font-bold text-gray-800">Menu</span>
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="p-2 rounded-lg text-gray-600 hover:text-primary-500 hover:bg-primary-50"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <nav className="space-y-4">
-            <div>
-              <button
-                onClick={() => setIsJobsDropdownOpen(!isJobsDropdownOpen)}
-                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-left text-gray-600 hover:text-primary-500 hover:bg-primary-50"
-              >
-                <Search className="h-4 w-4" />
-                Find Jobs
-                <ChevronDown className="h-4 w-4 ml-auto" />
-              </button>
-              {isJobsDropdownOpen && (
-                <div className="ml-6 mt-2 space-y-1">
-                  {jobSubmenuItems.map((item, index) => (
-                    <Link
-                      key={index}
-                      href={item.href}
-                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-primary-50"
-                      onClick={() => setIsSidebarOpen(false)}
-                    >
-                      <span className="text-lg">{item.emoji}</span>
-                      <div className="text-sm">{item.title}</div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div>
-              <button
-                onClick={() => setIsCareerToolsDropdownOpen(!isCareerToolsDropdownOpen)}
-                className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-left text-gray-600 hover:text-primary-500 hover:bg-primary-50"
-              >
-                <Wrench className="h-4 w-4" />
-                Career Tools
-                <ChevronDown className="h-4 w-4 ml-auto" />
-              </button>
-              {isCareerToolsDropdownOpen && (
-                <div className="ml-6 mt-2 space-y-1">
-                  {careerToolsSubmenuItems.map((item, index) => (
-                    <Link
-                      key={index}
-                      href={item.href}
-                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-primary-50"
-                      onClick={() => setIsSidebarOpen(false)}
-                    >
-                      <span className="text-lg">{item.emoji}</span>
-                      <div className="text-sm">{item.title}</div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-            <Link
-              href="/employers"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:text-primary-500 hover:bg-primary-50"
-              onClick={() => setIsSidebarOpen(false)}
-            >
-              <Building2 className="h-4 w-4" />
-              For Employers
-            </Link>
-            <Link
-              href="/resources"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-600 hover:text-primary-500 hover:bg-primary-50"
-              onClick={() => setIsSidebarOpen(false)}
-            >
-              <BookOpen className="h-4 w-4" />
-              Resources
-            </Link>
-          </nav>
-        </div>
-      </div>
-
-      {/* Overlay for sidebar */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/20 z-30 hidden lg:block"
-          onClick={() => setIsSidebarOpen(false)}
-        ></div>
-      )}
 
       {/* Navigation */}
         <nav className="fixed top-0 left-0 right-0 z-50 bg-white/50 backdrop-blur-2xl">
         <div className="container mx-auto px-4">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="hidden lg:block p-2 rounded-lg text-gray-600 hover:text-primary-500 hover:bg-primary-50 transition-all duration-200"
-              >
-                {isSidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-              </button>
               <Link href="/" className="flex items-center gap-2.5">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-r from-primary-500 to-secondary-400">
                   <Briefcase className="h-5 w-5 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-gray-800">CanadaJobs</span>
+                <span className="hidden md:block text-2xl font-bold text-gray-800">CanadaJobs</span>
               </Link>
               <div className="hidden items-center gap-10 xl:flex">
                 <div className="relative">
@@ -320,7 +225,7 @@ export default function Home() {
               </div>
             </div>
             {isMobileMenuOpen && (
-              <div className="lg:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-2xl border-t border-white/20 shadow-2xl animate-fade-in">
+              <div className="xl:hidden absolute top-full left-0 right-0 bg-white/95 backdrop-blur-2xl border-t border-white/20 shadow-2xl animate-fade-in">
                 <div className="container mx-auto px-4 py-4 space-y-4">
                   <div className="space-y-2">
                     <button
@@ -406,7 +311,14 @@ export default function Home() {
                     Resources
                   </Link>
                   <div className="pt-4 border-t border-gray-200 space-y-2">
-                    <Button variant="ghost" className="w-full justify-start text-gray-600 hover:text-primary-500 hover:bg-primary-50">
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setIsSignInOpen(true)
+                        setIsMobileMenuOpen(false)
+                      }}
+                      className="w-full justify-start text-gray-600 hover:text-primary-500 hover:bg-primary-50"
+                    >
                       Sign In
                     </Button>
                     <Button className="w-full rounded-full bg-gradient-to-r from-primary-500 to-secondary-400 text-white shadow-lg transition-all duration-300 hover:shadow-xl">
@@ -419,12 +331,16 @@ export default function Home() {
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-2 rounded-lg text-gray-600 hover:text-primary-500 hover:bg-primary-50 transition-all duration-200"
+                className="xl:hidden p-2 rounded-lg text-gray-600 hover:text-primary-500 hover:bg-primary-50 transition-all duration-200"
               >
                 {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
-              <div className="hidden md:flex items-center gap-4">
-                <Button variant="ghost" className="text-gray-600 hover:text-primary-500 hover:bg-primary-50">
+              <div className="hidden xl:flex items-center gap-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsSignInOpen(true)}
+                  className="text-gray-600 hover:text-primary-500 hover:bg-primary-50"
+                >
                   Sign In
                 </Button>
                 <Button className="rounded-full bg-gradient-to-r from-primary-500 to-secondary-400 px-6 text-white shadow-lg shadow-primary-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/30">
@@ -1099,6 +1015,8 @@ export default function Home() {
           </div>
         </div>
       </footer>
+      {isSignInOpen && <SignIn onClose={() => setIsSignInOpen(false)} onSwitchToSignUp={() => { setIsSignInOpen(false); setIsSignUpOpen(true); }} />}
+      {isSignUpOpen && <SignUp onClose={() => setIsSignUpOpen(false)} onSwitchToSignIn={() => { setIsSignUpOpen(false); setIsSignInOpen(true); }} />}
     </div>
   )
 }
