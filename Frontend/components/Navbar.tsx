@@ -54,10 +54,10 @@ export default function Navbar({ savedJobsCount = 0, notificationCount = 0 }: Na
           
           {/* ===== LEFT: LOGO ===== */}
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-linear-to-br from-blue-600 to-indigo-600 group-hover:shadow-lg transition-shadow">
+            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-linear-to-br from-slate-700 to-amber-900 group-hover:shadow-lg transition-shadow">
               <Briefcase className="h-6 w-6 text-white" />
             </div>
-            <span className="text-xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent hidden sm:inline">
+            <span className="text-xl font-bold bg-linear-to-r from-slate-800 to-amber-900 bg-clip-text text-transparent hidden sm:inline">
               CanadaJobs
             </span>
           </Link>
@@ -103,7 +103,7 @@ export default function Navbar({ savedJobsCount = 0, notificationCount = 0 }: Na
               title="Messages"
             >
               <MessageCircle className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-2 w-2 bg-green-500 rounded-full"></span>
+              <span className="absolute top-1 right-1 h-2 w-2 bg-amber-700 rounded-full"></span>
             </button>
 
             {/* Notifications Button */}
@@ -126,7 +126,7 @@ export default function Navbar({ savedJobsCount = 0, notificationCount = 0 }: Na
                 className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors group"
                 title="User menu"
               >
-                <div className="h-8 w-8 bg-linear-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-semibold">
+                <div className="h-8 w-8 bg-linear-to-br from-slate-600 to-amber-800 rounded-full flex items-center justify-center text-white font-semibold">
                   AK
                 </div>
                 <ChevronDown
@@ -153,9 +153,9 @@ export default function Navbar({ savedJobsCount = 0, notificationCount = 0 }: Na
                     <Link
                       href="/resume"
                       onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-blue-50 transition-colors"
+                      className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-slate-50 transition-colors"
                     >
-                      <FileText className="h-4 w-4 text-blue-600" />
+                      <FileText className="h-4 w-4 text-slate-700" />
                       <div>
                         <p className="text-sm font-medium">Resume</p>
                         <p className="text-xs text-gray-600">Manage your resume</p>
@@ -205,14 +205,14 @@ export default function Navbar({ savedJobsCount = 0, notificationCount = 0 }: Na
                     <Link
                       href="/my-plan"
                       onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-green-50 transition-colors"
+                      className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-amber-50 transition-colors"
                     >
-                      <div className="h-4 w-4 rounded border-2 border-green-600 flex items-center justify-center">
-                        <div className="h-1.5 w-1.5 bg-green-600 rounded-full"></div>
+                      <div className="h-4 w-4 rounded border-2 border-amber-700 flex items-center justify-center">
+                        <div className="h-1.5 w-1.5 bg-amber-700 rounded-full"></div>
                       </div>
                       <div>
                         <p className="text-sm font-medium">My Plan</p>
-                        <p className="text-xs text-green-600 font-semibold">Premium</p>
+                        <p className="text-xs text-amber-700 font-semibold">Premium</p>
                       </div>
                     </Link>
                   </div>

@@ -77,7 +77,7 @@ export default function ResponsiveJobSearch() {
                       <p className="text-gray-600">
                         <span className="font-semibold">Posted:</span> {mobileSelectedJob.postedTime}
                       </p>
-                      <p className="text-green-600 font-semibold">
+                      <p className="text-amber-700 font-semibold">
                         {mobileSelectedJob.salary}
                       </p>
                     </div>
@@ -100,7 +100,7 @@ export default function ResponsiveJobSearch() {
                       <ul className="space-y-2">
                         {mobileSelectedJob.requirements?.map((req: string, idx: number) => (
                           <li key={idx} className="flex items-start gap-2">
-                            <span className="text-green-500 font-bold">✓</span>
+                            <span className="text-amber-700 font-bold">✓</span>
                             <span className="text-gray-700">{req}</span>
                           </li>
                         ))}
@@ -108,7 +108,7 @@ export default function ResponsiveJobSearch() {
                     </div>
 
                     {/* CTA */}
-                    <Button className="w-full bg-green-600 hover:bg-green-700 h-12 text-base font-semibold">
+                    <Button className="w-full bg-amber-700 hover:bg-amber-800 h-12 text-base font-semibold">
                       Sign In to Apply
                     </Button>
                   </div>

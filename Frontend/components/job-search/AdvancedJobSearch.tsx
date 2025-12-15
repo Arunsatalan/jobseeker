@@ -418,7 +418,7 @@ export default function AdvancedJobSearch() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           {/* Logo/Title */}
           <div className="mb-4">
-            <h1 className="text-3xl font-bold bg-linear-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold bg-linear-to-r from-slate-800 to-amber-900 bg-clip-text text-transparent">
               Find Your Dream Job in Canada
             </h1>
             <p className="text-gray-600 text-sm mt-1">
@@ -436,7 +436,7 @@ export default function AdvancedJobSearch() {
                 value={jobQuery}
                 onChange={(e) => setJobQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="pl-10 h-12 text-base border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="pl-10 h-12 text-base border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-700 focus:border-transparent"
               />
             </div>
 
@@ -448,7 +448,7 @@ export default function AdvancedJobSearch() {
                 value={locationQuery}
                 onChange={(e) => handleLocationChange(e.target.value)}
                 onKeyPress={handleKeyPress}
-                className="pl-10 h-12 text-base border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="pl-10 h-12 text-base border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-700 focus:border-transparent"
               />
 
               {/* Location Suggestions Dropdown */}
@@ -473,7 +473,7 @@ export default function AdvancedJobSearch() {
             <Button
               onClick={() => handleSearch(jobQuery, locationQuery)}
               disabled={loading}
-              className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 flex items-center gap-2 whitespace-nowrap"
+              className="h-12 px-8 bg-slate-700 hover:bg-slate-800 text-white font-semibold rounded-lg transition-all duration-200 flex items-center gap-2 whitespace-nowrap"
             >
               {loading ? (
                 <>
@@ -504,7 +504,7 @@ export default function AdvancedJobSearch() {
                 {filteredJobs.length} Jobs
               </span>
               {activeFilterCount > 0 && (
-                <Badge className="bg-blue-100 text-blue-700 animate-pulse ml-2 shrink-0">
+                <Badge className="bg-slate-100 text-slate-700 animate-pulse ml-2 shrink-0">
                   {activeFilterCount}
                 </Badge>
               )}
@@ -517,11 +517,11 @@ export default function AdvancedJobSearch() {
                 onClick={() => setShowSavedJobs(!showSavedJobs)}
                 aria-expanded={showSavedJobs}
                 aria-controls="saved-jobs-panel"
-                className="flex items-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                className="flex items-center gap-2 px-4 py-3 bg-amber-700 hover:bg-amber-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
               >
                 <Heart className={`h-5 w-5 ${savedJobs.length > 0 ? 'fill-white' : ''}`} />
                 {savedJobs.length > 0 && (
-                  <span className="bg-white text-green-600 text-xs font-bold rounded-full px-2 py-0.5">
+                  <span className="bg-white text-amber-700 text-xs font-bold rounded-full px-2 py-0.5">
                     {savedJobs.length}
                   </span>
                 )}
@@ -532,7 +532,7 @@ export default function AdvancedJobSearch() {
                 onClick={() => setShowFilters(!showFilters)}
                 aria-expanded={showFilters}
                 aria-controls="filter-panel"
-                className="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
               >
                 <Sliders className="h-5 w-5" />
                 <ChevronDown
@@ -554,7 +554,7 @@ export default function AdvancedJobSearch() {
 
                 {/* Filter Panel Modal - Right Side Below Header */}
                 <div className="fixed top-48 right-6 z-30 w-96 max-h-[calc(100vh-200px)] overflow-y-auto animate-in fade-in slide-in-from-right-4 duration-300">
-                  <Card className="p-6 border-l-4 border-l-blue-500 border-gray-200 bg-white shadow-2xl">
+                  <Card className="p-6 border-l-4 border-l-slate-700 border-gray-200 bg-white shadow-2xl">
                     {/* Header with Close Button */}
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-bold text-gray-900">Filter Jobs</h2>
@@ -570,7 +570,7 @@ export default function AdvancedJobSearch() {
                     <div className="space-y-4">
                       {/* Live Preview Counter */}
                       {activeFilterCount > 0 && (
-                        <div className="bg-blue-100 text-blue-900 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+                        <div className="bg-slate-100 text-slate-900 px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
                           <span>✓ {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active</span>
                         </div>
                       )}
@@ -617,11 +617,11 @@ export default function AdvancedJobSearch() {
 
                 {/* Saved Jobs Panel - Right Side */}
                 <div className="fixed top-48 right-6 z-30 w-96 max-h-[calc(100vh-200px)] overflow-y-auto animate-in fade-in slide-in-from-right-4 duration-300">
-                  <Card className="p-6 border-l-4 border-l-green-500 border-gray-200 bg-white shadow-2xl">
+                  <Card className="p-6 border-l-4 border-l-amber-700 border-gray-200 bg-white shadow-2xl">
                     {/* Header with Close Button */}
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <Heart className="h-6 w-6 text-green-600" />
+                        <Heart className="h-6 w-6 text-amber-700" />
                         Schedule ({savedJobs.length})
                       </h2>
                       <button
@@ -676,7 +676,7 @@ export default function AdvancedJobSearch() {
                               </div>
 
                               {job.salary && (
-                                <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
+                                <div className="flex items-center gap-1 text-xs text-amber-700 mt-1">
                                   <DollarSign className="h-3.5 w-3.5" />
                                   <span className="font-semibold">{job.salary}</span>
                                 </div>
@@ -764,7 +764,7 @@ export default function AdvancedJobSearch() {
             {selectedJob ? (
               <>
                 {/* Detail Header */}
-                <div className="bg-linear-to-r from-blue-50 to-indigo-50 border-b border-gray-200 px-6 py-6">
+                <div className="bg-linear-to-r from-slate-50 to-amber-50 border-b border-gray-200 px-6 py-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <div className="flex items-center gap-2 mb-2">
@@ -772,7 +772,7 @@ export default function AdvancedJobSearch() {
                           {selectedJob.title}
                         </h1>
                         {selectedJob.isNew && (
-                          <Badge className="bg-green-500 text-white text-xs font-bold">
+                          <Badge className="bg-amber-700 text-white text-xs font-bold">
                             NEW
                           </Badge>
                         )}
@@ -812,8 +812,8 @@ export default function AdvancedJobSearch() {
                     </div>
                     {selectedJob.salary && (
                       <div className="flex items-center gap-2 text-gray-600">
-                        <DollarSign className="h-5 w-5 text-green-500" />
-                        <span className="font-semibold text-green-600">{selectedJob.salary}</span>
+                        <DollarSign className="h-5 w-5 text-amber-700" />
+                        <span className="font-semibold text-amber-700">{selectedJob.salary}</span>
                       </div>
                     )}
                     <div className="flex items-center gap-2">
@@ -827,7 +827,7 @@ export default function AdvancedJobSearch() {
                       {selectedJob.badges.map((badge) => (
                         <Badge
                           key={badge}
-                          className="bg-blue-100 text-blue-700 border-blue-200"
+                          className="bg-slate-100 text-slate-700 border-slate-200"
                           variant="outline"
                         >
                           {badge}
@@ -853,7 +853,7 @@ export default function AdvancedJobSearch() {
                     <ul className="space-y-2">
                       {selectedJob.requirements.map((req, index) => (
                         <li key={index} className="flex items-start gap-3">
-                          <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                          <CheckCircle2 className="h-5 w-5 text-amber-700 shrink-0 mt-0.5" />
                           <span className="text-gray-700">{req}</span>
                         </li>
                       ))}
@@ -867,7 +867,7 @@ export default function AdvancedJobSearch() {
                       <ul className="space-y-2">
                         {selectedJob.benefits.map((benefit, index) => (
                           <li key={index} className="flex items-start gap-3">
-                            <TrendingUp className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                            <TrendingUp className="h-5 w-5 text-slate-700 shrink-0 mt-0.5" />
                             <span className="text-gray-700">{benefit}</span>
                           </li>
                         ))}
@@ -879,7 +879,7 @@ export default function AdvancedJobSearch() {
                   {selectedJob.applicationInstructions && (
                     <div>
                       <h2 className="text-lg font-bold text-gray-900 mb-3">How to Apply</h2>
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                         <p className="text-gray-700">{selectedJob.applicationInstructions}</p>
                       </div>
                     </div>
@@ -890,7 +890,7 @@ export default function AdvancedJobSearch() {
                 <div className="bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-3">
                   <Button
                     onClick={() => handleApply(selectedJob)}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold h-12 rounded-lg flex items-center justify-center gap-2"
+                    className="flex-1 bg-amber-700 hover:bg-amber-800 text-white font-semibold h-12 rounded-lg flex items-center justify-center gap-2"
                   >
                     <LogIn className="h-5 w-5" />
                     Sign In to Apply
@@ -950,7 +950,7 @@ function JobCardItem({ job, isSelected, isBookmarked, onClick, onBookmark }: Job
       onClick={onClick}
       className={`p-4 cursor-pointer transition-all duration-200 border-2 ${
         isSelected
-          ? 'border-blue-500 bg-blue-50 shadow-md'
+          ? 'border-slate-700 bg-slate-50 shadow-md'
           : 'border-transparent hover:border-gray-300 hover:shadow-md'
       }`}
     >
@@ -963,7 +963,7 @@ function JobCardItem({ job, isSelected, isBookmarked, onClick, onBookmark }: Job
                 {job.title}
               </h3>
               {isRecent && (
-                <Badge className="bg-green-500 text-white text-xs font-bold shrink-0">
+                <Badge className="bg-amber-700 text-white text-xs font-bold shrink-0">
                   NEW
                 </Badge>
               )}
@@ -1008,8 +1008,8 @@ function JobCardItem({ job, isSelected, isBookmarked, onClick, onBookmark }: Job
           {job.salary && (
             <>
               <span className="text-gray-400">•</span>
-              <DollarSign className="h-3.5 w-3.5 text-green-500 shrink-0" />
-              <span className="text-green-600 font-semibold line-clamp-1">{job.salary}</span>
+              <DollarSign className="h-3.5 w-3.5 text-amber-700 shrink-0" />
+              <span className="text-amber-700 font-semibold line-clamp-1">{job.salary}</span>
             </>
           )}
         </div>
@@ -1037,13 +1037,13 @@ function JobCardItem({ job, isSelected, isBookmarked, onClick, onBookmark }: Job
         {/* Quick Stats */}
         <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
           {job.isRemote && (
-            <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+            <div className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">
               <Globe className="h-3 w-3" />
               Remote
             </div>
           )}
           {job.hasVisaSupport && (
-            <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+            <div className="flex items-center gap-1 text-xs text-slate-700 bg-slate-50 px-2 py-1 rounded">
               <Users className="h-3 w-3" />
               Visa
             </div>
@@ -1112,7 +1112,7 @@ function FilterPanel({ filters, onFilterChange, jobTypes }: FilterPanelProps) {
               onClick={() => handleDateChange(option.value)}
               className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                 filters.datePosted === option.value
-                  ? 'bg-blue-100 text-blue-700 font-semibold'
+                  ? 'bg-slate-100 text-slate-700 font-semibold'
                   : 'text-gray-700 hover:bg-gray-100'
               }`}
             >

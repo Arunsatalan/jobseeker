@@ -400,75 +400,93 @@ export default function Home() {
         <div className="absolute bottom-0 left-0 -z-10 h-[400px] w-[400px] rounded-full bg-gradient-to-tr from-accent-100/30 to-primary-100/30 blur-3xl" />
 
         <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-5xl text-center">
-            <Badge className="mb-6 rounded-full border-2 border-primary-200 bg-primary-50 px-4 py-2 text-primary-500 hover:bg-primary-100">
-              <Sparkles className="mr-2 h-4 w-4" />
-              Trusted by 50,000+ Canadian professionals
-            </Badge>
-
-            <h1 className="mb-8 text-5xl font-bold leading-tight text-gray-800 md:text-6xl lg:text-7xl animate-fade-in">
-              Your Canadian career{" "}
-              <span className="bg-gradient-to-r from-primary-500 to-secondary-400 bg-clip-text text-transparent animate-pulse">
-                starts here
-              </span>
-            </h1>
-
-            <p className="mx-auto mb-12 max-w-3xl text-xl leading-relaxed text-gray-600">
-              Connect with top Canadian employers. Build your future with AI-powered tools, personalized job matches,
-              and newcomer-friendly opportunities designed for your success.
-            </p>
-
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Button
-                size="lg"
-                className="h-14 rounded-full bg-gradient-to-r from-primary-500 to-secondary-400 px-10 text-lg text-white shadow-xl shadow-primary-500/25 transition-all duration-300 hover:shadow-2xl hover:shadow-primary-500/30"
-              >
-                Find Your Dream Job
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-14 rounded-full border-2 border-primary-500 px-10 text-lg text-primary-500 transition-all duration-300 hover:bg-primary-50 bg-transparent"
-              >
-                For Employers
-              </Button>
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16 items-center">
+            {/* Left side - Image */}
+            <div className="order-2 lg:order-1">
+              <div className="relative">
+                <img
+                  src="/ChatGPT%20Image%20Dec%2012%2C%202025%2C%2010_22_45%20PM.png"
+                  alt="CanadaJobs Platform Preview"
+                  className="w-full h-auto rounded-2xl shadow-2xl"
+                />
+                <div className="absolute inset-0 bg-gradient-to-tr from-primary-500/10 to-secondary-400/10 rounded-2xl"></div>
+              </div>
             </div>
 
-            {/* Search Bar */}
-            <div className="mt-16">
-              <Card className="rounded-2xl border-0 bg-white p-3 shadow-2xl">
-                <div className="flex flex-col gap-3 md:flex-row">
-                  <div className="flex flex-1 items-center gap-3 rounded-xl bg-gray-50 px-5 py-4">
-                    <Search className="h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Job title, keyword, or company"
-                      value={jobQuery}
-                      onChange={(e) => setJobQuery(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      className="flex-1 bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none"
-                    />
+            {/* Right side - Content */}
+            <div className="order-1 lg:order-2 text-center lg:text-left">
+              <Badge className="mb-6 rounded-full border-2 border-primary-200 bg-primary-50 px-4 py-2 text-primary-500 hover:bg-primary-100">
+                <Sparkles className="mr-2 h-4 w-4" />
+                Trusted by 50,000+ Canadian professionals
+              </Badge>
+
+              <h1 className="mb-8 text-4xl font-bold leading-tight text-gray-800 md:text-5xl lg:text-6xl animate-fade-in">
+                Where Canada Hires.
+                <br />
+                <span className="bg-gradient-to-r from-primary-500 to-secondary-400 bg-clip-text text-transparent animate-pulse">
+                  Where You Belong starts
+                </span>
+                <br />
+               
+              </h1>
+
+              <p className="mx-auto mb-12 max-w-3xl text-xl leading-relaxed text-gray-600 lg:mx-0">
+                Connect with top Canadian employers. Build your future with AI-powered tools, personalized job matches,
+                and newcomer-friendly opportunities designed for your success.
+              </p>
+
+              <div className="flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
+                <Button
+                  size="lg"
+                  className="h-14 rounded-full bg-gradient-to-r from-primary-500 to-secondary-400 px-10 text-lg text-white shadow-xl shadow-primary-500/25 transition-all duration-300 hover:shadow-2xl hover:shadow-primary-500/30"
+                >
+                  Find Your Dream Job
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-14 rounded-full border-2 border-primary-500 px-10 text-lg text-primary-500 transition-all duration-300 hover:bg-primary-50 bg-transparent"
+                >
+                  For Employers
+                </Button>
+              </div>
+
+              {/* Search Bar */}
+              {/* <div className="mt-16">
+                <Card className="rounded-2xl border-0 bg-white p-3 shadow-2xl">
+                  <div className="flex flex-col gap-3 md:flex-row">
+                    <div className="flex flex-1 items-center gap-3 rounded-xl bg-gray-50 px-5 py-4">
+                      <Search className="h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Job title, keyword, or company"
+                        value={jobQuery}
+                        onChange={(e) => setJobQuery(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        className="flex-1 bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none"
+                      />
+                    </div>
+                    <div className="flex flex-1 items-center gap-3 rounded-xl bg-gray-50 px-5 py-4">
+                      <MapPin className="h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Toronto, Vancouver, Montreal..."
+                        value={locationQuery}
+                        onChange={(e) => setLocationQuery(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        className="flex-1 bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none"
+                      />
+                    </div>
+                    <Button
+                      onClick={handleSearch}
+                      className="h-full rounded-xl bg-gradient-to-r from-primary-500 to-secondary-400 px-10 py-4 text-white shadow-lg transition-all duration-300 hover:shadow-xl"
+                    >
+                      Search Jobs
+                    </Button>
                   </div>
-                  <div className="flex flex-1 items-center gap-3 rounded-xl bg-gray-50 px-5 py-4">
-                    <MapPin className="h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Toronto, Vancouver, Montreal..."
-                      value={locationQuery}
-                      onChange={(e) => setLocationQuery(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      className="flex-1 bg-transparent text-gray-800 placeholder:text-gray-400 focus:outline-none"
-                    />
-                  </div>
-                  <Button 
-                    onClick={handleSearch}
-                    className="h-full rounded-xl bg-gradient-to-r from-primary-500 to-secondary-400 px-10 py-4 text-white shadow-lg transition-all duration-300 hover:shadow-xl"
-                  >
-                    Search Jobs
-                  </Button>
-                </div>
-              </Card>
+                </Card>
+              </div> */}
             </div>
           </div>
         </div>
