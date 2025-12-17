@@ -384,9 +384,12 @@ export default function Home() {
                 >
                   Sign In
                 </Button>
+                <Link href="/jobs">
+ 
                 <Button className="rounded-full bg-gradient-to-r from-primary-500 to-secondary-400 px-6 text-white shadow-lg shadow-primary-500/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/30">
                   Get Started
                 </Button>
+                </Link>
               </div>
             </div>
           </div>
@@ -443,13 +446,15 @@ export default function Home() {
                   Find Your Dream Job
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-14 rounded-full border-2 border-primary-500 px-10 text-lg text-primary-500 transition-all duration-300 hover:bg-primary-50 bg-transparent"
-                >
-                  For Employers
-                </Button>
+              <Link href="/jobs">
+  <Button
+    size="lg"
+    variant="outline"
+    className="h-14 rounded-full border-2 border-primary-500 px-10 text-lg text-primary-500 transition-all duration-300 hover:bg-primary-50"
+  >
+    For Employers
+  </Button>
+</Link>
               </div>
 
               {/* Search Bar */}
