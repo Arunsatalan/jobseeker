@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Briefcase,
@@ -29,6 +29,7 @@ export default function Navbar({
   notificationCount = 0,
 }: NavbarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -69,34 +70,39 @@ export default function Navbar({
 
           {/* ===== CENTER: NAVIGATION MENU ===== */}
           <div className="hidden md:flex items-center gap-1">
-            <Link
-              href="/jobs"
-              className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors flex items-center gap-2"
-            >
-              <Briefcase className="h-4 w-4" />
-              Jobs
-            </Link>
+            {pathname === "profile" && (
+              <>
+                <Link
+                  href="/jobs"
+                  className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors flex items-center gap-2"
+                >
+                  <Briefcase className="h-4 w-4" />
+                  Jobs
+                </Link>
+                <Link
+                  href="/saved"
+                  className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors flex items-center gap-2 relative"
+                >
+                  <Heart className="h-4 w-4" />
+                  Schedule
+                  {savedJobsCount > 0 && (
+                    <span className="absolute top-1 right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      {savedJobsCount > 9 ? "9+" : savedJobsCount}
+                    </span>
+                  )}
+                </Link>
 
-            <Link
-              href="/saved"
-              className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors flex items-center gap-2 relative"
-            >
-              <Heart className="h-4 w-4" />
-              Schedule
-              {savedJobsCount > 0 && (
-                <span className="absolute top-1 right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {savedJobsCount > 9 ? "9+" : savedJobsCount}
-                </span>
-              )}
-            </Link>
+                <Link
+                  href="/applications"
+                  className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors flex items-center gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Applications
+                </Link>
+              </>
+            )}
 
-            <Link
-              href="/applications"
-              className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors flex items-center gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              Applications
-            </Link>
+           
           </div>
 
           {/* ===== RIGHT: ACTION BUTTONS ===== */}
