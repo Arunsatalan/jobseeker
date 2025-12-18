@@ -1,0 +1,735 @@
+"use client";
+
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Briefcase,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  CheckCircle,
+  XCircle,
+  Clock,
+  MapPin,
+  Calendar,
+  Building2,
+  Star,
+  TrendingUp,
+  AlertTriangle,
+  Ban,
+  PlayCircle,
+  PauseCircle,
+  Tag,
+  Download,
+  Upload,
+  Settings,
+} from "lucide-react";
+
+// Mock data for jobs
+const mockJobs = [
+  {
+    id: "1",
+    title: "Senior Full Stack Developer",
+    company: "TechCorp Solutions",
+    companyLogo: "https://ui-avatars.com/api/?name=TechCorp&background=02243b&color=fff",
+    location: "Toronto, ON",
+    type: "Full-time",
+    category: "Technology",
+    subcategory: "Software Development",
+    status: "Live",
+    priority: "Featured",
+    postedDate: "2025-12-15",
+    expiryDate: "2026-01-15",
+    applicants: 45,
+    views: 1250,
+    salary: "$120,000 - $150,000",
+    remote: true,
+    urgent: false,
+    sponsored: true,
+    tags: ["React", "Node.js", "TypeScript", "Remote"],
+    approvedBy: "Admin User",
+    approvedDate: "2025-12-15",
+  },
+  {
+    id: "2",
+    title: "UX/UI Designer",
+    company: "Creative Studio Inc",
+    companyLogo: "https://ui-avatars.com/api/?name=Creative+Studio&background=8a4b04&color=fff",
+    location: "Vancouver, BC",
+    type: "Full-time",
+    category: "Design",
+    subcategory: "User Experience",
+    status: "Pending",
+    priority: "Normal",
+    postedDate: "2025-12-16",
+    expiryDate: "2026-01-16",
+    applicants: 0,
+    views: 0,
+    salary: "$80,000 - $100,000",
+    remote: true,
+    urgent: true,
+    sponsored: false,
+    tags: ["Figma", "Adobe XD", "Prototyping", "Remote"],
+    approvedBy: null,
+    approvedDate: null,
+  },
+  {
+    id: "3",
+    title: "Data Scientist",
+    company: "Analytics Pro",
+    companyLogo: "https://ui-avatars.com/api/?name=Analytics+Pro&background=10b981&color=fff",
+    location: "Montreal, QC",
+    type: "Contract",
+    category: "Data Science",
+    subcategory: "Machine Learning",
+    status: "Expired",
+    priority: "Normal",
+    postedDate: "2025-11-01",
+    expiryDate: "2025-12-01",
+    applicants: 23,
+    views: 890,
+    salary: "$90,000 - $110,000",
+    remote: false,
+    urgent: false,
+    sponsored: false,
+    tags: ["Python", "ML", "TensorFlow"],
+    approvedBy: "Admin User",
+    approvedDate: "2025-11-01",
+  },
+  {
+    id: "4",
+    title: "Marketing Manager",
+    company: "Growth Marketing Co",
+    companyLogo: "https://ui-avatars.com/api/?name=Growth&background=f59e0b&color=fff",
+    location: "Calgary, AB",
+    type: "Full-time",
+    category: "Marketing",
+    subcategory: "Digital Marketing",
+    status: "Rejected",
+    priority: "Normal",
+    postedDate: "2025-12-10",
+    expiryDate: "2026-01-10",
+    applicants: 0,
+    views: 156,
+    salary: "$70,000 - $85,000",
+    remote: false,
+    urgent: false,
+    sponsored: false,
+    tags: ["SEO", "PPC", "Analytics"],
+    approvedBy: null,
+    approvedDate: null,
+    rejectionReason: "Incomplete job description",
+  },
+];
+
+const categories = [
+  "Technology",
+  "Healthcare",
+  "Finance",
+  "Marketing",
+  "Education",
+  "Manufacturing",
+  "Retail",
+  "Construction",
+  "Legal",
+  "Design",
+  "Data Science",
+  "Human Resources",
+];
+
+export function JobManagement() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterType, setFilterType] = useState("all");
+  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [showJobDetails, setShowJobDetails] = useState(false);
+
+  const StatusBadge = ({ status }: { status: string }) => {
+    const variants = {
+      Live: "bg-green-100 text-green-800 border-green-200",
+      Pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      Rejected: "bg-red-100 text-red-800 border-red-200",
+      Expired: "bg-gray-100 text-gray-800 border-gray-200",
+    };
+
+    const icons = {
+      Live: <CheckCircle className="w-3 h-3" />,
+      Pending: <Clock className="w-3 h-3" />,
+      Rejected: <XCircle className="w-3 h-3" />,
+      Expired: <AlertTriangle className="w-3 h-3" />,
+    };
+
+    return (
+      <Badge 
+        className={`${variants[status as keyof typeof variants]} flex items-center gap-1 font-medium border`}
+      >
+        {icons[status as keyof typeof icons]}
+        {status}
+      </Badge>
+    );
+  };
+
+  const PriorityBadge = ({ priority }: { priority: string }) => {
+    const variants = {
+      Featured: "bg-purple-100 text-purple-800 border-purple-200",
+      Normal: "bg-blue-100 text-blue-800 border-blue-200",
+    };
+
+    return (
+      <Badge className={`${variants[priority as keyof typeof variants]} border font-medium`}>
+        {priority === "Featured" && <Star className="w-3 h-3 mr-1" />}
+        {priority}
+      </Badge>
+    );
+  };
+
+  const filteredJobs = mockJobs.filter(job => {
+    const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         job.company.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = filterStatus === "all" || job.status.toLowerCase() === filterStatus;
+    const matchesCategory = filterCategory === "all" || job.category === filterCategory;
+    const matchesType = filterType === "all" || job.type === filterType;
+    
+    return matchesSearch && matchesStatus && matchesCategory && matchesType;
+  });
+
+  const jobStats = {
+    total: mockJobs.length,
+    live: mockJobs.filter(j => j.status === "Live").length,
+    pending: mockJobs.filter(j => j.status === "Pending").length,
+    rejected: mockJobs.filter(j => j.status === "Rejected").length,
+    expired: mockJobs.filter(j => j.status === "Expired").length,
+  };
+
+  const handleApproveJob = (jobId: string) => {
+    console.log("Approve job:", jobId);
+    // Implementation for job approval
+  };
+
+  const handleRejectJob = (jobId: string) => {
+    console.log("Reject job:", jobId);
+    // Implementation for job rejection
+  };
+
+  const handleToggleFeatured = (jobId: string) => {
+    console.log("Toggle featured:", jobId);
+    // Implementation for toggling featured status
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900">Job Management</h2>
+          <p className="text-gray-600 mt-1">
+            Control job listings, approvals, and moderation across your platform.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" className="shadow-sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export Jobs
+          </Button>
+          <Button 
+            size="sm"
+            className="shadow-sm bg-gradient-to-r from-slate-900 to-slate-700 hover:from-slate-800 hover:to-slate-600"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Bulk Actions
+          </Button>
+        </div>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-white to-gray-50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600">Total Jobs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-900">{jobStats.total}</div>
+            <div className="flex items-center text-xs text-green-600 mt-1">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              +12% this month
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-green-50 to-green-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-green-700">Live Jobs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-800">{jobStats.live}</div>
+            <div className="text-xs text-green-600 mt-1">Currently active</div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-yellow-50 to-yellow-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-yellow-700">Pending</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-yellow-800">{jobStats.pending}</div>
+            <div className="text-xs text-yellow-600 mt-1">Awaiting approval</div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-red-50 to-red-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-red-700">Rejected</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-800">{jobStats.rejected}</div>
+            <div className="text-xs text-red-600 mt-1">Need revision</div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm bg-gradient-to-br from-gray-50 to-gray-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-700">Expired</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-800">{jobStats.expired}</div>
+            <div className="text-xs text-gray-600 mt-1">Past deadline</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters Section */}
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex-1 min-w-64">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Input
+                  placeholder="Search jobs by title, company, or keywords..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 border-gray-200 focus:border-slate-300 focus:ring-slate-200"
+                />
+              </div>
+            </div>
+            
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-40 border-gray-200">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="live">Live</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-40 border-gray-200">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map(cat => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-40 border-gray-200">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="Full-time">Full-time</SelectItem>
+                <SelectItem value="Part-time">Part-time</SelectItem>
+                <SelectItem value="Contract">Contract</SelectItem>
+                <SelectItem value="Internship">Internship</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button variant="outline" className="border-gray-200">
+              <Filter className="h-4 w-4 mr-2" />
+              More Filters
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Jobs Table */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold">Job Listings</CardTitle>
+            <div className="text-sm text-gray-500">
+              Showing {filteredJobs.length} of {mockJobs.length} jobs
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-gray-100">
+                  <TableHead className="font-semibold text-gray-700">Job Details</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Company</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Status</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Priority</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Applications</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Posted Date</TableHead>
+                  <TableHead className="font-semibold text-gray-700">Tags</TableHead>
+                  <TableHead className="text-right font-semibold text-gray-700">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredJobs.map((job) => (
+                  <TableRow 
+                    key={job.id} 
+                    className="border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setSelectedJob(job);
+                      setShowJobDetails(true);
+                    }}
+                  >
+                    <TableCell className="py-4">
+                      <div>
+                        <div className="font-semibold text-gray-900 hover:text-slate-700 transition-colors">
+                          {job.title}
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1 flex items-center gap-4">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {job.location}
+                          </span>
+                          <span className="text-green-600 font-medium">{job.salary}</span>
+                          {job.remote && (
+                            <Badge variant="secondary" className="text-xs bg-blue-50 text-blue-700">
+                              Remote
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8 border border-gray-200">
+                          <AvatarImage src={job.companyLogo} alt={job.company} />
+                          <AvatarFallback>{job.company[0]}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium text-gray-900">{job.company}</div>
+                          <div className="text-xs text-gray-500">{job.category}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell>
+                      <StatusBadge status={job.status} />
+                    </TableCell>
+                    
+                    <TableCell>
+                      <PriorityBadge priority={job.priority} />
+                    </TableCell>
+                    
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className="text-lg font-semibold text-gray-900">{job.applicants}</div>
+                        <div className="text-xs text-gray-500">
+                          {job.views} views
+                        </div>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell className="text-sm text-gray-600">
+                      {new Date(job.postedDate).toLocaleDateString()}
+                    </TableCell>
+                    
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1 max-w-32">
+                        {job.tags.slice(0, 2).map((tag, index) => (
+                          <Badge 
+                            key={index} 
+                            variant="outline" 
+                            className="text-xs border-gray-200 text-gray-600"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                        {job.tags.length > 2 && (
+                          <Badge variant="outline" className="text-xs border-gray-200 text-gray-500">
+                            +{job.tags.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            className="h-8 w-8 p-0 hover:bg-gray-100" 
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Job
+                          </DropdownMenuItem>
+                          {job.status === "Pending" && (
+                            <>
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleApproveJob(job.id);
+                                }}
+                                className="text-green-600"
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Approve
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRejectJob(job.id);
+                                }}
+                                className="text-red-600"
+                              >
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Reject
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            <Star className="mr-2 h-4 w-4" />
+                            Toggle Featured
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-red-600"
+                          >
+                            <Ban className="mr-2 h-4 w-4" />
+                            Delete Job
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Job Details Dialog */}
+      <Dialog open={showJobDetails} onOpenChange={setShowJobDetails}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          {selectedJob && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold">{selectedJob.title}</DialogTitle>
+                <DialogDescription className="text-gray-600">
+                  Posted by {selectedJob.company} • Job ID: {selectedJob.id}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Job Overview */}
+                <div className="grid grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">Job Information</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={selectedJob.status} />
+                        <PriorityBadge priority={selectedJob.priority} />
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Location:</span>
+                          <span className="font-medium">{selectedJob.location}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Type:</span>
+                          <span className="font-medium">{selectedJob.type}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Salary:</span>
+                          <span className="font-medium text-green-600">{selectedJob.salary}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Category:</span>
+                          <span className="font-medium">{selectedJob.category}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">Performance Metrics</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Applications:</span>
+                          <span className="font-bold text-lg">{selectedJob.applicants}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Views:</span>
+                          <span className="font-medium">{selectedJob.views}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Posted:</span>
+                          <span className="font-medium">{new Date(selectedJob.postedDate).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Expires:</span>
+                          <span className="font-medium">{new Date(selectedJob.expiryDate).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Tags and Features */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Tags & Features</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {selectedJob.tags.map((tag: string, index: number) => (
+                          <Badge key={index} variant="outline" className="border-gray-300">
+                            <Tag className="w-3 h-3 mr-1" />
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Switch checked={selectedJob.remote} />
+                          <span className="text-gray-600">Remote Work</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={selectedJob.urgent} />
+                          <span className="text-gray-600">Urgent Hiring</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Switch checked={selectedJob.sponsored} />
+                          <span className="text-gray-600">Sponsored</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Audit Trail */}
+                {selectedJob.approvedBy && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">Audit Trail</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-sm space-y-1">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Approved by:</span>
+                          <span className="font-medium">{selectedJob.approvedBy}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Approved on:</span>
+                          <span className="font-medium">{new Date(selectedJob.approvedDate).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setShowJobDetails(false)}>
+                  Close
+                </Button>
+                {selectedJob.status === "Pending" && (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      className="text-red-600 border-red-300 hover:bg-red-50"
+                      onClick={() => handleRejectJob(selectedJob.id)}
+                    >
+                      Reject
+                    </Button>
+                    <Button 
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={() => handleApproveJob(selectedJob.id)}
+                    >
+                      Approve Job
+                    </Button>
+                  </>
+                )}
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
