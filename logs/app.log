@@ -1,0 +1,2 @@
+{"level":"info","message":"Server running in undefined mode on port 5000","service":"canadajobs-api","timestamp":"2025-12-18 12:47:34"}
+{"level":"info","message":"MongoDB Connected: localhost:27017/canadajobs","service":"canadajobs-api","timestamp":"2025-12-18 12:47:34"}
