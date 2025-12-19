@@ -33,7 +33,8 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
 
   // Job Seeker form state
   const [jobSeekerData, setJobSeekerData] = useState({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
     password: "",
@@ -72,7 +73,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
 
   // Validation functions
   const isJobSeekerValid = () => {
-    return jobSeekerData.fullName && jobSeekerData.email && jobSeekerData.phone && 
+    return jobSeekerData.firstName && jobSeekerData.lastName && jobSeekerData.email && jobSeekerData.phone && 
            jobSeekerData.city && jobSeekerData.province && jobSeekerData.password && 
            jobSeekerData.confirmPassword
   }
@@ -115,7 +116,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
   const provinces = [
     "Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador",
     "Northwest Territories", "Nova Scotia", "Nunavut", "Ontario", "Prince Edward Island",
-    "Quebec", "Saskatchewan", "Yukon"
+    "Quebec", "Saskatchewan", "Yukon", "Other"
   ]
 
   return (
@@ -148,25 +149,38 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
               <Building2 className="h-4 w-4" />
               Company
             </TabsTrigger>
-            <TabsTrigger value="agency" className="flex items-center gap-2">
+            {/* <TabsTrigger value="agency" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Temp Agency
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
           <TabsContent value="job-seeker">
             <form onSubmit={handleJobSeekerSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="js-fullName">Full Name *</Label>
+                  <Label htmlFor="js-firstName">First Name *</Label>
                   <Input
-                    id="js-fullName"
-                    value={jobSeekerData.fullName}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, fullName: e.target.value})}
+                    id="js-firstName"
+                    value={jobSeekerData.firstName}
+                    onChange={(e) => setJobSeekerData({...jobSeekerData, firstName: e.target.value})}
                     className="h-12 rounded-xl"
                     required
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="js-lastName">Last Name *</Label>
+                  <Input
+                    id="js-lastName"
+                    value={jobSeekerData.lastName}
+                    onChange={(e) => setJobSeekerData({...jobSeekerData, lastName: e.target.value})}
+                    className="h-12 rounded-xl"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="js-email">Email *</Label>
                   <Input
@@ -178,9 +192,6 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     required
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="js-phone">Phone *</Label>
                   <Input
@@ -192,6 +203,9 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="js-city">City *</Label>
                   <Input
@@ -202,20 +216,19 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     required
                   />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="js-province">Province *</Label>
-                <Select value={jobSeekerData.province} onValueChange={(value) => setJobSeekerData({...jobSeekerData, province: value})}>
-                  <SelectTrigger className="h-12 rounded-xl">
-                    <SelectValue placeholder="Select province" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {provinces.map((province) => (
-                      <SelectItem key={province} value={province}>{province}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <Label htmlFor="js-province">Province *</Label>
+                  <Select value={jobSeekerData.province} onValueChange={(value) => setJobSeekerData({...jobSeekerData, province: value})}>
+                    <SelectTrigger className="h-12 rounded-xl">
+                      <SelectValue placeholder="Select province" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[70]">
+                      {provinces.map((province) => (
+                        <SelectItem key={province} value={province}>{province}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -335,7 +348,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     <SelectTrigger className="h-12 rounded-xl">
                       <SelectValue placeholder="Select province" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[70]">
                       {provinces.map((province) => (
                         <SelectItem key={province} value={province}>{province}</SelectItem>
                       ))}
@@ -403,7 +416,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
             </form>
           </TabsContent>
 
-          <TabsContent value="agency">
+          {/* <TabsContent value="agency">
             <form onSubmit={handleAgencySubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -482,7 +495,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   <SelectTrigger className="h-12 rounded-xl">
                     <SelectValue placeholder="Select province" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[70]">
                     {provinces.map((province) => (
                       <SelectItem key={province} value={province}>{province}</SelectItem>
                     ))}
@@ -523,7 +536,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                 {isLoading ? "Creating Account..." : "Create Agency Account"}
               </Button>
             </form>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
 
         <div className="mt-8 text-center">
