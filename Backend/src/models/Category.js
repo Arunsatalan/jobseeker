@@ -14,6 +14,27 @@ const categorySchema = new mongoose.Schema(
       trim: true,
       maxlength: [200, 'Description cannot exceed 200 characters'],
     },
+    subcategories: [{
+      name: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: [50, 'Subcategory name cannot exceed 50 characters'],
+      },
+      description: {
+        type: String,
+        trim: true,
+        maxlength: [200, 'Description cannot exceed 200 characters'],
+      },
+      isActive: {
+        type: Boolean,
+        default: true,
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
     isActive: {
       type: Boolean,
       default: true,

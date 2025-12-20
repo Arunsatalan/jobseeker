@@ -174,14 +174,17 @@ export function JobManagement() {
   const [showJobDetails, setShowJobDetails] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [categoriesList, setCategoriesList] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null);
+  const [newSubcategoryName, setNewSubcategoryName] = useState("");
+  const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Fetch categories from API
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories/names`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories`);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data) {
@@ -336,6 +339,83 @@ export function JobManagement() {
     }
   };
 
+  const handleCategoryClick = async (category: any) => {
+    setSelectedCategory({ id: category._id, name: category.name });
+    setLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories/${category._id}/subcategories`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setSubcategories(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch subcategories:', error);
+      setSubcategories([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddSubcategory = async () => {
+    if (!newSubcategoryName.trim() || !selectedCategory) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories/${selectedCategory.id}/subcategories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          name: newSubcategoryName.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Refresh subcategories
+          await handleCategoryClick({ _id: selectedCategory.id, name: selectedCategory.name });
+          setNewCategoryName("");
+        }
+      } else {
+        console.error('Failed to add subcategory');
+      }
+    } catch (error) {
+      console.error('Error adding subcategory:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSubcategory = async (subcategoryId: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories/${selectedCategory?.id}/subcategories/${subcategoryId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (response.ok) {
+        // Refresh subcategories
+        if (selectedCategory) {
+          await handleCategoryClick({ _id: selectedCategory.id, name: selectedCategory.name });
+        }
+      } else {
+        console.error('Failed to delete subcategory');
+      }
+    } catch (error) {
+      console.error('Error deleting subcategory:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -462,7 +542,7 @@ export function JobManagement() {
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 {categoriesList.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  <SelectItem key={cat._id} value={cat.name}>{cat.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -830,8 +910,8 @@ export function JobManagement() {
 
           <div className="py-4">
             {/* Add New Category Section */}
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h3 className="text-sm font-semibold text-blue-900 mb-3">Add New Category</h3>
+            <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <h3 className="text-sm font-semibold text-slate-900 mb-3">Add New Category</h3>
               <div className="flex gap-2">
                 <Input
                   placeholder="Enter category name..."
@@ -843,7 +923,7 @@ export function JobManagement() {
                 <Button 
                   onClick={handleAddCategory}
                   disabled={!newCategoryName.trim()}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-slate-600 hover:bg-slate-700"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add
@@ -851,22 +931,87 @@ export function JobManagement() {
               </div>
             </div>
 
+            {/* Subcategories Section */}
+            {selectedCategory && (
+              <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    Subcategories for "{selectedCategory.name}"
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedCategory(null)}
+                    className="text-slate-700 hover:text-slate-900"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Add Subcategory */}
+                <div className="flex gap-2 mb-3">
+                  <Input
+                    placeholder="Enter subcategory name..."
+                    value={newSubcategoryName}
+                    onChange={(e) => setNewSubcategoryName(e.target.value)}
+                    className="flex-1"
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddSubcategory()}
+                  />
+                  <Button 
+                    onClick={handleAddSubcategory}
+                    disabled={!newSubcategoryName.trim() || loading}
+                    className="bg-slate-600 hover:bg-slate-700"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Sub
+                  </Button>
+                </div>
+
+                {/* Subcategories List */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {subcategories.map((subcategory) => (
+                    <div
+                      key={subcategory._id}
+                      className="flex items-center justify-between p-2 bg-white rounded border border-slate-200"
+                    >
+                      <span className="text-sm text-gray-900">{subcategory.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteSubcategory(subcategory._id)}
+                        disabled={loading}
+                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Categories Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {categoriesList.map((category, index) => (
+              {categoriesList.map((category) => (
                 <div
-                  key={index}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors group"
+                  key={category._id}
+                  className={`flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors group cursor-pointer ${
+                    selectedCategory?.id === category._id ? 'ring-2 ring-slate-500 bg-slate-50' : ''
+                  }`}
+                  onClick={() => handleCategoryClick(category)}
                 >
-                  <span className="text-sm font-medium text-gray-900">{category}</span>
+                  <span className="text-sm font-medium text-gray-900">{category.name}</span>
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className="text-xs">
-                      {mockJobs.filter(job => job.category === category).length} jobs
+                      {category.subcategories?.length || 0} sub
                     </Badge>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDeleteCategory(category)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCategory(category.name);
+                      }}
                       className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 hover:bg-red-50"
                     >
                       <X className="h-3 w-3" />
