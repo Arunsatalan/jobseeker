@@ -376,9 +376,9 @@ export default function Navbar({
 
                   {/* Menu Items */}
                   <div className="py-2">
-                    {/* Resume */}
+                    {/* Profile - Show for all users */}
                     <Link
-                      href="/profile"
+                      href={user.role === "employer" ? "/employer-dashboard/profile" : "/profile"}
                       onClick={() => setShowUserMenu(false)}
                       className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-slate-50 transition-colors"
                     >
@@ -391,52 +391,57 @@ export default function Navbar({
                       </div>
                     </Link>
 
-                    {/* Tools */}
-                    <Link
-                      href="/tools"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-purple-50 transition-colors"
-                    >
-                      <Zap className="h-4 w-4 text-purple-600" />
-                      <div>
-                        <p className="text-sm font-medium">Tools</p>
-                        <p className="text-xs text-gray-600">
-                          Interview prep & more
-                        </p>
-                      </div>
-                    </Link>
+                    {/* Show additional items only for non-employer users */}
+                    {user.role !== "employer" && (
+                      <>
+                        {/* Tools */}
+                        <Link
+                          href="/tools"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-purple-50 transition-colors"
+                        >
+                          <Zap className="h-4 w-4 text-purple-600" />
+                          <div>
+                            <p className="text-sm font-medium">Tools</p>
+                            <p className="text-xs text-gray-600">
+                              Interview prep & more
+                            </p>
+                          </div>
+                        </Link>
 
-                    {/* Recommended */}
-                    <Link
-                      href="/recommended"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-amber-50 transition-colors"
-                    >
-                      <Star className="h-4 w-4 text-amber-600" />
-                      <div>
-                        <p className="text-sm font-medium">Recommended</p>
-                        <p className="text-xs text-gray-600">
-                          Jobs picked for you
-                        </p>
-                      </div>
-                    </Link>
+                        {/* Recommended */}
+                        <Link
+                          href="/recommended"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-amber-50 transition-colors"
+                        >
+                          <Star className="h-4 w-4 text-amber-600" />
+                          <div>
+                            <p className="text-sm font-medium">Recommended</p>
+                            <p className="text-xs text-gray-600">
+                              Jobs picked for you
+                            </p>
+                          </div>
+                        </Link>
 
-                    {/* Settings */}
-                    <Link
-                      href="/settings"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
-                    >
-                      <Settings className="h-4 w-4 text-gray-600" />
-                      <div>
-                        <p className="text-sm font-medium">Settings</p>
-                        <p className="text-xs text-gray-600">
-                          Account preferences
-                        </p>
-                      </div>
-                    </Link>
+                        {/* Settings */}
+                        <Link
+                          href="/settings"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          <Settings className="h-4 w-4 text-gray-600" />
+                          <div>
+                            <p className="text-sm font-medium">Settings</p>
+                            <p className="text-xs text-gray-600">
+                              Account preferences
+                            </p>
+                          </div>
+                        </Link>
+                      </>
+                    )}
 
-                    {/* My Plan */}
+                    {/* My Plan - Show for all users */}
                     <Link
                       href="/my-plan"
                       onClick={() => setShowUserMenu(false)}
