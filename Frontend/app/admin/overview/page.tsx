@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ProtectedLayout } from "@/components/ProtectedLayout";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { OverviewDashboard } from "@/components/admin/OverviewDashboard";
@@ -131,14 +132,14 @@ export default function AdminDashboardLayout() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const handleRefresh = () => {
-    // Trigger a refresh by updating the key, which will cause components to re-render
     setRefreshKey(prev => prev + 1);
   };
 
   return (
+    <ProtectedLayout requiredRole="admin">
       <div className="min-h-screen bg-gray-50">
-      {/* Custom CSS Variables for Admin Theme */}
-      <style jsx global>{`
+        {/* Custom CSS Variables for Admin Theme */}
+        <style jsx global>{`
         :root {
           --admin-primary: #02243b;
           --admin-secondary: #8a4b04;
@@ -159,40 +160,41 @@ export default function AdminDashboardLayout() {
         }
       `}</style>
 
-      {/* Sidebar */}
-      <AdminSidebar
-        admin={mockAdmin}
-        navItems={adminNavItems}
-        activeSection={activeSection}
-        collapsed={sidebarCollapsed}
-        onNavigate={setActiveSection}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
+        {/* Sidebar */}
+        <AdminSidebar
+          admin={mockAdmin}
+          navItems={adminNavItems}
+          activeSection={activeSection}
+          collapsed={sidebarCollapsed}
+          onNavigate={setActiveSection}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
 
-      {/* Main Content Area */}
-      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
-        {/* Header */}
-        <AdminHeader
+        {/* Main Content Area */}
+        <div className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
+          {/* Header */}
+          <AdminHeader
           admin={mockAdmin}
           activeSection={activeSection}
           navItems={adminNavItems}
           onRefresh={handleRefresh}
         />
 
-        {/* Page Content */}
-        <main className="p-6">
-          {activeSection === "overview" && <OverviewDashboard key={`overview-${refreshKey}`} />}
-          {activeSection === "users" && <UserManagement key={`users-${refreshKey}`} />}
-          {activeSection === "jobs" && <JobManagement key={`jobs-${refreshKey}`} />}
-          {activeSection === "resumes" && <ResumeInsights key={`resumes-${refreshKey}`} />}
-          {activeSection === "applications" && <ApplicationsManagement key={`applications-${refreshKey}`} />}
-          {activeSection === "messaging" && <MessagingAndNotifications key={`messaging-${refreshKey}`} />}
-          {activeSection === "billing" && <PaymentsAndBilling key={`billing-${refreshKey}`} />}
-          {activeSection === "platform" && <PlatformSettings key={`platform-${refreshKey}`} />}
-          {activeSection === "content" && <ContentManagement key={`content-${refreshKey}`} />}
-          {activeSection === "moderation" && <ModerationTools key={`moderation-${refreshKey}`} />}
-        </main>
+          {/* Page Content */}
+          <main className="p-6">
+            {activeSection === "overview" && <OverviewDashboard key={`overview-${refreshKey}`} />}
+            {activeSection === "users" && <UserManagement key={`users-${refreshKey}`} />}
+            {activeSection === "jobs" && <JobManagement key={`jobs-${refreshKey}`} />}
+            {activeSection === "resumes" && <ResumeInsights key={`resumes-${refreshKey}`} />}
+            {activeSection === "applications" && <ApplicationsManagement key={`applications-${refreshKey}`} />}
+            {activeSection === "messaging" && <MessagingAndNotifications key={`messaging-${refreshKey}`} />}
+            {activeSection === "billing" && <PaymentsAndBilling key={`billing-${refreshKey}`} />}
+            {activeSection === "platform" && <PlatformSettings key={`platform-${refreshKey}`} />}
+            {activeSection === "content" && <ContentManagement key={`content-${refreshKey}`} />}
+            {activeSection === "moderation" && <ModerationTools key={`moderation-${refreshKey}`} />}
+          </main>
+        </div>
       </div>
-    </div>
+    </ProtectedLayout>
   );
 }

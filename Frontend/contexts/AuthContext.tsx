@@ -111,13 +111,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Login function
   const login = (newToken: string, userData: User) => {
+    console.log('[AuthContext] Login called with token:', newToken.substring(0, 20) + '...')
+    console.log('[AuthContext] Login called with user:', userData)
+    
     setToken(newToken)
     setUser(userData)
+    
+    console.log('[AuthContext] Setting localStorage...')
     localStorage.setItem('token', newToken)
     localStorage.setItem('user', JSON.stringify(userData))
+    
+    console.log('[AuthContext] Verifying localStorage...')
+    const savedToken = localStorage.getItem('token')
+    const savedUser = localStorage.getItem('user')
+    console.log('[AuthContext] Token in localStorage:', !!savedToken)
+    console.log('[AuthContext] User in localStorage:', !!savedUser)
 
     // Set session cookie for better persistence
-    document.cookie = `auth_token=${newToken}; path=/; max-age=86400; samesite=strict`
+    // Note: Setting httpOnly would be more secure but requires backend support
+    document.cookie = `auth_token=${newToken}; path=/; max-age=86400; SameSite=Lax`
+    console.log('[AuthContext] Session cookie set')
   }
 
   // Logout function

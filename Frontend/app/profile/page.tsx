@@ -1,6 +1,7 @@
 
 "use client";
 import { useState, useEffect } from "react";
+import { ProtectedLayout } from "@/components/ProtectedLayout";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -75,27 +76,52 @@ export default function ProfilePage() {
     }
   }, [user]);
 
-  // Show loading while auth is being checked
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-amber-500"></div>
-      </div>
-    );
-  }
-
-  // Show loading if user is not available
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading user data...</div>
-      </div>
-    );
-  }
-
   const handleResumeDelete = (index: number) => {
     setUserResumes((prev) => prev.filter((_, i) => i !== index));
   };
+
+  return (
+    <ProtectedLayout>
+      {/* Show loading while auth is being checked */}
+      {isLoading ? (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-amber-500"></div>
+        </div>
+      ) : !user ? (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-gray-500">Loading user data...</div>
+        </div>
+      ) : (
+        <ProfilePageContent 
+          user={user}
+          userResumes={userResumes}
+          activeSection={activeSection}
+          setActiveSection={setActiveSection}
+          editingResumeId={editingResumeId}
+          setEditingResumeId={setEditingResumeId}
+          needsProfileCompletion={needsProfileCompletion}
+          setNeedsProfileCompletion={setNeedsProfileCompletion}
+          onResumeDelete={handleResumeDelete}
+          logout={logout}
+        />
+      )}
+    </ProtectedLayout>
+  );
+}
+
+function ProfilePageContent({
+  user,
+  userResumes,
+  activeSection,
+  setActiveSection,
+  editingResumeId,
+  setEditingResumeId,
+  needsProfileCompletion,
+  setNeedsProfileCompletion,
+  onResumeDelete,
+  logout,
+}: any) {
+  const [profileVisible, setProfileVisible] = useState(true);
 
   const handleResumeEdit = (index: number) => {
     console.log("Edit resume:", index);
