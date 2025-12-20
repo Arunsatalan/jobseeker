@@ -288,7 +288,7 @@ export function JobManagement() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setCategoriesList([...categoriesList, newCategoryName.trim()]);
+          await fetchCategories(); // Refresh categories from database
           setNewCategoryName("");
         }
       } else {
@@ -323,7 +323,7 @@ export function JobManagement() {
           });
 
           if (deleteResponse.ok) {
-            setCategoriesList(categoriesList.filter(cat => cat !== categoryToDelete));
+            await fetchCategories(); // Refresh categories from database
           } else {
             console.error('Failed to delete category');
           }
