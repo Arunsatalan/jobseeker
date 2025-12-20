@@ -16,5 +16,7 @@ router.post('/reset-password/:token', authController.resetPassword);
 // Protected routes
 router.get('/verify-email/:token', authController.verifyEmail);
 router.post('/resend-verification', protect, authController.resendVerification);
+router.put('/profile/complete', protect, authController.completeProfile);
+router.get('/verify-token', protect, authController.verifyToken);
 
 module.exports = router;

@@ -34,6 +34,7 @@ import { useState, useRef, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import SignIn from "@/components/signin"
 import SignUp from "@/components/signup"
+import AuthRedirect from "@/components/AuthRedirect"
 import { MOCK_SOFTWARE_ENGINEER_JOBS } from "@/components/job-search/mockSoftwareEngineerJobs"
 import JobCard from "@/components/job-search/JobCard"
 import { Job } from "@/components/job-search/types"
@@ -146,6 +147,7 @@ export default function Home() {
   ]
   return (
     <div className="min-h-screen bg-gradient-to-br from-secondary-50 via-white to-accent-50">
+      <AuthRedirect />
 
       {/* Navigation */}
         <nav className="fixed top-0 left-0 right-0 z-50 bg-white/50 backdrop-blur-2xl">

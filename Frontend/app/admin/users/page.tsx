@@ -20,6 +20,12 @@ import { adminNavItems } from "../overview/page";
 export default function UsersPage() {
   const [activeSection, setActiveSection] = useState("users");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleRefresh = () => {
+    // Trigger a refresh by updating the key, which will cause components to re-render
+    setRefreshKey(prev => prev + 1);
+  };
 
   return (
     <ProtectedRoute requiredRole="admin">
@@ -63,11 +69,12 @@ export default function UsersPage() {
           admin={mockAdmin}
           activeSection={activeSection}
           navItems={adminNavItems}
+          onRefresh={handleRefresh}
         />
 
         {/* Page Content */}
         <main className="p-6">
-          <UserManagement />
+          <UserManagement key={`users-${refreshKey}`} />
         </main>
       </div>
     </div>

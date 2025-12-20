@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Briefcase,
   Heart,
@@ -30,6 +31,7 @@ export default function Navbar({
 }: NavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user, logout, isAuthenticated } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -49,11 +51,7 @@ export default function Navbar({
   }, []);
 
   const handleLogout = () => {
-    // Clear authentication data
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    // Redirect to home page
-    router.push("/");
+    logout();
     setShowUserMenu(false);
   };
 
@@ -133,21 +131,22 @@ export default function Navbar({
             </button>
 
             {/* User Profile Dropdown */}
-            <div className="relative" ref={userMenuRef}>
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors group"
-                title="User menu"
-              >
-                <div className="h-8 w-8 bg-linear-to-br from-slate-600 to-amber-800 rounded-full flex items-center justify-center text-white font-semibold">
-                  AK
-                </div>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform duration-300 hidden sm:block ${
-                    showUserMenu ? "rotate-180" : "rotate-0"
-                  }`}
-                />
-              </button>
+            {isAuthenticated && user ? (
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors group"
+                  title="User menu"
+                >
+                  <div className="h-8 w-8 bg-linear-to-br from-slate-600 to-amber-800 rounded-full flex items-center justify-center text-white font-semibold">
+                    {user.email.charAt(0).toUpperCase()}
+                  </div>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-300 hidden sm:block ${
+                      showUserMenu ? "rotate-180" : "rotate-0"
+                    }`}
+                  />
+                </button>
 
               {/* Dropdown Menu */}
               {showUserMenu && (
@@ -155,9 +154,9 @@ export default function Navbar({
                   {/* User Info Header */}
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="text-sm font-semibold text-gray-900">
-                      Arun Kumar
+                      {user.email.split('@')[0]}
                     </p>
-                    <p className="text-xs text-gray-600">arun@example.com</p>
+                    <p className="text-xs text-gray-600">{user.email}</p>
                   </div>
 
                   {/* Menu Items */}
@@ -254,7 +253,16 @@ export default function Navbar({
                 </div>
               )}
             </div>
-          </div>
+          ) : (
+            /* Sign In Button for unauthenticated users */
+            <Button
+              onClick={() => router.push('/')}
+              className="px-4 py-2 bg-linear-to-r from-primary-500 to-secondary-400 text-white font-medium rounded-lg hover:shadow-lg transition-all duration-300"
+            >
+              Sign In
+            </Button>
+          )}
+        </div>
         </div>
 
         {/* Mobile Menu Toggle */}

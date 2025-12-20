@@ -1,6 +1,6 @@
 
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,15 @@ import { JobPreferences } from "@/components/profile/JobPreferences";
 import { CareerProgress } from "@/components/profile/CareerProgress";
 import { ToolsAccess } from "@/components/profile/ToolsAccess";
 import { AccountSettings } from "@/components/profile/AccountSettings";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Mock data
 const mockUser = {
@@ -52,11 +61,19 @@ const mockJobPreferences = {
 const mockSkillGaps = ["TypeScript", "React.js", "Next.js"];
 
 export default function ProfilePage() {
+  const { user, logout } = useAuth()
   const [profileVisible, setProfileVisible] = useState(true);
   const [userResumes, setUserResumes] = useState(mockResumes);
-  const [user, setUser] = useState(mockUser);
   const [activeSection, setActiveSection] = useState("user-info");
   const [editingResumeId, setEditingResumeId] = useState<string | null>(null);
+  const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
+
+  // Check if user needs to complete profile
+  useEffect(() => {
+    if (user && user.profileCompleted === false) {
+      setNeedsProfileCompletion(true);
+    }
+  }, [user]);
 
   const handleResumeDelete = (index: number) => {
     setUserResumes((prev) => prev.filter((_, i) => i !== index));
@@ -99,16 +116,42 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    // Clear authentication data
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    // Redirect to signin page
-    window.location.href = '/';
+    logout();
   };
 
   const handleUpgrade = () => {
     console.log("Upgrade to pro");
     // Implement upgrade functionality
+  };
+
+  const handleCompleteProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/profile/complete`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Update localStorage with the updated user data
+        localStorage.setItem('user', JSON.stringify(data.data.user));
+        setNeedsProfileCompletion(false);
+        console.log('Profile completed successfully');
+      } else {
+        console.error('Failed to complete profile');
+      }
+    } catch (error) {
+      console.error('Error completing profile:', error);
+    }
   };
 
   return (
@@ -280,6 +323,35 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
+
+    {/* Profile Completion Modal */}
+    <Dialog open={needsProfileCompletion} onOpenChange={setNeedsProfileCompletion}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Complete Your Profile</DialogTitle>
+          <DialogDescription>
+            To get the most out of our platform, please complete your profile information.
+            This will help employers find you and improve your job search experience.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setNeedsProfileCompletion(false)}
+          >
+            Skip for Now
+          </Button>
+          <Button
+            onClick={() => {
+              setNeedsProfileCompletion(false);
+              setActiveSection("user-info");
+            }}
+          >
+            Complete Profile
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </ProtectedRoute>
   );
 }

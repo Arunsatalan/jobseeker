@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface SignInProps {
   onClose?: () => void
@@ -26,18 +27,35 @@ interface SignInProps {
 
 export default function SignIn({ onClose, onSwitchToSignUp }: SignInProps) {
   const router = useRouter()
+  const { login } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
 
+  // Load remembered email on component mount
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem('rememberedEmail')
+    if (rememberedEmail) {
+      setEmail(rememberedEmail)
+      setRememberMe(true)
+    }
+  }, [])
+
+  // Handle remember me state changes
+  useEffect(() => {
+    if (!rememberMe) {
+      localStorage.removeItem('rememberedEmail')
+    }
+  }, [rememberMe])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     
     try {
-      const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -51,9 +69,15 @@ export default function SignIn({ onClose, onSwitchToSignUp }: SignInProps) {
       const data = await response.json()
       
       if (response.ok) {
-        // Store token and user
-        localStorage.setItem('token', data.data.token)
-        localStorage.setItem('user', JSON.stringify(data.data.user))
+        // Use auth context login function
+        login(data.data.token, data.data.user)
+        
+        // Handle "Remember me" functionality
+        if (rememberMe) {
+          localStorage.setItem('rememberedEmail', email)
+        } else {
+          localStorage.removeItem('rememberedEmail')
+        }
         
         // Navigate based on role
         const userRole = data.data.user.role
@@ -62,7 +86,7 @@ export default function SignIn({ onClose, onSwitchToSignUp }: SignInProps) {
         } else if (userRole === 'employer') {
           router.push('/employer-dashboard')
         } else if (userRole === 'admin') {
-          router.push('/admin')
+          router.push('/admin/overview')
         } else {
           router.push('/')
         }

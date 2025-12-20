@@ -22,6 +22,7 @@ import {
   Sun,
   Globe,
   HelpCircle,
+  RefreshCw,
 } from "lucide-react";
 
 interface AdminHeaderProps {
@@ -37,9 +38,10 @@ interface AdminHeaderProps {
     label: string;
     icon: React.ComponentType<any>;
   }>;
+  onRefresh?: () => void;
 }
 
-export function AdminHeader({ admin, activeSection, navItems }: AdminHeaderProps) {
+export function AdminHeader({ admin, activeSection, navItems, onRefresh }: AdminHeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [notificationCount] = useState(3);
 
@@ -107,6 +109,17 @@ export function AdminHeader({ admin, activeSection, navItems }: AdminHeaderProps
         {/* Right: Actions & Profile */}
         <div className="flex items-center gap-3">
           {/* Quick Actions */}
+          {onRefresh && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onRefresh}
+              className="hidden md:flex"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="hidden md:flex">
             <Globe className="h-4 w-4 mr-2" />
             View Site

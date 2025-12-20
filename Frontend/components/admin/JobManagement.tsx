@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +64,8 @@ import {
   Download,
   Upload,
   Settings,
+  Plus,
+  X,
 } from "lucide-react";
 
 // Mock data for jobs
@@ -163,21 +165,6 @@ const mockJobs = [
   },
 ];
 
-const categories = [
-  "Technology",
-  "Healthcare",
-  "Finance",
-  "Marketing",
-  "Education",
-  "Manufacturing",
-  "Retail",
-  "Construction",
-  "Legal",
-  "Design",
-  "Data Science",
-  "Human Resources",
-];
-
 export function JobManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -185,6 +172,30 @@ export function JobManagement() {
   const [filterType, setFilterType] = useState("all");
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [showJobDetails, setShowJobDetails] = useState(false);
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [categoriesList, setCategoriesList] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories/names`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setCategoriesList(data.data);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        // Keep fallback categories if API fails
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const StatusBadge = ({ status }: { status: string }) => {
     const variants = {
@@ -258,6 +269,73 @@ export function JobManagement() {
     // Implementation for toggling featured status
   };
 
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          name: newCategoryName.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setCategoriesList([...categoriesList, newCategoryName.trim()]);
+          setNewCategoryName("");
+        }
+      } else {
+        console.error('Failed to add category');
+      }
+    } catch (error) {
+      console.error('Error adding category:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryToDelete: string) => {
+    setLoading(true);
+    try {
+      // First get the category ID by name (this is a simplified approach)
+      const categoriesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      if (categoriesResponse.ok) {
+        const categoriesData = await categoriesResponse.json();
+        const category = categoriesData.data.find((cat: any) => cat.name === categoryToDelete);
+
+        if (category) {
+          const deleteResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories/${category._id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+          });
+
+          if (deleteResponse.ok) {
+            setCategoriesList(categoriesList.filter(cat => cat !== categoryToDelete));
+          } else {
+            console.error('Failed to delete category');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -272,6 +350,15 @@ export function JobManagement() {
           <Button variant="outline" size="sm" className="shadow-sm">
             <Download className="h-4 w-4 mr-2" />
             Export Jobs
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="shadow-sm"
+            onClick={() => setShowCategoriesModal(true)}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Manage Categories
           </Button>
           <Button 
             size="sm"
@@ -374,7 +461,7 @@ export function JobManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(cat => (
+                {categoriesList.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
@@ -728,6 +815,73 @@ export function JobManagement() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Categories Management Modal */}
+      <Dialog open={showCategoriesModal} onOpenChange={setShowCategoriesModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Manage Categories</DialogTitle>
+            <DialogDescription>
+              View and manage all job categories available on the platform.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            {/* Add New Category Section */}
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="text-sm font-semibold text-blue-900 mb-3">Add New Category</h3>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter category name..."
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="flex-1"
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+                />
+                <Button 
+                  onClick={handleAddCategory}
+                  disabled={!newCategoryName.trim()}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add
+                </Button>
+              </div>
+            </div>
+
+            {/* Categories Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {categoriesList.map((category, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors group"
+                >
+                  <span className="text-sm font-medium text-gray-900">{category}</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {mockJobs.filter(job => job.category === category).length} jobs
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteCategory(category)}
+                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCategoriesModal(false)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -99,7 +99,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
     setIsLoading(true)
     
     try {
-      const response = await fetch('http://localhost:5000/api/v1/auth/register/job-seeker', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/register/job-seeker`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -119,12 +119,12 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
       const data = await response.json()
       
       if (response.ok) {
-        // Store token
+        // Store token and user
         localStorage.setItem('token', data.data.token)
         localStorage.setItem('user', JSON.stringify(data.data.user))
         console.log('Job seeker registered:', data)
-        // Switch to sign in or redirect
-        onSwitchToSignIn?.()
+        // Redirect to profile page for completion
+        window.location.href = '/profile'
       } else {
         setError(data.message || 'Registration failed')
       }
@@ -142,7 +142,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
     setIsLoading(true)
     
     try {
-      const response = await fetch('http://localhost:5000/api/v1/auth/register/company', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/register/company`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,12 +162,12 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
       const data = await response.json()
       
       if (response.ok) {
-        // Store token
+        // Store token and user
         localStorage.setItem('token', data.data.token)
         localStorage.setItem('user', JSON.stringify(data.data.user))
         console.log('Company registered:', data)
-        // Switch to sign in or redirect
-        onSwitchToSignIn?.()
+        // Redirect to profile page for completion
+        window.location.href = '/profile'
       } else {
         setError(data.message || 'Registration failed')
       }

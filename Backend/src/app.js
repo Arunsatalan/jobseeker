@@ -12,6 +12,7 @@ const { limiter } = require('./middleware/rateLimit');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const jobRoutes = require('./routes/jobRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
 const resumeRoutes = require('./routes/resumeRoutes');
 const messageRoutes = require('./routes/messageRoutes');
@@ -49,6 +50,7 @@ app.get('/health', (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/jobs', jobRoutes);
+app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/applications', applicationRoutes);
 app.use('/api/v1/resumes', resumeRoutes);
 app.use('/api/v1/messages', messageRoutes);

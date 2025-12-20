@@ -57,6 +57,11 @@ const jobSchema = new mongoose.Schema(
       required: [true, 'Industry is required'],
       trim: true,
     },
+    category: {
+      type: String,
+      required: [true, 'Category is required'],
+      trim: true,
+    },
     status: {
       type: String,
       enum: Object.values(constants.JOB_STATUS),
@@ -81,6 +86,7 @@ jobSchema.index({ employer: 1 });
 jobSchema.index({ status: 1 });
 jobSchema.index({ createdAt: -1 });
 jobSchema.index({ industry: 1 });
+jobSchema.index({ category: 1 });
 jobSchema.index({ title: 'text', description: 'text', company: 'text' });
 
 module.exports = mongoose.model('Job', jobSchema);

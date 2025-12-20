@@ -128,6 +128,12 @@ export const adminNavItems = [
 export default function AdminDashboardLayout() {
   const [activeSection, setActiveSection] = useState("overview");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleRefresh = () => {
+    // Trigger a refresh by updating the key, which will cause components to re-render
+    setRefreshKey(prev => prev + 1);
+  };
 
   return (
     <ProtectedRoute requiredRole="admin">
@@ -171,20 +177,21 @@ export default function AdminDashboardLayout() {
           admin={mockAdmin}
           activeSection={activeSection}
           navItems={adminNavItems}
+          onRefresh={handleRefresh}
         />
 
         {/* Page Content */}
         <main className="p-6">
-          {activeSection === "overview" && <OverviewDashboard />}
-          {activeSection === "users" && <UserManagement />}
-          {activeSection === "jobs" && <JobManagement />}
-          {activeSection === "resumes" && <ResumeInsights />}
-          {activeSection === "applications" && <ApplicationsManagement />}
-          {activeSection === "messaging" && <MessagingAndNotifications />}
-          {activeSection === "billing" && <PaymentsAndBilling />}
-          {activeSection === "platform" && <PlatformSettings />}
-          {activeSection === "content" && <ContentManagement />}
-          {activeSection === "moderation" && <ModerationTools />}
+          {activeSection === "overview" && <OverviewDashboard key={`overview-${refreshKey}`} />}
+          {activeSection === "users" && <UserManagement key={`users-${refreshKey}`} />}
+          {activeSection === "jobs" && <JobManagement key={`jobs-${refreshKey}`} />}
+          {activeSection === "resumes" && <ResumeInsights key={`resumes-${refreshKey}`} />}
+          {activeSection === "applications" && <ApplicationsManagement key={`applications-${refreshKey}`} />}
+          {activeSection === "messaging" && <MessagingAndNotifications key={`messaging-${refreshKey}`} />}
+          {activeSection === "billing" && <PaymentsAndBilling key={`billing-${refreshKey}`} />}
+          {activeSection === "platform" && <PlatformSettings key={`platform-${refreshKey}`} />}
+          {activeSection === "content" && <ContentManagement key={`content-${refreshKey}`} />}
+          {activeSection === "moderation" && <ModerationTools key={`moderation-${refreshKey}`} />}
         </main>
       </div>
     </div>

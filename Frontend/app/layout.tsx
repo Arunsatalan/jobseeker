@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import Navbar from '@/components/Navbar'
+import { AuthProvider } from '@/contexts/AuthContext'
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"] })
@@ -40,9 +41,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning={true} className={`${geistSans.variable} antialiased`}>
-        <Navbar />
-        {children}
-        <Analytics />
+        <AuthProvider>
+          <Navbar />
+          {children}
+          <Analytics />
+        </AuthProvider>
       </body>
     </html>
   )

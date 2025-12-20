@@ -325,3 +325,53 @@ exports.registerCompany = asyncHandler(async (req, res, next) => {
     return sendError(res, 500, 'Registration failed', { error: error.message });
   }
 });
+
+// @desc Verify token
+// @route GET /api/v1/auth/verify-token
+// @access Private
+exports.verifyToken = asyncHandler(async (req, res, next) => {
+  try {
+    // If middleware passed, token is valid
+    return sendSuccess(res, 200, 'Token is valid', {
+      user: {
+        id: req.user._id,
+        email: req.user.email,
+        role: req.user.role,
+      },
+    });
+  } catch (error) {
+    logger.error(`Token verification error: ${error.message}`);
+    return sendError(res, 500, 'Token verification failed');
+  }
+});
+
+// @desc Complete user profile
+// @route PUT /api/v1/auth/profile/complete
+// @access Private
+exports.completeProfile = asyncHandler(async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return sendError(res, 404, 'User not found');
+    }
+
+    // Update profile completion status
+    user.profileCompleted = true;
+    await user.save();
+
+    logger.info(`Profile completed for user: ${user._id}`);
+
+    return sendSuccess(res, 200, 'Profile completed successfully', {
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        profileCompleted: user.profileCompleted,
+      },
+    });
+  } catch (error) {
+    logger.error(`Profile completion error: ${error.message}`);
+    return sendError(res, 500, 'Profile completion failed');
+  }
+});
