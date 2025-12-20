@@ -23,23 +23,23 @@ export function UserInfoCard({ user, profileCompletion = 70 }: UserInfoCardProps
       <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-4 flex-1">
           <Avatar className="h-20 w-20 border-2 border-amber-700">
-            <AvatarImage src={user.profilePic} alt={user.name} />
+            <AvatarImage src={user?.profilePic || `https://ui-avatars.com/api/?name=${user?.email}`} alt={user?.name || user?.email} />
             <AvatarFallback>
               <User className="h-10 w-10 text-amber-700" />
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-gray-900">{user.name}</h2>
-            <p className="text-gray-600 text-sm">{user.email}</p>
-            <p className="text-gray-600 text-sm">{user.phone}</p>
+            <h2 className="text-xl font-bold text-gray-900">{user?.name || user?.email}</h2>
+            <p className="text-gray-600 text-sm">{user?.email}</p>
+            <p className="text-gray-600 text-sm">{user?.phone}</p>
             <Badge
               className={`mt-2 ${
-                user.accountType === "Pro"
+                user?.accountType === "Pro"
                   ? "bg-amber-100 text-amber-700 hover:bg-amber-100"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-100"
               }`}
             >
-              {user.accountType} Account
+              {user?.accountType || 'Free'} Account
             </Badge>
           </div>
         </div>

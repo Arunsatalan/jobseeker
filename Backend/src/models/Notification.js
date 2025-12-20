@@ -10,8 +10,10 @@ const notificationSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: [
+        'welcome',
         'job_match',
         'application_status',
+        'application_update',
         'message',
         'profile_update',
         'subscription',

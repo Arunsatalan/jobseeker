@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
@@ -18,6 +19,8 @@ const resumeRoutes = require('./routes/resumeRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const debugRoutes = require('./routes/debugRoutes');
 
 const app = express();
 
@@ -46,6 +49,9 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Debug test page
+app.use('/test', express.static(path.join(__dirname, '..')));
+
 // API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
@@ -56,6 +62,8 @@ app.use('/api/v1/resumes', resumeRoutes);
 app.use('/api/v1/messages', messageRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/debug', debugRoutes);
 
 // 404 handler
 app.use((req, res) => {

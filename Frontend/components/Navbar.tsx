@@ -18,21 +18,45 @@ import {
   Star,
   Download,
   ChevronDown,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2,
+  Info,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+interface Notification {
+  _id: string;
+  title: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+  metadata?: any;
+}
 
 interface NavbarProps {
   savedJobsCount?: number;
-  notificationCount?: number;
 }
 
 export default function Navbar({
   savedJobsCount = 0,
-  notificationCount = 0,
 }: NavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout, isAuthenticated } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+  const [notificationError, setNotificationError] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -49,6 +73,111 @@ export default function Navbar({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Fetch notifications when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchNotifications();
+      
+      // Auto-refresh notifications every 30 seconds (less frequent than admin)
+      const interval = setInterval(() => {
+        if (!isDropdownOpen) {
+          fetchNotifications();
+        }
+      }, 30000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, isDropdownOpen]);
+
+  const fetchNotifications = async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      setIsLoadingNotifications(true);
+      setNotificationError(null);
+      const token = localStorage.getItem('token');
+      
+      if (!token) return;
+      
+      const response = await fetch('http://localhost:5000/api/v1/notifications?limit=10', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch notifications: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.data?.notifications) {
+        setNotifications(data.data.notifications);
+        const unreadCount = data.data.notifications.filter((n: Notification) => !n.isRead).length;
+        setNotificationCount(unreadCount);
+      }
+    } catch (error) {
+      console.error('[Navbar Notifications] Error:', error);
+      setNotificationError('Failed to load notifications');
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  };
+
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch(`http://localhost:5000/api/v1/notifications/${notificationId}/read`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        setNotifications(prev => 
+          prev.map(notif => 
+            notif._id === notificationId 
+              ? { ...notif, isRead: true }
+              : notif
+          )
+        );
+        setNotificationCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('[Navbar Notifications] Error marking as read:', error);
+    }
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'welcome':
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'application_update':
+        return <FileText className="h-4 w-4 text-blue-500" />;
+      case 'job_match':
+        return <Briefcase className="h-4 w-4 text-purple-500" />;
+      default:
+        return <Info className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return 'just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    return date.toLocaleDateString();
+  };
 
   const handleLogout = () => {
     logout();
@@ -118,17 +247,103 @@ export default function Navbar({
             </button>
 
             {/* Notifications Button */}
-            <button
-              className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Notifications"
-            >
-              <Bell className="h-5 w-5" />
-              {notificationCount > 0 && (
-                <span className="absolute top-1 right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {notificationCount > 9 ? "9+" : notificationCount}
-                </span>
-              )}
-            </button>
+            <DropdownMenu onOpenChange={setIsDropdownOpen}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="relative p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Notifications"
+                >
+                  <Bell className="h-5 w-5" />
+                  {notificationCount > 0 && (
+                    <span className="absolute top-1 right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      {notificationCount > 9 ? "9+" : notificationCount}
+                    </span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <div className="px-4 py-3 border-b bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Notifications</h3>
+                      <p className="text-sm text-gray-500">
+                        {notificationCount} unread notification{notificationCount !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={fetchNotifications}
+                      disabled={isLoadingNotifications}
+                    >
+                      <RefreshCw className={`h-4 w-4 ${isLoadingNotifications ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="max-h-80 overflow-y-auto">
+                  {isLoadingNotifications ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                    </div>
+                  ) : notificationError ? (
+                    <div className="flex flex-col items-center justify-center py-8 px-4">
+                      <AlertCircle className="h-8 w-8 mb-2 text-red-500" />
+                      <p className="text-sm text-gray-600 text-center">{notificationError}</p>
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+                      <Bell className="h-8 w-8 mb-2 opacity-50" />
+                      <p className="text-sm">No notifications yet</p>
+                      <p className="text-xs text-gray-400 mt-1">We'll notify you of important updates</p>
+                    </div>
+                  ) : (
+                    notifications.map((notification) => (
+                      <div
+                        key={notification._id}
+                        className={`border-b px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ${
+                          !notification.isRead ? 'bg-blue-50' : ''
+                        }`}
+                        onClick={() => {
+                          if (!notification.isRead) {
+                            markNotificationAsRead(notification._id);
+                          }
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1">
+                            {getNotificationIcon(notification.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="font-medium text-sm text-gray-900">
+                                {notification.title}
+                              </p>
+                              {!notification.isRead && (
+                                <div className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0 mt-1" />
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600 line-clamp-2 mt-1">
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {formatDate(notification.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="p-3 text-center">
+                  <Button variant="ghost" size="sm" className="w-full">
+                    View All Notifications
+                  </Button>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* User Profile Dropdown */}
             {isAuthenticated && user ? (

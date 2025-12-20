@@ -3,6 +3,7 @@ const JobSeeker = require('../models/JobSeeker');
 const Company = require('../models/Company');
 const asyncHandler = require('../middleware/async');
 const emailService = require('../services/emailService');
+const notificationService = require('../services/notificationService');
 const config = require('../config/environment');
 const logger = require('../utils/logger');
 const { sendSuccess, sendError } = require('../utils/response');
@@ -218,6 +219,12 @@ exports.registerJobSeeker = asyncHandler(async (req, res, next) => {
       return sendError(res, 400, 'Email already registered');
     }
 
+    // Check if job seeker profile already exists
+    const jobSeekerExists = await JobSeeker.findOne({ email });
+    if (jobSeekerExists) {
+      return sendError(res, 400, 'Email already registered');
+    }
+
     // Create user
     const user = await User.create({
       firstName,
@@ -244,6 +251,46 @@ exports.registerJobSeeker = asyncHandler(async (req, res, next) => {
     const token = user.getSignedJwt();
 
     logger.info(`New job seeker registered: ${user._id}`);
+
+    // Create welcome notification for the new job seeker
+    try {
+      await notificationService.createNotification(
+        user._id,
+        'welcome',
+        'Welcome to CanadaJobs!',
+        `Welcome ${firstName}! Your job seeker profile has been created successfully. Start exploring job opportunities and build your career in Canada.`,
+        {
+          userType: 'job_seeker',
+          registrationDate: new Date(),
+          location: `${city}, ${province}`,
+        }
+      );
+      logger.info(`Welcome notification created for job seeker: ${user._id}`);
+    } catch (notificationError) {
+      logger.error(`Failed to create welcome notification for job seeker: ${notificationError.message}`);
+    }
+
+    // Create notification for admins
+    try {
+      const admins = await User.find({ role: constants.ROLES.ADMIN });
+      for (const admin of admins) {
+        await notificationService.createNotification(
+          admin._id,
+          'admin_notification',
+          'New Job Seeker Registered',
+          `${firstName} ${lastName} has registered as a job seeker`,
+          {
+            userId: user._id,
+            userType: 'job_seeker',
+            userEmail: email,
+            location: `${city}, ${province}`,
+          }
+        );
+      }
+      logger.info(`Admin notification created for new job seeker: ${user._id}`);
+    } catch (notificationError) {
+      logger.error(`Failed to create admin notification: ${notificationError.message}`);
+    }
 
     return sendSuccess(res, 201, 'Job seeker registered successfully', {
       user: {
@@ -310,6 +357,50 @@ exports.registerCompany = asyncHandler(async (req, res, next) => {
     const token = user.getSignedJwt();
 
     logger.info(`New company registered: ${company._id}, user: ${user._id}`);
+
+    // Create welcome notification for the new company/employer
+    try {
+      await notificationService.createNotification(
+        user._id,
+        'welcome',
+        'Welcome to CanadaJobs!',
+        `Welcome ${contactName}! Your company profile for ${companyName} has been created successfully. Start posting jobs and find the best talent in Canada.`,
+        {
+          userType: 'company',
+          companyId: company._id,
+          companyName: companyName,
+          registrationDate: new Date(),
+          location: `${city}, ${province}`,
+        }
+      );
+      logger.info(`Welcome notification created for company: ${user._id}`);
+    } catch (notificationError) {
+      logger.error(`Failed to create welcome notification for company: ${notificationError.message}`);
+    }
+
+    // Create notification for admins
+    try {
+      const admins = await User.find({ role: constants.ROLES.ADMIN });
+      for (const admin of admins) {
+        await notificationService.createNotification(
+          admin._id,
+          'admin_notification',
+          'New Company Registered',
+          `${companyName} has registered as a company`,
+          {
+            userId: user._id,
+            companyId: company._id,
+            userType: 'company',
+            companyName: companyName,
+            userEmail: companyEmail,
+            location: `${city}, ${province}`,
+          }
+        );
+      }
+      logger.info(`Admin notification created for new company: ${user._id}`);
+    } catch (notificationError) {
+      logger.error(`Failed to create admin notification: ${notificationError.message}`);
+    }
 
     return sendSuccess(res, 201, 'Company registered successfully', {
       user: {

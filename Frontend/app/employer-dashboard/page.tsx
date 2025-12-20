@@ -13,7 +13,7 @@ import { MessagingSystem } from "@/components/employer/MessagingSystem";
 import { CompanyProfile } from "@/components/employer/CompanyProfile";
 import { PlanBilling } from "@/components/employer/PlanBilling";
 import { AccountSettings } from "@/components/employer/AccountSettings";
-import ProtectedRoute from "@/components/ProtectedRoute";
+
 
 // Mock data
 const mockCompany = {
@@ -89,7 +89,6 @@ export default function EmployerDashboard() {
   };
 
   return (
-    <ProtectedRoute requiredRole="employer">
       <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-amber-50 flex">
       {/* Employer Sidebar */}
       <EmployerSidebar
@@ -246,6 +245,5 @@ export default function EmployerDashboard() {
         </div>
       </div>
     </div>
-    </ProtectedRoute>
   );
 }

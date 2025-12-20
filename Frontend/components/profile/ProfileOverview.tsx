@@ -40,10 +40,10 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
   const [profileCompletion, setProfileCompletion] = useState(68);
 
   const [formData, setFormData] = useState({
-    firstName: user.name.split(" ")[0],
-    lastName: user.name.split(" ")[1] || "",
-    email: user.email,
-    phone: user.phone,
+    firstName: user?.name?.split(" ")[0] || "",
+    lastName: user?.name?.split(" ")[1] || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
     dateOfBirth: "1995-03-15",
     gender: "Male",
     nationality: "Canadian",
@@ -155,7 +155,7 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
                   <Label className="text-sm font-semibold mb-2 block">Profile Picture</Label>
                   <div className="flex items-center gap-4">
                     <Avatar className="h-20 w-20 border-2 border-amber-600">
-                      <AvatarImage src={user.profilePic} alt={user.name} />
+                      <AvatarImage src={user?.profilePic || `https://ui-avatars.com/api/?name=${user?.email}`} alt={user?.name || user?.email} />
                       <AvatarFallback>
                         <User className="h-10 w-10 text-amber-700" />
                       </AvatarFallback>

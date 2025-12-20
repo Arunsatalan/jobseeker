@@ -53,13 +53,13 @@ export function Sidebar({ user, activeSection = "user-info", onNavigate, onLogou
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-3 mb-3">
           <Avatar className="h-12 w-12 border-2 border-amber-700">
-            <AvatarImage src={user.profilePic} alt={user.name} />
+            <AvatarImage src={user.profilePic || `https://ui-avatars.com/api/?name=${user.email}`} alt={user.name || user.email} />
             <AvatarFallback>
               <User className="h-6 w-6 text-amber-700" />
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">{user.name}</p>
+            <p className="text-sm font-semibold text-gray-900 truncate">{user.name || user.email}</p>
             <p className="text-xs text-gray-500 truncate">{user.email}</p>
             <Badge
               className={`mt-1 text-xs ${
@@ -68,7 +68,7 @@ export function Sidebar({ user, activeSection = "user-info", onNavigate, onLogou
                   : "bg-gray-100 text-gray-700 hover:bg-gray-100"
               }`}
             >
-              {user.accountType}
+              {user.accountType || 'Free'}
             </Badge>
           </div>
         </div>

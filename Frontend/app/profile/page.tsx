@@ -8,7 +8,7 @@ import { LogOut, User, FileText, Briefcase, Settings } from "lucide-react";
 import { Sidebar } from "@/components/profile/Sidebar";
 import { ProfileOverview } from "@/components/profile/ProfileOverview";
 import { ResumeListView } from "@/components/profile/ResumeListView";
-import ProtectedRoute from "@/components/ProtectedRoute";
+
 import { ResumeBuilder } from "@/components/profile/ResumeBuilder";
 import { JobPreferences } from "@/components/profile/JobPreferences";
 import { CareerProgress } from "@/components/profile/CareerProgress";
@@ -61,7 +61,7 @@ const mockJobPreferences = {
 const mockSkillGaps = ["TypeScript", "React.js", "Next.js"];
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth()
+  const { user, logout, isLoading } = useAuth()
   const [profileVisible, setProfileVisible] = useState(true);
   const [userResumes, setUserResumes] = useState(mockResumes);
   const [activeSection, setActiveSection] = useState("user-info");
@@ -74,6 +74,24 @@ export default function ProfilePage() {
       setNeedsProfileCompletion(true);
     }
   }, [user]);
+
+  // Show loading while auth is being checked
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-amber-500"></div>
+      </div>
+    );
+  }
+
+  // Show loading if user is not available
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-500">Loading user data...</div>
+      </div>
+    );
+  }
 
   const handleResumeDelete = (index: number) => {
     setUserResumes((prev) => prev.filter((_, i) => i !== index));
@@ -155,8 +173,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-linear-to-br from-amber-50 via-white to-purple-50 flex">
+    <div className="min-h-screen bg-linear-to-br from-amber-50 via-white to-purple-50 flex">
       {/* Professional Sidebar */}
       <Sidebar
         user={user}
@@ -172,15 +189,15 @@ export default function ProfilePage() {
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10 border-2 border-amber-500">
-                <AvatarImage src={user.profilePic} alt={user.name} />
+                <AvatarImage src={user.profilePic || `https://ui-avatars.com/api/?name=${user.email}`} alt={user.name || user.email} />
                 <AvatarFallback className="bg-amber-100">
                   <User className="h-5 w-5 text-amber-700" />
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="font-semibold text-gray-900">{user.name}</p>
+                <p className="font-semibold text-gray-900">{user.name || user.email}</p>
                 <Badge className="text-xs bg-amber-100 text-amber-700">
-                  {user.accountType}
+                  {user.accountType || 'Free'}
                 </Badge>
               </div>
             </div>
@@ -322,10 +339,9 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-    </div>
 
-    {/* Profile Completion Modal */}
-    <Dialog open={needsProfileCompletion} onOpenChange={setNeedsProfileCompletion}>
+      {/* Profile Completion Modal */}
+      <Dialog open={needsProfileCompletion} onOpenChange={setNeedsProfileCompletion}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Complete Your Profile</DialogTitle>
@@ -352,6 +368,6 @@ export default function ProfilePage() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-    </ProtectedRoute>
+    </div>
   );
 }
