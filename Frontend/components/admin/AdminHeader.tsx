@@ -47,8 +47,11 @@ export function AdminHeader({ admin, activeSection, navItems }: AdminHeaderProps
   const pageTitle = activeItem?.label || "Dashboard";
 
   const handleLogout = () => {
-    console.log("Admin logout");
-    // Implement logout logic
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Redirect to home page
+    window.location.href = '/';
   };
 
   const notifications = [

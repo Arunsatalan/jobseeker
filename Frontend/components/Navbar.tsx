@@ -49,8 +49,11 @@ export default function Navbar({
   }, []);
 
   const handleLogout = () => {
-    // TODO: Implement logout logic
-    router.push("/login");
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Redirect to home page
+    router.push("/");
     setShowUserMenu(false);
   };
 

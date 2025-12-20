@@ -8,6 +8,7 @@ import { LogOut, User, FileText, Briefcase, Settings } from "lucide-react";
 import { Sidebar } from "@/components/profile/Sidebar";
 import { ProfileOverview } from "@/components/profile/ProfileOverview";
 import { ResumeListView } from "@/components/profile/ResumeListView";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import { ResumeBuilder } from "@/components/profile/ResumeBuilder";
 import { JobPreferences } from "@/components/profile/JobPreferences";
 import { CareerProgress } from "@/components/profile/CareerProgress";
@@ -98,8 +99,11 @@ export default function ProfilePage() {
   };
 
   const handleLogout = () => {
-    console.log("Logging out...");
-    // Implement logout functionality
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Redirect to signin page
+    window.location.href = '/';
   };
 
   const handleUpgrade = () => {
@@ -108,7 +112,8 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-amber-50 via-white to-purple-50 flex">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-linear-to-br from-amber-50 via-white to-purple-50 flex">
       {/* Professional Sidebar */}
       <Sidebar
         user={user}
@@ -275,5 +280,6 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

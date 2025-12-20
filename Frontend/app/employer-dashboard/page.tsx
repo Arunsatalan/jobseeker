@@ -13,6 +13,7 @@ import { MessagingSystem } from "@/components/employer/MessagingSystem";
 import { CompanyProfile } from "@/components/employer/CompanyProfile";
 import { PlanBilling } from "@/components/employer/PlanBilling";
 import { AccountSettings } from "@/components/employer/AccountSettings";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Mock data
 const mockCompany = {
@@ -70,8 +71,11 @@ export default function EmployerDashboard() {
   const [jobs, setJobs] = useState(mockJobs);
 
   const handleLogout = () => {
-    console.log("Logging out...");
-    // Implement logout functionality
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Redirect to signin page
+    window.location.href = '/';
   };
 
   const handleUpgrade = () => {
@@ -85,7 +89,8 @@ export default function EmployerDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-amber-50 flex">
+    <ProtectedRoute requiredRole="employer">
+      <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-amber-50 flex">
       {/* Employer Sidebar */}
       <EmployerSidebar
         company={company}
@@ -241,5 +246,6 @@ export default function EmployerDashboard() {
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

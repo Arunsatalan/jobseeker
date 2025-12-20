@@ -13,6 +13,7 @@ import { PaymentsAndBilling } from "@/components/admin/PaymentsAndBilling";
 import { PlatformSettings } from "@/components/admin/PlatformSettings";
 import { ContentManagement } from "@/components/admin/ContentManagement";
 import { ModerationTools } from "@/components/admin/ModerationTools";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import { 
   BarChart3, 
   Users, 
@@ -129,7 +130,8 @@ export default function AdminDashboardLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <ProtectedRoute requiredRole="admin">
+      <div className="min-h-screen bg-gray-50">
       {/* Custom CSS Variables for Admin Theme */}
       <style jsx global>{`
         :root {
@@ -186,5 +188,6 @@ export default function AdminDashboardLayout() {
         </main>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

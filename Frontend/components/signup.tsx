@@ -20,6 +20,7 @@ import {
   Sparkles,
   X,
   Check,
+  AlertCircle,
 } from "lucide-react"
 
 interface SignUpProps {
@@ -30,6 +31,7 @@ interface SignUpProps {
 export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
   const [activeTab, setActiveTab] = useState("job-seeker")
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
 
   // Job Seeker form state
   const [jobSeekerData, setJobSeekerData] = useState({
@@ -75,13 +77,14 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
   const isJobSeekerValid = () => {
     return jobSeekerData.firstName && jobSeekerData.lastName && jobSeekerData.email && jobSeekerData.phone && 
            jobSeekerData.city && jobSeekerData.province && jobSeekerData.password && 
-           jobSeekerData.confirmPassword
+           jobSeekerData.confirmPassword && jobSeekerData.password === jobSeekerData.confirmPassword
   }
 
   const isCompanyValid = () => {
     return companyData.companyName && companyData.companyEmail && companyData.contactName && 
            companyData.city && companyData.province && companyData.password && 
-           companyData.confirmPassword && companyData.agreeToTerms
+           companyData.confirmPassword && companyData.agreeToTerms && 
+           companyData.password === companyData.confirmPassword
   }
 
   const isAgencyValid = () => {
@@ -92,18 +95,88 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
 
   const handleJobSeekerSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
     setIsLoading(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setIsLoading(false)
-    // Handle signup logic
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/v1/auth/register/job-seeker', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: jobSeekerData.firstName,
+          lastName: jobSeekerData.lastName,
+          email: jobSeekerData.email,
+          phone: jobSeekerData.phone,
+          city: jobSeekerData.city,
+          province: jobSeekerData.province,
+          isNewcomer: jobSeekerData.isNewcomer,
+          password: jobSeekerData.password,
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        // Store token
+        localStorage.setItem('token', data.data.token)
+        localStorage.setItem('user', JSON.stringify(data.data.user))
+        console.log('Job seeker registered:', data)
+        // Switch to sign in or redirect
+        onSwitchToSignIn?.()
+      } else {
+        setError(data.message || 'Registration failed')
+      }
+    } catch (error) {
+      console.error('Network error:', error)
+      setError('Network error. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
     setIsLoading(true)
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setIsLoading(false)
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/v1/auth/register/company', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyName: companyData.companyName,
+          companyEmail: companyData.companyEmail,
+          contactName: companyData.contactName,
+          contactPhone: companyData.contactPhone,
+          city: companyData.city,
+          province: companyData.province,
+          website: companyData.website,
+          password: companyData.password,
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        // Store token
+        localStorage.setItem('token', data.data.token)
+        localStorage.setItem('user', JSON.stringify(data.data.user))
+        console.log('Company registered:', data)
+        // Switch to sign in or redirect
+        onSwitchToSignIn?.()
+      } else {
+        setError(data.message || 'Registration failed')
+      }
+    } catch (error) {
+      console.error('Network error:', error)
+      setError('Network error. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleAgencySubmit = async (e: React.FormEvent) => {
@@ -154,6 +227,13 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
               Temp Agency
             </TabsTrigger> */}
           </TabsList>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
 
           <TabsContent value="job-seeker">
             <form onSubmit={handleJobSeekerSubmit} className="space-y-6">

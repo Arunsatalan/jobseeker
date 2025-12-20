@@ -13,7 +13,9 @@ const userSchema = new mongoose.Schema(
     },
     lastName: {
       type: String,
-      required: [true, 'Last name is required'],
+      required: function() {
+        return this.role !== 'employer';
+      },
       trim: true,
     },
     email: {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { UserManagement } from "@/components/admin/UserManagement";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 // Mock admin user data
 const mockAdmin = {
@@ -21,7 +22,8 @@ export default function UsersPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <ProtectedRoute requiredRole="admin">
+      <div className="min-h-screen bg-gray-50">
       {/* Custom CSS Variables for Admin Theme */}
       <style jsx global>{`
         :root {
@@ -69,5 +71,6 @@ export default function UsersPage() {
         </main>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }

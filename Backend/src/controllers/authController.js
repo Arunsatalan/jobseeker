@@ -1,9 +1,12 @@
 const User = require('../models/User');
+const JobSeeker = require('../models/JobSeeker');
+const Company = require('../models/Company');
 const asyncHandler = require('../middleware/async');
 const emailService = require('../services/emailService');
 const config = require('../config/environment');
 const logger = require('../utils/logger');
 const { sendSuccess, sendError } = require('../utils/response');
+const constants = require('../utils/constants');
 
 // @desc Register user
 // @route POST /api/v1/auth/register
@@ -199,5 +202,126 @@ exports.resendVerification = asyncHandler(async (req, res, next) => {
   } catch (error) {
     logger.error(`Resend verification error: ${error.message}`);
     return sendError(res, 500, 'Error resending verification email');
+  }
+});
+
+// @desc Register job seeker
+// @route POST /api/v1/auth/register/job-seeker
+// @access Public
+exports.registerJobSeeker = asyncHandler(async (req, res, next) => {
+  try {
+    const { firstName, lastName, email, phone, city, province, isNewcomer, password } = req.body;
+
+    // Check if user already exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return sendError(res, 400, 'Email already registered');
+    }
+
+    // Create user
+    const user = await User.create({
+      firstName,
+      lastName,
+      email,
+      phone,
+      location: `${city}, ${province}`,
+      password,
+      role: constants.ROLES.JOB_SEEKER,
+    });
+
+    // Create job seeker profile
+    const jobSeeker = await JobSeeker.create({
+      user: user._id,
+      firstName,
+      lastName,
+      email,
+      phone,
+      city,
+      province,
+      isNewcomer,
+    });
+
+    const token = user.getSignedJwt();
+
+    logger.info(`New job seeker registered: ${user._id}`);
+
+    return sendSuccess(res, 201, 'Job seeker registered successfully', {
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+      },
+      profile: jobSeeker,
+      token,
+    });
+  } catch (error) {
+    logger.error(`Job seeker registration error: ${error.message}`);
+    return sendError(res, 500, 'Registration failed', { error: error.message });
+  }
+});
+
+// @desc Register company
+// @route POST /api/v1/auth/register/company
+// @access Public
+exports.registerCompany = asyncHandler(async (req, res, next) => {
+  try {
+    const { companyName, companyEmail, contactName, contactPhone, city, province, website, password } = req.body;
+
+    // Check if company email already exists
+    const companyExists = await Company.findOne({ email: companyEmail });
+    if (companyExists) {
+      return sendError(res, 400, 'Company email already registered');
+    }
+
+    // Check if user already exists
+    const userExists = await User.findOne({ email: companyEmail });
+    if (userExists) {
+      return sendError(res, 400, 'Email already registered');
+    }
+
+    // Create company
+    const company = await Company.create({
+      name: companyName,
+      email: companyEmail,
+      phone: contactPhone,
+      website,
+      location: `${city}, ${province}`,
+    });
+
+    // Create user account for company contact
+    const firstName = contactName.split(' ')[0] || contactName;
+    const lastName = contactName.split(' ').slice(1).join(' ') || 'N/A';
+    
+    const user = await User.create({
+      firstName,
+      lastName,
+      email: companyEmail,
+      phone: contactPhone,
+      location: `${city}, ${province}`,
+      password,
+      role: constants.ROLES.EMPLOYER,
+      company: company._id,
+    });
+
+    // Add user to company employees
+    company.employees.push(user._id);
+    await company.save();
+
+    const token = user.getSignedJwt();
+
+    logger.info(`New company registered: ${company._id}, user: ${user._id}`);
+
+    return sendSuccess(res, 201, 'Company registered successfully', {
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+      },
+      company,
+      token,
+    });
+  } catch (error) {
+    logger.error(`Company registration error: ${error.message}`);
+    return sendError(res, 500, 'Registration failed', { error: error.message });
   }
 });

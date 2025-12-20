@@ -35,12 +35,48 @@ export default function SignIn({ onClose, onSwitchToSignUp }: SignInProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setIsLoading(false)
-    // Handle sign in logic here
-    // Navigate to home page after successful login
-    router.push('/')
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok) {
+        // Store token and user
+        localStorage.setItem('token', data.data.token)
+        localStorage.setItem('user', JSON.stringify(data.data.user))
+        
+        // Navigate based on role
+        const userRole = data.data.user.role
+        if (userRole === 'jobseeker') {
+          router.push('/jobs')
+        } else if (userRole === 'employer') {
+          router.push('/employer-dashboard')
+        } else if (userRole === 'admin') {
+          router.push('/admin')
+        } else {
+          router.push('/')
+        }
+      } else {
+        // Handle error - you might want to show an error message
+        console.error('Login failed:', data.message)
+        alert(data.message || 'Login failed')
+      }
+    } catch (error) {
+      console.error('Network error:', error)
+      alert('Network error. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleSocialLogin = (provider: string) => {

@@ -58,8 +58,11 @@ export function AdminSidebar({
   };
 
   const handleLogout = () => {
-    console.log("Admin logout");
-    // Implement logout logic
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    // Redirect to home page
+    window.location.href = '/';
   };
 
   return (
