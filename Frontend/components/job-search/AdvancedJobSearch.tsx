@@ -426,12 +426,55 @@ export default function AdvancedJobSearch() {
     return filtered
   }, [])
 
+  // Enhanced client-side search for skills and job details
+  const enhancedJobSearch = useCallback((jobs: Job[], searchQuery: string): Job[] => {
+    if (!searchQuery.trim()) return jobs
+
+    const query = searchQuery.toLowerCase().trim()
+    
+    return jobs.filter(job => {
+      // Search in job title
+      if (job.title.toLowerCase().includes(query)) return true
+      
+      // Search in company name
+      if (job.company.toLowerCase().includes(query)) return true
+      
+      // Search in skills array (e.g., "java", "react", "python")
+      if (job.skills.some(skill => skill.toLowerCase().includes(query))) return true
+      
+      // Search in requirements
+      if (job.requirements.some(req => req.toLowerCase().includes(query))) return true
+      
+      // Search in job description
+      if (job.description.toLowerCase().includes(query)) return true
+      
+      // Search in benefits
+      if (job.benefits.some(benefit => benefit.toLowerCase().includes(query))) return true
+      
+      // Search in custom sections content
+      if (job.customSections.some(section => 
+        section.title.toLowerCase().includes(query) || 
+        section.content.toLowerCase().includes(query)
+      )) return true
+      
+      // Search in category and industry
+      if (job.category?.toLowerCase().includes(query)) return true
+      if (job.industry?.toLowerCase().includes(query)) return true
+      
+      // Search in employment type
+      if (job.employmentType.toLowerCase().includes(query)) return true
+      
+      return false
+    })
+  }, [])
+
   // Main search handler
   const handleSearch = useCallback(async (jobQ: string, locationQ: string, updateUrl = true) => {
     setLoading(true)
 
     try {
       let jobs: Job[] = []
+      let useClientSideSearch = false
       
       if (jobQ.trim() || locationQ.trim()) {
         console.log('Searching with params:', { keyword: jobQ.trim(), location: locationQ.trim() })
@@ -455,18 +498,53 @@ export default function AdvancedJobSearch() {
           jobs = response.data.data.map(convertApiJobToJob)
         }
         
-        setAllJobs(jobs)
+        // If API search returns no results but we have a search query, 
+        // fall back to fetching all jobs and use client-side search
+        if (jobs.length === 0 && jobQ.trim()) {
+          console.log('API search returned no results, falling back to client-side search')
+          const allJobsResponse = await axios.get('/api/v1/jobs', {
+            params: { page: 1, limit: 50 }
+          })
+          
+          let allJobsData: Job[] = []
+          if (Array.isArray(allJobsResponse.data)) {
+            allJobsData = allJobsResponse.data.map(convertApiJobToJob)
+          } else if (allJobsResponse.data.jobs && Array.isArray(allJobsResponse.data.jobs)) {
+            allJobsData = allJobsResponse.data.jobs.map(convertApiJobToJob)
+          } else if (allJobsResponse.data.data && Array.isArray(allJobsResponse.data.data)) {
+            allJobsData = allJobsResponse.data.data.map(convertApiJobToJob)
+          }
+          
+          setAllJobs(allJobsData)
+          jobs = allJobsData
+          useClientSideSearch = true
+        } else {
+          setAllJobs(jobs)
+        }
       } else {
         // If no search terms, fetch all jobs
         await fetchAllJobs()
         return
       }
 
-      // Apply filters
-      const filteredResults = applyFilters(jobs, filters)
-      setFilteredJobs(filteredResults)
-      setTotalResults(jobs.length)
-      setSelectedJobId(filteredResults.length > 0 ? filteredResults[0].id : null)
+      // Apply enhanced search and filters
+      let searchAndFilteredResults: Job[]
+      
+      if (useClientSideSearch && jobQ.trim()) {
+        // Use client-side search on all jobs
+        searchAndFilteredResults = applyFilters(enhancedJobSearch(jobs, jobQ), filters)
+        console.log('Applied client-side search for:', jobQ, 'Results:', searchAndFilteredResults.length)
+      } else if (jobQ.trim()) {
+        // Use API results with additional client-side search enhancement
+        searchAndFilteredResults = applyFilters(enhancedJobSearch(jobs, jobQ), filters)
+      } else {
+        // No search query, just apply filters
+        searchAndFilteredResults = applyFilters(jobs, filters)
+      }
+      
+      setFilteredJobs(searchAndFilteredResults)
+      setTotalResults(searchAndFilteredResults.length)
+      setSelectedJobId(searchAndFilteredResults.length > 0 ? searchAndFilteredResults[0].id : null)
 
       if (updateUrl) {
         const params = new URLSearchParams()
@@ -488,8 +566,12 @@ export default function AdvancedJobSearch() {
   const handleFilterChange = useCallback((newFilters: FilterState) => {
     setFilters(newFilters)
 
-    const filtered = applyFilters(allJobs, newFilters)
-    setFilteredJobs(filtered)
+    // Apply both search and filters
+    const searchAndFiltered = jobQuery.trim() ? 
+      applyFilters(enhancedJobSearch(allJobs, jobQuery), newFilters) : 
+      applyFilters(allJobs, newFilters)
+    
+    setFilteredJobs(searchAndFiltered)
 
     // Calculate active filters
     const activeCount = [
@@ -502,7 +584,7 @@ export default function AdvancedJobSearch() {
     ].filter(Boolean).length
 
     setActiveFilterCount(activeCount)
-  }, [applyFilters, allJobs])
+  }, [applyFilters, enhancedJobSearch, allJobs, jobQuery])
 
   const handleBookmark = (jobId: string, e?: React.MouseEvent) => {
     e?.stopPropagation()
@@ -614,7 +696,7 @@ export default function AdvancedJobSearch() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
               <Input
-                placeholder="Job title, keyword, or company"
+                placeholder="Job title, skills (e.g., Java, Python), company, or keywords"
                 value={jobQuery}
                 onChange={(e) => setJobQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
