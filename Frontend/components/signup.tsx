@@ -32,6 +32,9 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
   const [activeTab, setActiveTab] = useState("job-seeker")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [otp, setOtp] = useState("")
+  const [otpSent, setOtpSent] = useState(false)
+  const [passwordStrength, setPasswordStrength] = useState("")
 
   // Job Seeker form state
   const [jobSeekerData, setJobSeekerData] = useState({
@@ -73,31 +76,81 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
     confirmPassword: "",
   })
 
+  const checkPasswordStrength = (password: string) => {
+    if (password.length < 8) return "Weak (Too short)";
+    if (!/[A-Z]/.test(password)) return "Weak (Need uppercase)";
+    if (!/[0-9]/.test(password)) return "Weak (Need number)";
+    if (!/[^A-Za-z0-9]/.test(password)) return "Medium (Add special char)";
+    return "Strong";
+  }
+
   // Validation functions
   const isJobSeekerValid = () => {
-    return jobSeekerData.firstName && jobSeekerData.lastName && jobSeekerData.email && jobSeekerData.phone && 
-           jobSeekerData.city && jobSeekerData.province && jobSeekerData.password && 
-           jobSeekerData.confirmPassword && jobSeekerData.password === jobSeekerData.confirmPassword
+    return jobSeekerData.firstName && jobSeekerData.lastName && jobSeekerData.email && jobSeekerData.phone &&
+      jobSeekerData.city && jobSeekerData.province && jobSeekerData.password &&
+      jobSeekerData.confirmPassword && jobSeekerData.password === jobSeekerData.confirmPassword
   }
 
   const isCompanyValid = () => {
-    return companyData.companyName && companyData.companyEmail && companyData.contactName && 
-           companyData.city && companyData.province && companyData.password && 
-           companyData.confirmPassword && companyData.agreeToTerms && 
-           companyData.password === companyData.confirmPassword
+    return companyData.companyName && companyData.companyEmail && companyData.contactName &&
+      companyData.city && companyData.province && companyData.password &&
+      companyData.confirmPassword && companyData.agreeToTerms &&
+      companyData.password === companyData.confirmPassword
   }
 
   const isAgencyValid = () => {
-    return agencyData.agencyName && agencyData.registrationNo && agencyData.contactName && 
-           agencyData.email && agencyData.phone && agencyData.city && agencyData.province && 
-           agencyData.password && agencyData.confirmPassword
+    return agencyData.agencyName && agencyData.registrationNo && agencyData.contactName &&
+      agencyData.email && agencyData.phone && agencyData.city && agencyData.province &&
+      agencyData.password && agencyData.confirmPassword
   }
+
+  const sendOTP = async (email: string) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setOtpSent(true);
+        setError("");
+      } else {
+        setError(data.message || 'Failed to send OTP');
+      }
+    } catch (error) {
+      setError('Network error sending OTP');
+    }
+  };
 
   const handleJobSeekerSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+
+    if (jobSeekerData.password !== jobSeekerData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (checkPasswordStrength(jobSeekerData.password).startsWith("Weak")) {
+      setError("Password is too weak. Please use a stronger password.");
+      return;
+    }
+
+    if (!otpSent) {
+      setIsLoading(true);
+      await sendOTP(jobSeekerData.email);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!otp) {
+      setError("Please enter the verification code sent to your email.");
+      return;
+    }
+
     setIsLoading(true)
-    
+
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/register/job-seeker`, {
         method: 'POST',
@@ -113,11 +166,12 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
           province: jobSeekerData.province,
           isNewcomer: jobSeekerData.isNewcomer,
           password: jobSeekerData.password,
+          otp: otp,
         }),
       })
-      
+
       const data = await response.json()
-      
+
       if (response.ok) {
         // Store token and user
         localStorage.setItem('token', data.data.token)
@@ -139,8 +193,31 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
   const handleCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+
+    if (companyData.password !== companyData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (checkPasswordStrength(companyData.password).startsWith("Weak")) {
+      setError("Password is too weak. Please use a stronger password.");
+      return;
+    }
+
+    if (!otpSent) {
+      setIsLoading(true);
+      await sendOTP(companyData.companyEmail);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!otp) {
+      setError("Please enter the verification code sent to your email.");
+      return;
+    }
+
     setIsLoading(true)
-    
+
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/register/company`, {
         method: 'POST',
@@ -156,11 +233,12 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
           province: companyData.province,
           website: companyData.website,
           password: companyData.password,
+          otp: otp,
         }),
       })
-      
+
       const data = await response.json()
-      
+
       if (response.ok) {
         // Store token and user
         localStorage.setItem('token', data.data.token)
@@ -243,7 +321,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   <Input
                     id="js-firstName"
                     value={jobSeekerData.firstName}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, firstName: e.target.value})}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, firstName: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
@@ -253,7 +331,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   <Input
                     id="js-lastName"
                     value={jobSeekerData.lastName}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, lastName: e.target.value})}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, lastName: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
@@ -267,7 +345,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="js-email"
                     type="email"
                     value={jobSeekerData.email}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, email: e.target.value})}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, email: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
@@ -278,7 +356,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="js-phone"
                     type="tel"
                     value={jobSeekerData.phone}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, phone: e.target.value})}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, phone: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
@@ -291,14 +369,14 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   <Input
                     id="js-city"
                     value={jobSeekerData.city}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, city: e.target.value})}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, city: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="js-province">Province *</Label>
-                  <Select value={jobSeekerData.province} onValueChange={(value) => setJobSeekerData({...jobSeekerData, province: value})}>
+                  <Select value={jobSeekerData.province} onValueChange={(value) => setJobSeekerData({ ...jobSeekerData, province: value })}>
                     <SelectTrigger className="h-12 rounded-xl">
                       <SelectValue placeholder="Select province" />
                     </SelectTrigger>
@@ -315,7 +393,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                 <Checkbox
                   id="js-newcomer"
                   checked={jobSeekerData.isNewcomer}
-                  onCheckedChange={(checked) => setJobSeekerData({...jobSeekerData, isNewcomer: checked as boolean})}
+                  onCheckedChange={(checked) => setJobSeekerData({ ...jobSeekerData, isNewcomer: checked as boolean })}
                 />
                 <Label htmlFor="js-newcomer">I am a newcomer to Canada</Label>
               </div>
@@ -327,10 +405,29 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="js-password"
                     type="password"
                     value={jobSeekerData.password}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, password: e.target.value})}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, password: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="js-password">Password *</Label>
+                  <Input
+                    id="js-password"
+                    type="password"
+                    value={jobSeekerData.password}
+                    onChange={(e) => {
+                      setJobSeekerData({ ...jobSeekerData, password: e.target.value });
+                      setPasswordStrength(checkPasswordStrength(e.target.value));
+                    }}
+                    className="h-12 rounded-xl"
+                    required
+                  />
+                  {jobSeekerData.password && (
+                    <p className={`text-xs ${passwordStrength.startsWith("Weak") ? "text-red-500" : "text-green-500"}`}>
+                      Strength: {passwordStrength}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="js-confirmPassword">Confirm Password *</Label>
@@ -338,19 +435,36 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="js-confirmPassword"
                     type="password"
                     value={jobSeekerData.confirmPassword}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, confirmPassword: e.target.value})}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, confirmPassword: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
+                  {jobSeekerData.confirmPassword && jobSeekerData.password !== jobSeekerData.confirmPassword && (
+                    <p className="text-xs text-red-500">Passwords do not match</p>
+                  )}
                 </div>
               </div>
+
+              {otpSent && (
+                <div className="space-y-2 animate-fade-in-up">
+                  <Label htmlFor="otp">Verification Code *</Label>
+                  <Input
+                    id="otp"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="h-12 rounded-xl"
+                    placeholder="Enter 6-digit code sent to your email"
+                    required
+                  />
+                </div>
+              )}
 
               <Button
                 type="submit"
                 disabled={isLoading || !isJobSeekerValid()}
                 className="w-full h-12 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-400 text-white font-semibold shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105"
               >
-                {isLoading ? "Creating Account..." : "Create Job Seeker Account"}
+                {isLoading ? "Processing..." : (otpSent ? "Verify & Create Account" : "Send Verification Code")}
               </Button>
             </form>
           </TabsContent>
@@ -363,7 +477,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   <Input
                     id="company-name"
                     value={companyData.companyName}
-                    onChange={(e) => setCompanyData({...companyData, companyName: e.target.value})}
+                    onChange={(e) => setCompanyData({ ...companyData, companyName: e.target.value })}
                     className="h-12 rounded-xl"
                     placeholder="e.g., Shopify, RBC"
                     required
@@ -375,7 +489,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="company-email"
                     type="email"
                     value={companyData.companyEmail}
-                    onChange={(e) => setCompanyData({...companyData, companyEmail: e.target.value})}
+                    onChange={(e) => setCompanyData({ ...companyData, companyEmail: e.target.value })}
                     className="h-12 rounded-xl"
                     placeholder="hr@company.com"
                     pattern=".+@.+\..+"
@@ -391,7 +505,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   <Input
                     id="company-contactName"
                     value={companyData.contactName}
-                    onChange={(e) => setCompanyData({...companyData, contactName: e.target.value})}
+                    onChange={(e) => setCompanyData({ ...companyData, contactName: e.target.value })}
                     className="h-12 rounded-xl"
                     placeholder="HR Manager or Recruiter"
                     required
@@ -403,7 +517,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="company-contactPhone"
                     type="tel"
                     value={companyData.contactPhone}
-                    onChange={(e) => setCompanyData({...companyData, contactPhone: e.target.value})}
+                    onChange={(e) => setCompanyData({ ...companyData, contactPhone: e.target.value })}
                     className="h-12 rounded-xl"
                     placeholder="+1 (416) 123-4567"
                   />
@@ -416,7 +530,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   <Input
                     id="company-city"
                     value={companyData.city}
-                    onChange={(e) => setCompanyData({...companyData, city: e.target.value})}
+                    onChange={(e) => setCompanyData({ ...companyData, city: e.target.value })}
                     className="h-12 rounded-xl"
                     placeholder="Toronto"
                     required
@@ -424,7 +538,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="company-province">Province *</Label>
-                  <Select value={companyData.province} onValueChange={(value) => setCompanyData({...companyData, province: value})}>
+                  <Select value={companyData.province} onValueChange={(value) => setCompanyData({ ...companyData, province: value })}>
                     <SelectTrigger className="h-12 rounded-xl">
                       <SelectValue placeholder="Select province" />
                     </SelectTrigger>
@@ -443,7 +557,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   id="company-website"
                   type="url"
                   value={companyData.website}
-                  onChange={(e) => setCompanyData({...companyData, website: e.target.value})}
+                  onChange={(e) => setCompanyData({ ...companyData, website: e.target.value })}
                   className="h-12 rounded-xl"
                   placeholder="https://www.company.com"
                 />
@@ -456,12 +570,20 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="company-password"
                     type="password"
                     value={companyData.password}
-                    onChange={(e) => setCompanyData({...companyData, password: e.target.value})}
+                    onChange={(e) => {
+                      setCompanyData({ ...companyData, password: e.target.value });
+                      setPasswordStrength(checkPasswordStrength(e.target.value));
+                    }}
                     className="h-12 rounded-xl"
                     placeholder="8+ characters"
                     minLength={8}
                     required
                   />
+                  {companyData.password && (
+                    <p className={`text-xs ${passwordStrength.startsWith("Weak") ? "text-red-500" : "text-green-500"}`}>
+                      Strength: {passwordStrength}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="company-confirmPassword">Confirm Password *</Label>
@@ -469,18 +591,35 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="company-confirmPassword"
                     type="password"
                     value={companyData.confirmPassword}
-                    onChange={(e) => setCompanyData({...companyData, confirmPassword: e.target.value})}
+                    onChange={(e) => setCompanyData({ ...companyData, confirmPassword: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
+                  {companyData.confirmPassword && companyData.password !== companyData.confirmPassword && (
+                    <p className="text-xs text-red-500">Passwords do not match</p>
+                  )}
                 </div>
               </div>
+
+              {otpSent && (
+                <div className="space-y-2 animate-fade-in-up">
+                  <Label htmlFor="company-otp">Verification Code *</Label>
+                  <Input
+                    id="company-otp"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="h-12 rounded-xl"
+                    placeholder="Enter 6-digit code sent to your email"
+                    required
+                  />
+                </div>
+              )}
 
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="company-terms"
                   checked={companyData.agreeToTerms}
-                  onCheckedChange={(checked) => setCompanyData({...companyData, agreeToTerms: checked as boolean})}
+                  onCheckedChange={(checked) => setCompanyData({ ...companyData, agreeToTerms: checked as boolean })}
                   required
                 />
                 <Label htmlFor="company-terms">I agree to the <a href="#" className="text-primary-500 hover:underline">Terms & Conditions</a> *</Label>
@@ -491,7 +630,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                 disabled={isLoading || !isCompanyValid()}
                 className="w-full h-12 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-400 text-white font-semibold shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105"
               >
-                {isLoading ? "Creating Account..." : "Create Company Account"}
+                {isLoading ? "Processing..." : (otpSent ? "Verify & Create Account" : "Send Verification Code")}
               </Button>
             </form>
           </TabsContent>

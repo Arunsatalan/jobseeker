@@ -5,10 +5,10 @@ const logger = require('../utils/logger');
 const transporter = nodemailer.createTransport({
   host: config.SMTP_HOST,
   port: config.SMTP_PORT,
-  secure: true,
+  secure: config.SMTP_PORT == 465, // true for 465, false for other ports
   auth: {
-    user: config.SMTP_USER,
-    pass: config.SMTP_PASS,
+    user: config.SMTP_USER || config.EMAIL_USER,
+    pass: config.SMTP_PASS || config.EMAIL_PASS,
   },
 });
 
@@ -16,7 +16,7 @@ class EmailService {
   async sendVerificationEmail(email, verificationLink) {
     try {
       const mailOptions = {
-        from: config.SMTP_FROM,
+        from: config.EMAIL_FROM || config.SMTP_USER || config.EMAIL_USER,
         to: email,
         subject: 'Verify Your Email Address',
         html: `
@@ -38,7 +38,7 @@ class EmailService {
   async sendPasswordResetEmail(email, resetLink) {
     try {
       const mailOptions = {
-        from: config.SMTP_FROM,
+        from: config.EMAIL_FROM || config.SMTP_USER || config.EMAIL_USER,
         to: email,
         subject: 'Password Reset Request',
         html: `
@@ -61,7 +61,7 @@ class EmailService {
   async sendApplicationNotification(email, jobTitle, companyName) {
     try {
       const mailOptions = {
-        from: config.SMTP_FROM,
+        from: config.EMAIL_FROM || config.SMTP_USER || config.EMAIL_USER,
         to: email,
         subject: `Application Received for ${jobTitle}`,
         html: `
@@ -91,7 +91,7 @@ class EmailService {
       `).join('');
 
       const mailOptions = {
-        from: config.SMTP_FROM,
+        from: config.EMAIL_FROM || config.SMTP_USER || config.EMAIL_USER,
         to: email,
         subject: 'New Job Matches Found',
         html: `
@@ -106,6 +106,27 @@ class EmailService {
       logger.info(`Job alert sent to ${email}`);
     } catch (error) {
       logger.error(`Failed to send job alert: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async sendOTP(email, otp) {
+    try {
+      const mailOptions = {
+        from: config.EMAIL_FROM || config.SMTP_USER || config.EMAIL_USER,
+        to: email,
+        subject: 'Your Verification Code',
+        html: `
+          <h2>Verification Code</h2>
+          <p>Your verification code is: <strong>${otp}</strong></p>
+          <p>This code will expire in 5 minutes.</p>
+        `,
+      };
+
+      await transporter.sendMail(mailOptions);
+      logger.info(`OTP sent to ${email}`);
+    } catch (error) {
+      logger.error(`Failed to send OTP to ${email}: ${error.message}`);
       throw error;
     }
   }

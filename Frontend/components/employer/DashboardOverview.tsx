@@ -186,7 +186,7 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
                   </span>
                 </div>
               </div>
-              <div className="flex gap-2">
+              {/* <div className="flex gap-2">
                 <Button size="sm" variant="outline">
                   <Eye className="h-4 w-4 mr-1" />
                   View
@@ -194,7 +194,7 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
                 <Button size="sm" variant="outline">
                   Edit
                 </Button>
-              </div>
+              </div>*/}
             </div>
           ))}
         </div>

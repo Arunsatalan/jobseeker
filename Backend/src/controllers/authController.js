@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const JobSeeker = require('../models/JobSeeker');
 const Company = require('../models/Company');
+const OTP = require('../models/OTP');
 const asyncHandler = require('../middleware/async');
 const emailService = require('../services/emailService');
 const notificationService = require('../services/notificationService');
@@ -206,12 +207,50 @@ exports.resendVerification = asyncHandler(async (req, res, next) => {
   }
 });
 
+// @desc Send OTP
+// @route POST /api/v1/auth/send-otp
+// @access Public
+exports.sendOTP = asyncHandler(async (req, res, next) => {
+  const { email } = req.body;
+  if (!email) return sendError(res, 400, 'Email is required');
+
+  // Check if user already exists
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    return sendError(res, 400, 'Email already registered');
+  }
+
+  // Generate 6 digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Save/Update OTP
+  await OTP.findOneAndUpdate(
+    { email },
+    { otp, createdAt: Date.now() },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  // Send Email
+  await emailService.sendOTP(email, otp);
+
+  return sendSuccess(res, 200, 'OTP sent to email');
+});
+
 // @desc Register job seeker
 // @route POST /api/v1/auth/register/job-seeker
 // @access Public
 exports.registerJobSeeker = asyncHandler(async (req, res, next) => {
   try {
-    const { firstName, lastName, email, phone, city, province, isNewcomer, password } = req.body;
+    const { firstName, lastName, email, phone, city, province, isNewcomer, password, otp } = req.body;
+
+    // Verify OTP
+    if (!otp) {
+      return sendError(res, 400, 'OTP is required');
+    }
+    const otpRecord = await OTP.findOne({ email, otp });
+    if (!otpRecord) {
+      return sendError(res, 400, 'Invalid or expired OTP');
+    }
 
     // Check if user already exists
     const userExists = await User.findOne({ email });
@@ -292,6 +331,9 @@ exports.registerJobSeeker = asyncHandler(async (req, res, next) => {
       logger.error(`Failed to create admin notification: ${notificationError.message}`);
     }
 
+    // Delete OTP after successful registration
+    await OTP.deleteOne({ _id: otpRecord._id });
+
     return sendSuccess(res, 201, 'Job seeker registered successfully', {
       user: {
         id: user._id,
@@ -312,7 +354,16 @@ exports.registerJobSeeker = asyncHandler(async (req, res, next) => {
 // @access Public
 exports.registerCompany = asyncHandler(async (req, res, next) => {
   try {
-    const { companyName, companyEmail, contactName, contactPhone, city, province, website, password } = req.body;
+    const { companyName, companyEmail, contactName, contactPhone, city, province, website, password, otp } = req.body;
+
+    // Verify OTP
+    if (!otp) {
+      return sendError(res, 400, 'OTP is required. Please verify your email.');
+    }
+    const otpRecord = await OTP.findOne({ email: companyEmail, otp });
+    if (!otpRecord) {
+      return sendError(res, 400, 'Invalid or expired OTP');
+    }
 
     // Check if company email already exists
     const companyExists = await Company.findOne({ email: companyEmail });
@@ -338,7 +389,7 @@ exports.registerCompany = asyncHandler(async (req, res, next) => {
     // Create user account for company contact
     const firstName = contactName.split(' ')[0] || contactName;
     const lastName = contactName.split(' ').slice(1).join(' ') || 'N/A';
-    
+
     const user = await User.create({
       firstName,
       lastName,
@@ -401,6 +452,9 @@ exports.registerCompany = asyncHandler(async (req, res, next) => {
     } catch (notificationError) {
       logger.error(`Failed to create admin notification: ${notificationError.message}`);
     }
+
+    // Delete OTP after successful registration
+    await OTP.deleteOne({ _id: otpRecord._id });
 
     return sendSuccess(res, 201, 'Company registered successfully', {
       user: {

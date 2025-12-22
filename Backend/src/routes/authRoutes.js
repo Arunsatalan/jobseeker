@@ -9,6 +9,7 @@ const authController = require('../controllers/authController');
 router.post('/register', authLimiter, validate(validateUserRegistration), authController.register);
 router.post('/register/job-seeker', authLimiter, authController.registerJobSeeker);
 router.post('/register/company', authLimiter, authController.registerCompany);
+router.post('/send-otp', authLimiter, authController.sendOTP);
 router.post('/login', authLimiter, validate(validateUserLogin), authController.login);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password/:token', authController.resetPassword);
