@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios"; // Import axios for API calls
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,8 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
   const [newSkillTitle, setNewSkillTitle] = useState('');
   const [newLanguage, setNewLanguage] = useState('');
   const [newLanguageProficiency, setNewLanguageProficiency] = useState('');
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     firstName: user?.name?.split(" ")[0] || "",
@@ -85,7 +87,140 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleProfilePicUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    const formDataUpload = new FormData();
+    formDataUpload.append('profilePic', file);
+
+    try {
+      const response = await axios.post('/api/v1/user-profiles/upload-profile-pic', formDataUpload, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 200) {
+        const profilePicUrl = response.data.data.profilePic;
+        
+        // Update the profile photo state immediately
+        setProfilePhotoUrl(profilePicUrl);
+        console.log('Profile photo updated:', profilePicUrl);
+        
+        // Update the user profile pic in props
+        onProfileUpdate?.({ profilePic: profilePicUrl });
+        
+        // Refetch the profile to get updated data including the new photo
+        try {
+          const fetchResponse = await axios.get("/api/v1/user-profiles/me", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (fetchResponse.status === 200) {
+            const profileData = fetchResponse.data.data;
+            console.log('Updated profile data:', profileData);
+            if (profileData.profilePhoto) {
+              // Handle both string and object formats
+              const photoUrl = typeof profileData.profilePhoto === 'string' 
+                ? profileData.profilePhoto 
+                : profileData.profilePhoto?.url;
+              if (photoUrl) {
+                setProfilePhotoUrl(photoUrl);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error refetching profile:', err);
+        }
+        
+        alert('Profile picture uploaded successfully!');
+      }
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      alert('Failed to upload profile picture. Please try again.');
+    }
+  };
+
   const token = localStorage.getItem("token"); // Retrieve token from local storage
+
+  // Fetch existing profile data on component mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await axios.get("/api/v1/user-profiles/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.status === 200) {
+          const profileData = response.data.data;
+          
+          // Store the profile photo URL - handle both string and object formats
+          if (profileData.profilePhoto) {
+            const photoUrl = typeof profileData.profilePhoto === 'string' 
+              ? profileData.profilePhoto 
+              : profileData.profilePhoto?.url;
+            if (photoUrl) {
+              setProfilePhotoUrl(photoUrl);
+              console.log('Profile photo loaded:', photoUrl);
+            }
+          }
+          
+          // Update formData with fetched data
+          setFormData({
+            firstName: profileData.firstName || user?.name?.split(" ")[0] || "",
+            lastName: profileData.lastName || user?.name?.split(" ")[1] || "",
+            email: profileData.email || user?.email || "",
+            phone: profileData.phone || user?.phone || "",
+            dateOfBirth: "1995-03-15", // Keep default or fetch if available
+            gender: "Male", // Keep default
+            nationality: "Canadian", // Keep default
+            city: profileData.location?.split(', ')[0] || "",
+            province: profileData.location?.split(', ')[1] || "",
+            postalCode: profileData.location?.split(', ')[2] || "",
+            headline: profileData.headline || "",
+            careerObjective: profileData.bio || "",
+            currentJobTitle: profileData.jobSeekerProfile?.currentJobTitle || "",
+            company: profileData.jobSeekerProfile?.company || "",
+            yearsOfExperience: profileData.jobSeekerProfile?.yearsOfExperience?.toString() || "",
+            industry: profileData.jobSeekerProfile?.preferredIndustries?.[0] || "Information Technology",
+            employmentType: profileData.jobSeekerProfile?.preferredEmploymentTypes || ["Full-time"],
+            skills: profileData.jobSeekerProfile?.skills || [],
+            languages: profileData.jobSeekerProfile?.languages || [],
+            education: profileData.education || [],
+            profileVisibility: profileData.privacy?.profileVisibility === 'public',
+            openToWork: profileData.privacy?.allowMessages ?? false,
+            showInSearch: profileData.privacy?.showEmail ?? false,
+            preferredWorkTypes: profileData.jobSeekerProfile?.preferredWorkTypes || [],
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+        // Keep default values if fetch fails
+      }
+    };
+
+    if (token) {
+      fetchProfile();
+    }
+  }, [token, user]);
 
   const handleSave = async () => {
     try {
@@ -245,14 +380,25 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
                   <Label className="text-sm font-semibold mb-2 block">Profile Picture</Label>
                   <div className="flex items-center gap-4">
                     <Avatar className="h-20 w-20 border-2 border-amber-600">
-                      <AvatarImage src={user?.profilePic || `https://ui-avatars.com/api/?name=${user?.email}`} alt={user?.name || user?.email} />
+                      <AvatarImage src={profilePhotoUrl || user?.profilePic || `https://ui-avatars.com/api/?name=${user?.email}`} alt={user?.name || user?.email} />
                       <AvatarFallback>
                         <User className="h-10 w-10 text-amber-700" />
                       </AvatarFallback>
                     </Avatar>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
                       Upload New Photo
                     </Button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleProfilePicUpload}
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                    />
                   </div>
                 </div>
 

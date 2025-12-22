@@ -1,4 +1,5 @@
-require('dotenv').config();
+// Environment variables are loaded by server.js
+// No need to load dotenv here again
 
 module.exports = {
   NODE_ENV: process.env.NODE_ENV || 'development',

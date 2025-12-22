@@ -6,8 +6,10 @@ const {
   updateEmployerProfile,
   getEmployerCompanyData,
   deleteUserProfile,
+  uploadProfilePic,
 } = require('../controllers/userProfileController');
 const { protect, authorize } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -22,6 +24,9 @@ router.get('/employer/company-data', authorize('employer'), getEmployerCompanyDa
 
 // Create or update profile
 router.post('/', createOrUpdateProfile);
+
+// Upload profile picture
+router.post('/upload-profile-pic', upload.single('profilePic'), uploadProfilePic);
 
 // Update employer profile
 router.put('/employer/details', authorize('employer'), updateEmployerProfile);

@@ -402,3 +402,86 @@ exports.deleteUserProfile = catchAsync(async (req, res, next) => {
     message: 'Profile deleted successfully',
   });
 });
+
+// @desc Upload profile picture
+// @route POST /api/v1/user-profiles/upload-profile-pic
+// @access Private
+exports.uploadProfilePic = catchAsync(async (req, res, next) => {
+  try {
+    console.log('=== UPLOAD PROFILE PIC ===');
+    console.log('User ID:', req.user?.id);
+    console.log('File exists:', !!req.file);
+    
+    if (!req.file) {
+      console.log('No file provided in request');
+      return next(new ErrorResponse('Please upload a file', 400));
+    }
+
+    console.log('File details:', {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      path: req.file.path,
+      public_id: req.file.public_id,
+    });
+
+    if (!req.user || !req.user.id) {
+      console.error('User not authenticated properly');
+      return next(new ErrorResponse('User not authenticated', 401));
+    }
+
+    // Extract the URL from Cloudinary response
+    const profilePhotoUrl = req.file.path; // Cloudinary URL
+    const publicId = req.file.public_id; // Cloudinary public ID
+
+    console.log('Saving to database - URL:', profilePhotoUrl);
+
+    // Update user's profile picture URL
+    const userProfile = await UserProfile.findOneAndUpdate(
+      { userId: req.user.id },
+      { 
+        profilePhoto: {
+          url: profilePhotoUrl,
+          publicId: publicId || null,
+        }
+      },
+      { new: true, upsert: true }
+    ).catch(err => {
+      console.error('Error updating UserProfile:', err);
+      throw err;
+    });
+
+    console.log('UserProfile updated successfully:', {
+      id: userProfile._id,
+      profilePhoto: userProfile.profilePhoto,
+    });
+
+    // Also update the User model if needed
+    await User.findByIdAndUpdate(
+      req.user.id, 
+      { profilePhoto: profilePhotoUrl }
+    ).catch(err => {
+      console.error('Error updating User model:', err);
+      // Don't throw, this is secondary
+    });
+
+    console.log('Upload completed successfully');
+    res.status(200).json({
+      success: true,
+      data: {
+        profilePic: profilePhotoUrl,
+        profilePhoto: {
+          url: profilePhotoUrl,
+          publicId: publicId,
+        },
+      },
+      message: 'Profile picture uploaded successfully',
+    });
+  } catch (error) {
+    console.error('=== ERROR IN UPLOADPROFILEPIC ===');
+    console.error('Error:', error);
+    console.error('Error message:', error?.message);
+    console.error('Error stack:', error?.stack);
+    next(error);
+  }
+});
