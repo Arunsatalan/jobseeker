@@ -46,15 +46,26 @@ const userProfileSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['admin', 'employer', 'job_seeker'],
+      enum: ['admin', 'employer', 'jobseeker'],
       required: true,
     },
+    // Education History
+    education: [
+      {
+        degree: String,
+        fieldOfStudy: String,
+        institution: String,
+        graduationYear: String,
+        _id: false,
+      },
+    ],
     // For Job Seekers
     jobSeekerProfile: {
       headline: String,
       experience: String,
       education: String,
       skills: [String],
+      languages: [String],
       resumeUrl: String,
       resumePublicId: String,
       preferredJobTitles: [String],

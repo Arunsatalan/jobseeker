@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import axios from "axios"; // Import axios for API calls
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -25,6 +26,9 @@ import {
   Trash2,
 } from "lucide-react";
 
+// Use process.env for API base URL
+axios.defaults.baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000";
+
 interface ProfileOverviewProps {
   user: {
     name: string;
@@ -38,6 +42,10 @@ interface ProfileOverviewProps {
 export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [profileCompletion, setProfileCompletion] = useState(68);
+  const [newSkill, setNewSkill] = useState('');
+  const [newSkillTitle, setNewSkillTitle] = useState('');
+  const [newLanguage, setNewLanguage] = useState('');
+  const [newLanguageProficiency, setNewLanguageProficiency] = useState('');
 
   const [formData, setFormData] = useState({
     firstName: user?.name?.split(" ")[0] || "",
@@ -59,6 +67,14 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
     employmentType: ["Full-time"],
     skills: ["React", "Next.js", "TypeScript", "Tailwind CSS"],
     languages: ["English (Native)", "Spanish (Basic)"],
+    education: [
+      {
+        degree: "Bachelor's Degree",
+        fieldOfStudy: "Computer Science",
+        institution: "University of Toronto",
+        graduationYear: "2020",
+      },
+    ],
     profileVisibility: true,
     openToWork: true,
     showInSearch: true,
@@ -69,9 +85,83 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    onProfileUpdate?.(formData);
-    setIsEditing(false);
+  const token = localStorage.getItem("token"); // Retrieve token from local storage
+
+  const handleSave = async () => {
+    try {
+      // Transform formData to match backend schema
+      const payload = {
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        location: `${formData.city}, ${formData.province}, ${formData.postalCode}`,
+        bio: formData.careerObjective,
+        headline: formData.headline,
+        jobSeekerProfile: {
+          skills: formData.skills,
+          languages: formData.languages,
+          yearsOfExperience: parseInt(formData.yearsOfExperience) || 0,
+          preferredIndustries: [formData.industry],
+          preferredEmploymentTypes: formData.employmentType,
+          preferredWorkTypes: formData.preferredWorkTypes,
+          openToRemote: formData.preferredWorkTypes.includes('Remote'),
+          currentJobTitle: formData.currentJobTitle,
+          company: formData.company,
+          salaryExpectation: { min: 0, max: 0, currency: 'CAD' },
+        },
+        education: formData.education,
+        privacy: {
+          profileVisibility: formData.profileVisibility ? 'public' : 'private',
+          showEmail: formData.showInSearch,
+          allowMessages: formData.openToWork,
+        },
+      };
+
+      const response = await axios.post("/api/v1/user-profiles", payload, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 200) {
+        const savedData = response.data.data;
+        // Update formData with saved data
+        setFormData({
+          firstName: savedData.firstName || '',
+          lastName: savedData.lastName || '',
+          email: savedData.email || '',
+          phone: savedData.phone || '',
+          dateOfBirth: formData.dateOfBirth, // Keep local if not in response
+          gender: formData.gender,
+          nationality: formData.nationality,
+          city: savedData.location?.split(', ')[0] || '',
+          province: savedData.location?.split(', ')[1] || '',
+          postalCode: savedData.location?.split(', ')[2] || '',
+          headline: savedData.headline || '',
+          careerObjective: savedData.bio || '',
+          currentJobTitle: savedData.jobSeekerProfile?.currentJobTitle || formData.currentJobTitle,
+          company: savedData.jobSeekerProfile?.company || formData.company,
+          yearsOfExperience: savedData.jobSeekerProfile?.yearsOfExperience || formData.yearsOfExperience,
+          industry: savedData.jobSeekerProfile?.preferredIndustries?.[0] || formData.industry,
+          employmentType: savedData.jobSeekerProfile?.preferredEmploymentTypes || formData.employmentType,
+          skills: savedData.jobSeekerProfile?.skills || formData.skills,
+          languages: savedData.jobSeekerProfile?.languages || formData.languages,
+          education: savedData.education || formData.education,
+          profileVisibility: savedData.privacy?.profileVisibility === 'public' || formData.profileVisibility,
+          openToWork: savedData.privacy?.allowMessages ?? formData.openToWork,
+          showInSearch: savedData.privacy?.showEmail ?? formData.showInSearch,
+          preferredWorkTypes: (savedData.jobSeekerProfile?.preferredWorkTypes && savedData.jobSeekerProfile.preferredWorkTypes.length > 0) 
+            ? savedData.jobSeekerProfile.preferredWorkTypes 
+            : (savedData.jobSeekerProfile?.openToRemote ? ['Remote'] : formData.preferredWorkTypes),
+        });
+        onProfileUpdate?.(savedData);
+        setIsEditing(false);
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+    }
   };
 
   return (
@@ -403,38 +493,119 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
                 <GraduationCap className="h-5 w-5" />
                 Education
               </h3>
-              {isEditing && <Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-1" />Add</Button>}
+              {isEditing && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const newEducation = [
+                      ...formData.education,
+                      { degree: '', fieldOfStudy: '', institution: '', graduationYear: '' },
+                    ];
+                    handleInputChange('education', newEducation);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add
+                </Button>
+              )}
             </div>
 
             {isEditing ? (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Degree</Label>
-                    <select className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
-                      <option>Bachelor's Degree</option>
-                      <option>Master's Degree</option>
-                      <option>Diploma</option>
-                    </select>
+                {formData.education.map((edu, idx) => (
+                  <div key={idx} className="p-4 border border-gray-200 rounded-lg space-y-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-semibold text-sm">Education #{idx + 1}</h4>
+                      {formData.education.length > 1 && (
+                        <button
+                          onClick={() => {
+                            const newEducation = formData.education.filter((_, i) => i !== idx);
+                            handleInputChange('education', newEducation);
+                          }}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Degree</Label>
+                        <select
+                          value={edu.degree}
+                          onChange={(e) => {
+                            const newEducation = formData.education.map((item, i) =>
+                              i === idx ? { ...item, degree: e.target.value } : item
+                            );
+                            handleInputChange('education', newEducation);
+                          }}
+                          className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                        >
+                          <option value="">Select Degree</option>
+                          <option>Bachelor's Degree</option>
+                          <option>Master's Degree</option>
+                          <option>PhD</option>
+                          <option>Diploma</option>
+                          <option>Certificate</option>
+                        </select>
+                      </div>
+                      <div>
+                        <Label>Field of Study</Label>
+                        <Input
+                          value={edu.fieldOfStudy}
+                          onChange={(e) => {
+                            const newEducation = formData.education.map((item, i) =>
+                              i === idx ? { ...item, fieldOfStudy: e.target.value } : item
+                            );
+                            handleInputChange('education', newEducation);
+                          }}
+                          placeholder="e.g., Computer Science"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Institution</Label>
+                        <Input
+                          value={edu.institution}
+                          onChange={(e) => {
+                            const newEducation = formData.education.map((item, i) =>
+                              i === idx ? { ...item, institution: e.target.value } : item
+                            );
+                            handleInputChange('education', newEducation);
+                          }}
+                          placeholder="University Name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Graduation Year</Label>
+                        <Input
+                          type="number"
+                          value={edu.graduationYear}
+                          onChange={(e) => {
+                            const newEducation = formData.education.map((item, i) =>
+                              i === idx ? { ...item, graduationYear: e.target.value } : item
+                            );
+                            handleInputChange('education', newEducation);
+                          }}
+                          placeholder="2020"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <Label>Field of Study</Label>
-                    <Input placeholder="Computer Science" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Institution</Label>
-                    <Input placeholder="University Name" />
-                  </div>
-                  <div>
-                    <Label>Graduation Year</Label>
-                    <Input type="number" placeholder="2020" />
-                  </div>
-                </div>
+                ))}
               </div>
             ) : (
-              <p className="text-gray-600 text-sm">Bachelor's in Computer Science from University of Toronto (2020)</p>
+              <div className="space-y-3">
+                {formData.education.map((edu, idx) => (
+                  <div key={idx} className="p-3 bg-gray-50 rounded">
+                    <p className="text-sm text-gray-500 mb-1">Education #{idx + 1}</p>
+                    <p className="font-semibold">{edu.degree} in {edu.fieldOfStudy}</p>
+                    <p className="text-sm text-gray-700">{edu.institution} ({edu.graduationYear})</p>
+                  </div>
+                ))}
+              </div>
             )}
           </Card>
         </TabsContent>
@@ -471,7 +642,132 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
                 </div>
               </div>
             ) : (
-              <p className="text-gray-600 text-sm">Edit mode for skills (add tag input component)</p>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-semibold mb-3">Technical Skills</p>
+                  <div className="space-y-2 mb-3">
+                    {formData.skills.map((skill, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-blue-50 rounded">
+                        <div className="flex-1">
+                          <span className="text-sm font-medium block">{skill}</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const newSkills = formData.skills.filter((_, i) => i !== idx);
+                            handleInputChange('skills', newSkills);
+                          }}
+                          className="text-red-600 hover:text-red-700 ml-2"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-xs">Skill Name</Label>
+                      <Input
+                        value={newSkill}
+                        onChange={(e) => setNewSkill(e.target.value)}
+                        placeholder="e.g., React, Python, Project Management"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && newSkill.trim()) {
+                            handleInputChange('skills', [...formData.skills, newSkill.trim()]);
+                            setNewSkill('');
+                            setNewSkillTitle('');
+                          }
+                        }}
+                      />
+                    </div>
+                    <Button
+                      onClick={() => {
+                        if (newSkill.trim()) {
+                          handleInputChange('skills', [...formData.skills, newSkill.trim()]);
+                          setNewSkill('');
+                          setNewSkillTitle('');
+                        }
+                      }}
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Skill
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold mb-3">Languages</p>
+                  <div className="space-y-2 mb-3">
+                    {formData.languages.map((lang, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2 bg-green-50 rounded">
+                        <div className="flex-1">
+                          <span className="text-sm font-medium block">{lang}</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const newLanguages = formData.languages.filter((_, i) => i !== idx);
+                            handleInputChange('languages', newLanguages);
+                          }}
+                          className="text-red-600 hover:text-red-700 ml-2"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <Label className="text-xs">Language</Label>
+                      <Input
+                        value={newLanguage}
+                        onChange={(e) => setNewLanguage(e.target.value)}
+                        placeholder="e.g., English, Spanish, French"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter' && newLanguage.trim()) {
+                            handleInputChange('languages', [...formData.languages, newLanguage.trim()]);
+                            setNewLanguage('');
+                            setNewLanguageProficiency('');
+                          }
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Proficiency Level</Label>
+                      <select
+                        value={newLanguageProficiency}
+                        onChange={(e) => setNewLanguageProficiency(e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm"
+                      >
+                        <option value="">Select Proficiency</option>
+                        <option>Native</option>
+                        <option>Fluent</option>
+                        <option>Intermediate</option>
+                        <option>Basic</option>
+                      </select>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        if (newLanguage.trim()) {
+                          const langDisplay = newLanguageProficiency 
+                            ? `${newLanguage.trim()} (${newLanguageProficiency})`
+                            : newLanguage.trim();
+                          handleInputChange('languages', [...formData.languages, langDisplay]);
+                          setNewLanguage('');
+                          setNewLanguageProficiency('');
+                        }
+                      }}
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Language
+                    </Button>
+                  </div>
+                </div>
+              </div>
             )}
           </Card>
         </TabsContent>

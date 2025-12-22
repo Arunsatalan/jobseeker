@@ -1,6 +1,7 @@
 const UserProfile = require('../models/UserProfile');
 const User = require('../models/User');
 const Company = require('../models/Company');
+const JobSeeker = require('../models/JobSeeker');
 const catchAsync = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
 
@@ -76,9 +77,9 @@ exports.getMyProfile = catchAsync(async (req, res, next) => {
 // @route POST /api/v1/user-profiles
 // @access Private
 exports.createOrUpdateProfile = catchAsync(async (req, res, next) => {
-  const { email, firstName, lastName, phone, location, bio, headline, profilePhoto, role, socialLinks, jobSeekerProfile, employerProfile, privacy, notifications } = req.body;
+  const { email, firstName, lastName, phone, location, bio, headline, profilePhoto, role, socialLinks, jobSeekerProfile, employerProfile, privacy, notifications, education } = req.body;
 
-  // Find or create profile
+  // Find or create UserProfile
   let userProfile = await UserProfile.findOne({ userId: req.user.id });
 
   if (!userProfile) {
@@ -91,7 +92,7 @@ exports.createOrUpdateProfile = catchAsync(async (req, res, next) => {
     });
   }
 
-  // Update fields
+  // Update UserProfile fields
   if (email) userProfile.email = email;
   if (firstName) userProfile.firstName = firstName;
   if (lastName) userProfile.lastName = lastName;
@@ -105,6 +106,7 @@ exports.createOrUpdateProfile = catchAsync(async (req, res, next) => {
   if (employerProfile) userProfile.employerProfile = { ...userProfile.employerProfile, ...employerProfile };
   if (privacy) userProfile.privacy = { ...userProfile.privacy, ...privacy };
   if (notifications) userProfile.notifications = { ...userProfile.notifications, ...notifications };
+  if (education) userProfile.education = education;
 
   // Calculate profile completion percentage
   const completedFields = [];
@@ -116,7 +118,7 @@ exports.createOrUpdateProfile = catchAsync(async (req, res, next) => {
   if (userProfile.profilePhoto?.url) completedFields.push('profilePhoto');
   if (userProfile.role === 'employer' && userProfile.employerProfile?.companyName) completedFields.push('companyName');
   if (userProfile.role === 'employer' && userProfile.employerProfile?.companyDescription) completedFields.push('companyDescription');
-  if (userProfile.role === 'job_seeker' && userProfile.jobSeekerProfile?.skills?.length > 0) completedFields.push('skills');
+  if (userProfile.role === 'jobseeker' && userProfile.jobSeekerProfile?.skills?.length > 0) completedFields.push('skills');
 
   userProfile.profileCompletion = {
     percentage: Math.round((completedFields.length / 10) * 100),
@@ -126,6 +128,57 @@ exports.createOrUpdateProfile = catchAsync(async (req, res, next) => {
   };
 
   await userProfile.save();
+
+  // Also save to JobSeeker model if role is jobseeker
+  if (req.user.role === 'jobseeker' && jobSeekerProfile) {
+    let jobSeeker = await JobSeeker.findOne({ user: req.user.id });
+
+    if (!jobSeeker) {
+      jobSeeker = new JobSeeker({
+        user: req.user.id,
+        email: email || req.user.email,
+        firstName: firstName || req.user.firstName,
+        lastName: lastName || req.user.lastName,
+        phone: phone || req.user.phone,
+      });
+    }
+
+    // Extract location parts
+    const locationParts = location?.split(', ') || [];
+    if (locationParts.length >= 2) {
+      jobSeeker.city = locationParts[0];
+      jobSeeker.province = locationParts[1];
+    }
+
+    // Update basic info
+    if (firstName) jobSeeker.firstName = firstName;
+    if (lastName) jobSeeker.lastName = lastName;
+    if (email) jobSeeker.email = email;
+    if (phone) jobSeeker.phone = phone;
+
+    // Update career information
+    if (headline) jobSeeker.headline = headline;
+    if (jobSeekerProfile.skills) jobSeeker.skills = jobSeekerProfile.skills;
+    if (jobSeekerProfile.languages) jobSeeker.languages = jobSeekerProfile.languages;
+    if (jobSeekerProfile.experience) jobSeeker.experience = jobSeekerProfile.experience;
+    if (education && Array.isArray(education)) jobSeeker.education = education;
+    if (jobSeekerProfile.yearsOfExperience) jobSeeker.yearsOfExperience = jobSeekerProfile.yearsOfExperience;
+    if (jobSeekerProfile.preferredIndustries && jobSeekerProfile.preferredIndustries[0]) {
+      jobSeeker.industry = jobSeekerProfile.preferredIndustries[0];
+    }
+    if (jobSeekerProfile.currentJobTitle) jobSeeker.currentJobTitle = jobSeekerProfile.currentJobTitle;
+    if (jobSeekerProfile.company) jobSeeker.company = jobSeekerProfile.company;
+    if (jobSeekerProfile.openToRemote !== undefined) jobSeeker.openToRemote = jobSeekerProfile.openToRemote;
+    if (jobSeekerProfile.preferredEmploymentTypes) jobSeeker.preferredWorkTypes = jobSeekerProfile.preferredEmploymentTypes;
+    if (jobSeekerProfile.preferredWorkTypes) jobSeeker.preferredWorkTypes = jobSeekerProfile.preferredWorkTypes;
+
+    // Update privacy settings
+    if (privacy) {
+      jobSeeker.privacy = { ...jobSeeker.privacy, ...privacy };
+    }
+
+    await jobSeeker.save();
+  }
 
   res.status(200).json({
     success: true,
