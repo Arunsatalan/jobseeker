@@ -572,6 +572,7 @@ export default function AdvancedJobSearch() {
 
   // Handle filter changes
   const handleFilterChange = useCallback((newFilters: FilterState) => {
+    console.log('Filter changed:', newFilters)
     setFilters(newFilters)
 
     // Apply both search and filters
@@ -579,6 +580,7 @@ export default function AdvancedJobSearch() {
       applyFilters(enhancedJobSearch(allJobs, jobQuery), newFilters) : 
       applyFilters(allJobs, newFilters)
     
+    console.log('Filtered results:', searchAndFiltered.length)
     setFilteredJobs(searchAndFiltered)
 
     // Calculate active filters
@@ -804,9 +806,15 @@ export default function AdvancedJobSearch() {
                 onClick={() => setShowFilters(!showFilters)}
                 aria-expanded={showFilters}
                 aria-controls="filter-panel"
-                className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold relative"
               >
                 <Sliders className="h-5 w-5" />
+                <span>Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
                 <ChevronDown
                   className={`h-5 w-5 transition-transform duration-300 ${
                     showFilters ? 'rotate-180' : 'rotate-0'
