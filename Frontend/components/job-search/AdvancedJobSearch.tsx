@@ -178,11 +178,19 @@ const convertApiJobToJob = (apiJob: ApiJob): Job => {
     experience: apiJob.experience || 'mid',
     salaryMin: apiJob.salaryMin,
     salaryMax: apiJob.salaryMax,
-    salaryPeriod: apiJob.salaryPeriod === 'yearly' ? 'year' : apiJob.salaryPeriod === 'hourly' ? 'hour' : apiJob.salaryPeriod,
+    salaryPeriod: apiJob.salaryPeriod === 'yearly' ? 'year' : apiJob.salaryPeriod === 'hourly' ? 'hour' : apiJob.salaryPeriod === 'monthly' ? 'month' : apiJob.salaryPeriod === 'weekly' ? 'week' : apiJob.salaryPeriod,
     postedTime: postedTimeText,
     expiryDate: apiJob.expiresAt ? new Date(apiJob.expiresAt).toLocaleDateString() : undefined,
     jobType: apiJob.employmentType ? apiJob.employmentType.charAt(0).toUpperCase() + apiJob.employmentType.slice(1) : 'Full-time',
-    salary: (apiJob.salaryMin && apiJob.salaryMax) ? `$${apiJob.salaryMin.toLocaleString()} - $${apiJob.salaryMax.toLocaleString()}` : undefined,
+    salary: (apiJob.salaryMin && apiJob.salaryMax) ? `$${apiJob.salaryMin.toLocaleString()} - $${apiJob.salaryMax.toLocaleString()}${
+      apiJob.salaryPeriod ? (
+        apiJob.salaryPeriod === 'yearly' ? '/year' :
+        apiJob.salaryPeriod === 'hourly' ? '/hour' :
+        apiJob.salaryPeriod === 'monthly' ? '/month' :
+        apiJob.salaryPeriod === 'weekly' ? '/week' :
+        `/${apiJob.salaryPeriod}`
+      ) : ''
+    }` : undefined,
     description: apiJob.description || '',
     fullDescription: apiJob.description || '',
     requirements: Array.isArray(apiJob.requirements) ? apiJob.requirements : [],

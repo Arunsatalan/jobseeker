@@ -159,7 +159,7 @@ export default function JobCard({ job, isSelected, onClick, onBookmark, onViewDe
               <DollarSign className="h-4 w-4 text-green-500" />
               <span className="font-medium text-green-600">
                 ${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}
-                {job.salaryPeriod && ` / ${job.salaryPeriod}`}
+                {job.salaryPeriod && `/${job.salaryPeriod}`}
               </span>
             </div>
           )}
