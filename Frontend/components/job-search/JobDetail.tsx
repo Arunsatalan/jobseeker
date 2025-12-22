@@ -33,6 +33,17 @@ interface JobDetailProps {
 export default function JobDetail({ job, onBookmark, onApply, onShare }: JobDetailProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // Debug logging
+  useEffect(() => {
+    if (job) {
+      console.log('JobDetail received job:', job)
+      console.log('Skills:', job.skills, 'Length:', job.skills?.length || 0)
+      console.log('Custom sections:', job.customSections, 'Length:', job.customSections?.length || 0)
+      console.log('Benefits:', job.benefits, 'Length:', job.benefits?.length || 0)
+      console.log('Requirements:', job.requirements, 'Length:', job.requirements?.length || 0)
+    }
+  }, [job])
+
   // Scroll to top when job changes
   useEffect(() => {
     if (scrollRef.current) {
@@ -73,21 +84,13 @@ export default function JobDetail({ job, onBookmark, onApply, onShare }: JobDeta
     <div ref={scrollRef} className="h-full bg-white overflow-y-auto">
       
       {/* Header */}
-      <div className="sticky top-0 bg-white border-b border-gray-200 p-6 z-10">
+      <div className="sticky top-0 bg-white border-b border-gray-200 p-4 lg:p-6 z-10">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">{job.title}</h1>
             
             <div className="flex items-center gap-3 mb-3">
-              {job.companyLogo ? (
-                <img 
-                  src={job.companyLogo} 
-                  alt={job.company} 
-                  className="h-8 w-8 rounded object-cover"
-                />
-              ) : (
-                <Building2 className="h-8 w-8 text-gray-400" />
-              )}
+              <Building2 className="h-8 w-8 text-gray-400" />
               <Button 
                 variant="link" 
                 className="text-lg font-semibold text-primary-600 hover:text-primary-700 p-0 h-auto"
@@ -104,21 +107,42 @@ export default function JobDetail({ job, onBookmark, onApply, onShare }: JobDeta
                 <span>{job.location}</span>
               </div>
               
-              <Badge variant="outline">
-                {job.jobType}
+              <Badge variant="outline" className="capitalize">
+                {job.employmentType}
+              </Badge>
+              
+              <Badge variant="outline" className="capitalize">
+                {job.experience} Level
               </Badge>
 
-              {job.salary && (
+              {job.industry && (
+                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                  {job.industry}
+                </Badge>
+              )}
+
+              {job.category && (
+                <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                  {job.category}
+                </Badge>
+              )}
+
+              {job.salaryMin && job.salaryMax && (
                 <div className="flex items-center gap-1">
                   <DollarSign className="h-4 w-4 text-green-500" />
-                  <span className="font-medium text-green-600">{job.salary}</span>
+                  <span className="font-medium text-green-600">
+                    ${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}
+                    {job.salaryPeriod && ` / ${job.salaryPeriod}`}
+                  </span>
                 </div>
               )}
 
-              <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                <span>Posted {job.postedTime}</span>
-              </div>
+              {job.expiryDate && (
+                <div className="flex items-center gap-1 text-orange-600">
+                  <Calendar className="h-4 w-4" />
+                  <span className="text-sm">Expires: {job.expiryDate}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -180,7 +204,7 @@ export default function JobDetail({ job, onBookmark, onApply, onShare }: JobDeta
       </div>
 
       {/* Content */}
-      <div className="p-6 space-y-8">
+      <div className="p-4 lg:p-6 pb-8 space-y-6">
 
         {/* Match Score */}
         {job.matchScore && (
@@ -212,8 +236,19 @@ export default function JobDetail({ job, onBookmark, onApply, onShare }: JobDeta
 
         <Separator />
 
+        {/* DEBUG: Show data availability */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-yellow-50 border border-yellow-200 p-3 rounded text-xs text-yellow-800 font-mono space-y-1">
+            <div>📊 Data Available:</div>
+            <div>Skills: <span className={job.skills?.length ? 'text-green-600 font-bold' : 'text-red-600'}>{job.skills?.length || 0}</span> items</div>
+            <div>Custom Sections: <span className={job.customSections?.length ? 'text-green-600 font-bold' : 'text-red-600'}>{job.customSections?.length || 0}</span> items</div>
+            <div>Requirements: <span className={job.requirements?.length ? 'text-green-600 font-bold' : 'text-red-600'}>{job.requirements?.length || 0}</span> items</div>
+            <div>Benefits: <span className={job.benefits?.length ? 'text-green-600 font-bold' : 'text-red-600'}>{job.benefits?.length || 0}</span> items</div>
+          </div>
+        )}
+
         {/* Requirements */}
-        {job.requirements.length > 0 && (
+        {job.requirements && job.requirements.length > 0 && (
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-primary-500" />
@@ -230,10 +265,34 @@ export default function JobDetail({ job, onBookmark, onApply, onShare }: JobDeta
           </section>
         )}
 
-        {job.requirements.length > 0 && <Separator />}
+        {job.requirements && job.requirements.length > 0 && <Separator />}
+
+        {/* Skills */}
+        {job.skills && job.skills.length > 0 && (
+          <>
+            <section>
+              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Award className="h-5 w-5 text-primary-500" />
+                Required Skills
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {job.skills.map((skill, index) => (
+                  <Badge
+                    key={index}
+                    variant="outline"
+                    className="text-sm bg-blue-50 text-blue-700 border-blue-200"
+                  >
+                    {skill}
+                  </Badge>
+                ))}
+              </div>
+            </section>
+            <Separator />
+          </>
+        )}
 
         {/* Benefits */}
-        {job.benefits.length > 0 && (
+        {job.benefits && job.benefits.length > 0 && (
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <Heart className="h-5 w-5 text-primary-500" />
@@ -250,7 +309,28 @@ export default function JobDetail({ job, onBookmark, onApply, onShare }: JobDeta
           </section>
         )}
 
-        {job.benefits.length > 0 && <Separator />}
+        {job.benefits && job.benefits.length > 0 && <Separator />}
+
+        {/* Custom Sections */}
+        {job.customSections && job.customSections.length > 0 && (
+          <>
+            {job.customSections.map((section, index) => (
+              <div key={section._id || index}>
+                <section>
+                  <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-primary-500" />
+                    {section.title}
+                  </h2>
+                  <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed whitespace-pre-line">
+                    {section.content}
+                  </div>
+                </section>
+                {index < job.customSections.length - 1 && <Separator />}
+              </div>
+            ))}
+            <Separator />
+          </>
+        )}
 
         {/* Company Info Preview */}
         <section>
@@ -260,17 +340,9 @@ export default function JobDetail({ job, onBookmark, onApply, onShare }: JobDeta
           </h2>
           <Card className="p-4 bg-gray-50">
             <div className="flex items-center gap-4 mb-3">
-              {job.companyLogo ? (
-                <img 
-                  src={job.companyLogo} 
-                  alt={job.company} 
-                  className="h-12 w-12 rounded-lg object-cover"
-                />
-              ) : (
-                <div className="h-12 w-12 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-lg flex items-center justify-center">
-                  <Building2 className="h-6 w-6 text-primary-500" />
-                </div>
-              )}
+              <div className="h-12 w-12 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-lg flex items-center justify-center">
+                <Building2 className="h-6 w-6 text-primary-500" />
+              </div>
               <div>
                 <h3 className="font-semibold text-gray-900">{job.company}</h3>
                 <div className="flex items-center gap-2 text-sm text-gray-600">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import axios from 'axios'
 import SearchBar from './SearchBar'
 import FilterBar, { FilterState } from './FilterBar'
 import JobCard, { Job } from './JobCard'
@@ -9,134 +10,52 @@ import JobDetail from './JobDetail'
 import { Button } from '@/components/ui/button'
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react'
 
-// Mock data - replace with real API calls
-const MOCK_JOBS: Job[] = [
-  {
-    id: '1',
-    title: 'Senior Software Engineer',
-    company: 'Shopify',
-    companyLogo: '/logos/shopify.png',
-    location: 'Toronto, ON',
-    postedTime: '2 days ago',
-    jobType: 'Full-time',
-    salary: '$120,000 - $160,000',
-    description: `We are looking for a Senior Software Engineer to join our dynamic team. You'll work on cutting-edge projects using modern technologies including React, Node.js, and GraphQL.
+// API Job interface from backend
+interface ApiJob {
+  _id: string
+  title: string
+  company: string
+  location: string
+  employmentType: string
+  experience: string
+  salaryMin?: number
+  salaryMax?: number
+  salaryPeriod?: string
+  description: string
+  requirements: string[]
+  skills: string[]
+  remote: boolean
+  status: string
+  employer?: { firstName: string; lastName: string; company: string }
+  stats?: { views: number; applications: number }
+  createdAt: string
+  updatedAt: string
+}
 
-Key responsibilities include:
-- Developing scalable web applications
-- Mentoring junior developers
-- Participating in technical architecture decisions
-- Collaborating with cross-functional teams
-
-This is an excellent opportunity for someone who wants to make a significant impact in a fast-growing company.`,
-    requirements: [
-      '5+ years of software development experience',
-      'Strong proficiency in JavaScript and TypeScript',
-      'Experience with React and Node.js',
-      'Knowledge of database systems (PostgreSQL, MongoDB)',
-      'Experience with cloud platforms (AWS, GCP)',
-      'Strong problem-solving skills',
-      'Excellent communication skills'
-    ],
-    benefits: [
-      'Comprehensive health insurance',
-      'Flexible work arrangements',
-      'Professional development budget',
-      'Stock options',
-      'Unlimited PTO',
-      'Modern office workspace'
-    ],
-    badges: ['Remote', 'Visa Support', 'Hot'],
-    isRemote: true,
-    hasVisaSupport: true,
-    isEntryLevel: false,
-    isNew: false,
-    matchScore: 92,
-    isBookmarked: false,
-    applicationInstructions: 'Click Apply Now to submit your application through our careers portal. Please include your resume and a brief cover letter explaining your interest in this role.'
-  },
-  {
-    id: '2',
-    title: 'Product Manager',
-    company: 'RBC',
-    location: 'Vancouver, BC',
-    postedTime: '1 day ago',
-    jobType: 'Full-time',
-    salary: '$100,000 - $130,000',
-    description: `Join our product team as a Product Manager where you'll drive the development of innovative financial products. You'll work closely with engineering, design, and business stakeholders to deliver exceptional customer experiences.
-
-In this role, you will:
-- Define product strategy and roadmap
-- Conduct user research and market analysis
-- Collaborate with engineering teams
-- Monitor product performance and metrics
-
-We're looking for someone passionate about fintech and customer-centric product development.`,
-    requirements: [
-      '3+ years of product management experience',
-      'Experience in financial services or fintech',
-      'Strong analytical and data-driven mindset',
-      'Excellent stakeholder management skills',
-      'Bachelor\'s degree in Business, Technology, or related field',
-      'Knowledge of agile development methodologies'
-    ],
-    benefits: [
-      'Competitive salary and bonuses',
-      'Health and dental coverage',
-      'Retirement savings plan',
-      'Professional development opportunities',
-      'Flexible hybrid work model'
-    ],
-    badges: ['Hybrid', 'Visa Support'],
-    isRemote: false,
-    hasVisaSupport: true,
-    isEntryLevel: false,
-    isNew: true,
-    isBookmarked: true,
-    applicationInstructions: 'Apply directly through our website. We review applications on a rolling basis and will contact qualified candidates within 2 weeks.'
-  },
-  {
-    id: '3',
-    title: 'Junior UX Designer',
-    company: 'Wealthsimple',
-    location: 'Montreal, QC',
-    postedTime: '3 days ago',
-    jobType: 'Full-time',
-    salary: '$65,000 - $85,000',
-    description: `We're seeking a talented Junior UX Designer to join our design team. This is a perfect opportunity for a recent graduate or someone with 1-2 years of experience to grow their career in fintech design.
-
-You'll be responsible for:
-- Creating user-centered designs for web and mobile applications
-- Conducting user research and usability testing
-- Collaborating with product managers and engineers
-- Contributing to our design system
-
-This role offers mentorship from senior designers and exposure to complex design challenges in the financial technology space.`,
-    requirements: [
-      '1-2 years of UX design experience',
-      'Portfolio demonstrating design process',
-      'Proficiency in Figma and design tools',
-      'Understanding of user research methods',
-      'Knowledge of design systems',
-      'Strong communication skills in English and French'
-    ],
-    benefits: [
-      'Mentorship program',
-      'Learning and development budget',
-      'Health insurance',
-      'Flexible work hours',
-      'Modern design tools and equipment'
-    ],
-    badges: ['Entry-Level', 'Bilingual', 'Remote'],
-    isRemote: true,
+// Convert API job to frontend Job interface
+const convertApiJobToJob = (apiJob: ApiJob): Job => {
+  return {
+    id: apiJob._id,
+    title: apiJob.title,
+    company: apiJob.company,
+    location: apiJob.location,
+    employmentType: apiJob.employmentType,
+    experience: apiJob.experience,
+    salaryMin: apiJob.salaryMin,
+    salaryMax: apiJob.salaryMax,
+    salaryPeriod: apiJob.salaryPeriod,
+    description: apiJob.description,
+    requirements: apiJob.requirements || [],
+    benefits: [],
+    badges: [],
+    isRemote: apiJob.remote || false,
     hasVisaSupport: false,
-    isEntryLevel: true,
+    isEntryLevel: apiJob.experience === 'entry',
     isNew: false,
-    matchScore: 78,
     isBookmarked: false,
-    applicationInstructions: 'Please submit your resume along with a link to your portfolio showcasing your best UX design work. Include a brief description of your design process.'
+    applicationInstructions: 'Click Apply Now to submit your application.'
   }
-]
+}
 
 export default function JobSearchInterface() {
   const router = useRouter()
@@ -165,6 +84,35 @@ export default function JobSearchInterface() {
   const initialLocation = searchParams.get('location') || ''
   const initialJobId = searchParams.get('jobId') || ''
 
+  // Fetch all jobs from database
+  const fetchAllJobs = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    
+    try {
+      const response = await axios.get('/api/v1/jobs', {
+        params: { page: 1, limit: 20 }
+      })
+      
+      const jobs = Array.isArray(response.data) 
+        ? response.data.map(convertApiJobToJob)
+        : response.data.jobs?.map(convertApiJobToJob) || []
+      
+      setJobs(jobs)
+      
+      if (jobs.length > 0) {
+        setSelectedJob(jobs[0])
+      } else {
+        setSelectedJob(null)
+      }
+    } catch (err) {
+      console.error('Failed to fetch jobs:', err)
+      setError('Failed to load jobs. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   // Search function
   const handleSearch = useCallback(async (jobQuery: string, locationQuery: string) => {
     setLoading(true)
@@ -177,40 +125,36 @@ export default function JobSearchInterface() {
       if (locationQuery) params.set('location', locationQuery)
       router.push(`?${params.toString()}`, { scroll: false })
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Call search API
+      const response = await axios.get('/api/v1/jobs/search', {
+        params: {
+          keyword: jobQuery,
+          location: locationQuery,
+          page: 1,
+          limit: 20
+        }
+      })
       
-      // Filter mock data based on search
-      let filteredJobs = MOCK_JOBS
+      const jobs = Array.isArray(response.data) 
+        ? response.data.map(convertApiJobToJob)
+        : response.data.jobs?.map(convertApiJobToJob) || []
       
-      if (jobQuery) {
-        filteredJobs = filteredJobs.filter(job => 
-          job.title.toLowerCase().includes(jobQuery.toLowerCase()) ||
-          job.company.toLowerCase().includes(jobQuery.toLowerCase())
-        )
-      }
-      
-      if (locationQuery) {
-        filteredJobs = filteredJobs.filter(job => 
-          job.location.toLowerCase().includes(locationQuery.toLowerCase())
-        )
-      }
-      
-      setJobs(filteredJobs)
+      setJobs(jobs)
       
       // Auto-select first job
-      if (filteredJobs.length > 0) {
-        setSelectedJob(filteredJobs[0])
+      if (jobs.length > 0) {
+        setSelectedJob(jobs[0])
         
         // Update URL with selected job
         const newParams = new URLSearchParams(params)
-        newParams.set('jobId', filteredJobs[0].id)
+        newParams.set('jobId', jobs[0].id)
         router.push(`?${newParams.toString()}`, { scroll: false })
       } else {
         setSelectedJob(null)
       }
       
     } catch (err) {
+      console.error('Search error:', err)
       setError('Failed to search jobs. Please try again.')
     } finally {
       setLoading(false)
@@ -220,27 +164,13 @@ export default function JobSearchInterface() {
   // Apply filters
   const applyFilters = useCallback((jobs: Job[], filters: FilterState): Job[] => {
     return jobs.filter(job => {
-      // Date filter
-      if (filters.datePosted !== 'any') {
-        const postedDays = parseInt(job.postedTime.split(' ')[0])
-        switch (filters.datePosted) {
-          case 'today':
-            if (postedDays > 0) return false
-            break
-          case '3days':
-            if (postedDays > 3) return false
-            break
-          case 'week':
-            if (postedDays > 7) return false
-            break
-          case 'month':
-            if (postedDays > 30) return false
-            break
-        }
+      // Job type filter - filter by employment type
+      if (filters.jobType.length > 0 && !filters.jobType.includes(job.employmentType)) {
+        return false
       }
 
-      // Job type filter
-      if (filters.jobType.length > 0 && !filters.jobType.includes(job.jobType)) {
+      // Pay range filter
+      if (job.salaryMax && (job.salaryMax < filters.payRange[0] || job.salaryMax > filters.payRange[1])) {
         return false
       }
 
@@ -309,13 +239,10 @@ export default function JobSearchInterface() {
     if (initialJob || initialLocation) {
       handleSearch(initialJob, initialLocation)
     } else {
-      // Load default jobs
-      setJobs(MOCK_JOBS)
-      if (MOCK_JOBS.length > 0) {
-        setSelectedJob(MOCK_JOBS[0])
-      }
+      // Load all jobs from database
+      fetchAllJobs()
     }
-  }, [initialJob, initialLocation, handleSearch])
+  }, [initialJob, initialLocation, handleSearch, fetchAllJobs])
 
   // Select job from URL
   useEffect(() => {

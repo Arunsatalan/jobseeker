@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import axios from 'axios'
 import { 
   useScrollIntoView, 
   useBodyScrollLock, 
@@ -9,6 +10,10 @@ import {
   useScrollPositionMemory,
   useJobListKeyboardNav 
 } from '@/hooks/useScrollBehavior'
+
+// Configure axios base URL
+axios.defaults.baseURL = 'http://localhost:5000'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -36,24 +41,62 @@ import {
   CheckCircle2,
   AlertCircle,
   TrendingUp,
-  ArrowRight
+  ArrowRight,
+  Award
 } from 'lucide-react'
 import { MOCK_SOFTWARE_ENGINEER_JOBS } from './mockSoftwareEngineerJobs'
+
+// API Job interface from backend
+interface ApiJob {
+  _id: string
+  title: string
+  company: string
+  location: string
+  employmentType: string
+  experience: string
+  salaryMin?: number
+  salaryMax?: number
+  salaryPeriod?: string
+  description: string
+  requirements: string[]
+  skills: string[]
+  remote: boolean
+  status: string
+  employer?: { firstName: string; lastName: string; company: string }
+  stats?: { views: number; applications: number }
+  tags?: string[]
+  customSections?: { title: string; content: string; _id: string }[]
+  industry?: string
+  category?: string
+  currency?: string
+  expiresAt?: string
+  createdAt: string
+  updatedAt: string
+}
 
 interface Job {
   id: string
   title: string
   company: string
-  companyLogo?: string
   location: string
+  employmentType: string
+  experience: string
+  salaryMin?: number
+  salaryMax?: number
+  salaryPeriod?: string
   postedTime: string
-  jobType: 'Full-time' | 'Part-time' | 'Contract' | 'Internship' | 'Temporary'
+  expiryDate?: string
+  jobType: string
   salary?: string
   description: string
   fullDescription?: string
   requirements: string[]
   benefits: string[]
   badges: string[]
+  skills: string[]
+  customSections: { title: string; content: string; _id: string }[]
+  industry?: string
+  category?: string
   isRemote: boolean
   hasVisaSupport: boolean
   isEntryLevel: boolean
@@ -87,7 +130,86 @@ const LOCATION_SUGGESTIONS: LocationSuggestion[] = [
   { city: 'Quebec City', province: 'QC' },
 ]
 
-const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Temporary']
+const JOB_TYPES = ['full-time', 'part-time', 'contract', 'internship', 'temporary']
+
+// Convert API job to frontend Job interface
+const convertApiJobToJob = (apiJob: ApiJob): Job => {
+  console.log('Converting API job:', apiJob)
+  console.log('Skills:', apiJob.skills)
+  console.log('Custom sections:', apiJob.customSections)
+  console.log('Tags:', apiJob.tags)
+  
+  // Calculate days since posted
+  const createdDate = new Date(apiJob.createdAt)
+  const now = new Date()
+  const diffTime = Math.abs(now.getTime() - createdDate.getTime())
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  
+  let postedTimeText = ''
+  if (diffDays === 0) {
+    postedTimeText = 'today'
+  } else if (diffDays === 1) {
+    postedTimeText = '1 day ago'
+  } else {
+    postedTimeText = `${diffDays} days ago`
+  }
+  
+  // Create badges based on job properties
+  const badges: string[] = []
+  if (apiJob.remote) badges.push('Remote')
+  if (apiJob.experience === 'entry') badges.push('Entry-level')
+  if (diffDays <= 3) badges.push('New')
+  
+  console.log('=== CONVERSION DEBUG ===')
+  console.log('API Job ID:', apiJob._id)
+  console.log('API Job Title:', apiJob.title)
+  console.log('API Skills:', apiJob.skills, 'Type:', typeof apiJob.skills, 'Is Array:', Array.isArray(apiJob.skills))
+  console.log('API Custom Sections:', apiJob.customSections, 'Type:', typeof apiJob.customSections, 'Is Array:', Array.isArray(apiJob.customSections))
+  console.log('API Tags:', apiJob.tags, 'Type:', typeof apiJob.tags, 'Is Array:', Array.isArray(apiJob.tags))
+  console.log('API Requirements:', apiJob.requirements, 'Type:', typeof apiJob.requirements, 'Is Array:', Array.isArray(apiJob.requirements))
+  console.log('======================')
+  
+  const converted: Job = {
+    id: apiJob._id,
+    title: apiJob.title || '',
+    company: apiJob.company || '',
+    location: apiJob.location || '',
+    employmentType: apiJob.employmentType || 'full-time',
+    experience: apiJob.experience || 'mid',
+    salaryMin: apiJob.salaryMin,
+    salaryMax: apiJob.salaryMax,
+    salaryPeriod: apiJob.salaryPeriod === 'yearly' ? 'year' : apiJob.salaryPeriod === 'hourly' ? 'hour' : apiJob.salaryPeriod,
+    postedTime: postedTimeText,
+    expiryDate: apiJob.expiresAt ? new Date(apiJob.expiresAt).toLocaleDateString() : undefined,
+    jobType: apiJob.employmentType ? apiJob.employmentType.charAt(0).toUpperCase() + apiJob.employmentType.slice(1) : 'Full-time',
+    salary: (apiJob.salaryMin && apiJob.salaryMax) ? `$${apiJob.salaryMin.toLocaleString()} - $${apiJob.salaryMax.toLocaleString()}` : undefined,
+    description: apiJob.description || '',
+    fullDescription: apiJob.description || '',
+    requirements: Array.isArray(apiJob.requirements) ? apiJob.requirements : [],
+    benefits: Array.isArray(apiJob.tags) ? apiJob.tags : [],
+    badges: badges,
+    skills: Array.isArray(apiJob.skills) ? apiJob.skills : [],
+    customSections: Array.isArray(apiJob.customSections) ? apiJob.customSections : [],
+    industry: apiJob.industry,
+    category: apiJob.category,
+    isRemote: apiJob.remote || false,
+    hasVisaSupport: false,
+    isEntryLevel: apiJob.experience === 'entry',
+    isNew: diffDays <= 3,
+    applicationInstructions: 'Click Apply Now to submit your application.',
+    isBookmarked: false
+  }
+  
+  console.log('=== CONVERTED JOB ===')
+  console.log('Converted Job ID:', converted.id)
+  console.log('Converted Skills:', converted.skills, 'Length:', converted.skills.length)
+  console.log('Converted Custom Sections:', converted.customSections, 'Length:', converted.customSections.length)
+  console.log('Converted Benefits:', converted.benefits, 'Length:', converted.benefits.length)
+  console.log('Converted Requirements:', converted.requirements, 'Length:', converted.requirements.length)
+  console.log('=====================')
+  
+  return converted
+}
 
 export default function AdvancedJobSearch() {
   const router = useRouter()
@@ -103,14 +225,14 @@ export default function AdvancedJobSearch() {
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false)
 
   // Jobs State
-  const [allJobs, setAllJobs] = useState<Job[]>(MOCK_SOFTWARE_ENGINEER_JOBS)
-  const [filteredJobs, setFilteredJobs] = useState<Job[]>(MOCK_SOFTWARE_ENGINEER_JOBS.slice(0, 10))
+  const [allJobs, setAllJobs] = useState<Job[]>([])
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([])
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [bookmarkedJobs, setBookmarkedJobs] = useState<Set<string>>(new Set())
   const [savedJobs, setSavedJobs] = useState<Job[]>([])
   const [showSavedJobs, setShowSavedJobs] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [totalResults, setTotalResults] = useState(MOCK_SOFTWARE_ENGINEER_JOBS.length)
+  const [totalResults, setTotalResults] = useState(0)
 
   // Filter State
   const [filters, setFilters] = useState<FilterState>({
@@ -135,16 +257,58 @@ export default function AdvancedJobSearch() {
   // Lock body scroll when needed (future: for mobile modal)
   useBodyScrollLock(false)
 
-  // Load saved jobs from localStorage on mount
+  // Fetch all jobs from database
+  const fetchAllJobs = useCallback(async () => {
+    setLoading(true)
+    try {
+      console.log('Fetching jobs from API...')
+      const response = await axios.get('/api/v1/jobs', {
+        params: { page: 1, limit: 50 }
+      })
+      
+      console.log('API Response:', response.data)
+      
+      let jobs: Job[] = []
+      
+      if (Array.isArray(response.data)) {
+        jobs = response.data.map(convertApiJobToJob)
+      } else if (response.data.jobs && Array.isArray(response.data.jobs)) {
+        jobs = response.data.jobs.map(convertApiJobToJob)
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        jobs = response.data.data.map(convertApiJobToJob)
+      } else {
+        console.log('Unexpected API response format:', response.data)
+        jobs = []
+      }
+      
+      console.log('Converted jobs:', jobs)
+      
+      setAllJobs(jobs)
+      setFilteredJobs(jobs)
+      setTotalResults(jobs.length)
+      
+      if (jobs.length > 0 && !selectedJobId) {
+        setSelectedJobId(jobs[0].id)
+      }
+    } catch (err) {
+      console.error('Failed to fetch jobs:', err)
+      setAllJobs([])
+      setFilteredJobs([])
+      setTotalResults(0)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Load saved jobs from localStorage and fetch jobs on mount
   useEffect(() => {
     const savedJobIds = localStorage.getItem('savedJobs')
     if (savedJobIds) {
       const ids = JSON.parse(savedJobIds) as string[]
-      const savedJobObjects = MOCK_SOFTWARE_ENGINEER_JOBS.filter(job => ids.includes(job.id))
-      setSavedJobs(savedJobObjects)
       setBookmarkedJobs(new Set(ids))
     }
-  }, [])
+    fetchAllJobs()
+  }, [fetchAllJobs])
 
   // Get selected job
   const selectedJob = selectedJobId 
@@ -166,7 +330,7 @@ export default function AdvancedJobSearch() {
     true
   )
 
-  // Initialize from URL params
+  // Initialize from URL params and fetch jobs
   useEffect(() => {
     const job = searchParams.get('job') || ''
     const location = searchParams.get('location') || ''
@@ -176,8 +340,11 @@ export default function AdvancedJobSearch() {
 
     if (job || location) {
       handleSearch(job, location, false)
+    } else {
+      // Always fetch all jobs on initial load
+      fetchAllJobs()
     }
-  }, [])
+  }, [fetchAllJobs])
 
   // Handle location suggestions
   const handleLocationChange = (value: string) => {
@@ -243,7 +410,7 @@ export default function AdvancedJobSearch() {
 
     // Job type filter
     if (filterState.jobType.length > 0) {
-      filtered = filtered.filter(job => filterState.jobType.includes(job.jobType))
+      filtered = filtered.filter(job => filterState.jobType.includes(job.employmentType))
     }
 
     // Remote filter
@@ -264,31 +431,42 @@ export default function AdvancedJobSearch() {
     setLoading(true)
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 600))
-
-      let results = MOCK_SOFTWARE_ENGINEER_JOBS
-
-      if (jobQ.trim()) {
-        results = results.filter(job =>
-          job.title.toLowerCase().includes(jobQ.toLowerCase()) ||
-          job.company.toLowerCase().includes(jobQ.toLowerCase()) ||
-          job.description.toLowerCase().includes(jobQ.toLowerCase())
-        )
-      }
-
-      if (locationQ.trim()) {
-        results = results.filter(job =>
-          job.location.toLowerCase().includes(locationQ.toLowerCase())
-        )
+      let jobs: Job[] = []
+      
+      if (jobQ.trim() || locationQ.trim()) {
+        console.log('Searching with params:', { keyword: jobQ.trim(), location: locationQ.trim() })
+        // Call search API
+        const response = await axios.get('/api/v1/jobs/search', {
+          params: {
+            keyword: jobQ.trim(),
+            location: locationQ.trim(),
+            page: 1,
+            limit: 50
+          }
+        })
+        
+        console.log('Search API Response:', response.data)
+        
+        if (Array.isArray(response.data)) {
+          jobs = response.data.map(convertApiJobToJob)
+        } else if (response.data.jobs && Array.isArray(response.data.jobs)) {
+          jobs = response.data.jobs.map(convertApiJobToJob)
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          jobs = response.data.data.map(convertApiJobToJob)
+        }
+        
+        setAllJobs(jobs)
+      } else {
+        // If no search terms, fetch all jobs
+        await fetchAllJobs()
+        return
       }
 
       // Apply filters
-      const filteredResults = applyFilters(results, filters)
-
-      setAllJobs(results)
+      const filteredResults = applyFilters(jobs, filters)
       setFilteredJobs(filteredResults)
-      setTotalResults(results.length)
-      setSelectedJobId(null)
+      setTotalResults(jobs.length)
+      setSelectedJobId(filteredResults.length > 0 ? filteredResults[0].id : null)
 
       if (updateUrl) {
         const params = new URLSearchParams()
@@ -297,10 +475,14 @@ export default function AdvancedJobSearch() {
         const queryString = params.toString()
         router.push(queryString ? `?${queryString}` : '/', { scroll: false })
       }
+    } catch (err) {
+      console.error('Search error:', err)
+      // Fallback to fetch all jobs
+      await fetchAllJobs()
     } finally {
       setLoading(false)
     }
-  }, [applyFilters, filters, router])
+  }, [applyFilters, filters, router, fetchAllJobs])
 
   // Handle filter changes
   const handleFilterChange = useCallback((newFilters: FilterState) => {
@@ -493,10 +675,10 @@ export default function AdvancedJobSearch() {
 
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-300px)]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[calc(100vh-200px)]">
           
           {/* ========== LEFT PANEL: JOB LIST ========== */}
-          <div className="lg:col-span-1 flex flex-col">
+          <div className={`${selectedJobId ? 'hidden lg:flex' : 'flex'} lg:col-span-1 flex-col`}>
             {/* ===== JOB COUNT (LEFT) ===== */}
             <div className="mb-4 flex items-center gap-2">
               <Filter className="h-5 w-5 text-gray-600 shrink-0" />
@@ -759,10 +941,25 @@ export default function AdvancedJobSearch() {
           {/* ========== RIGHT PANEL: JOB DETAIL ========== */}
           <div 
             ref={detailPanelRef}
-            className="hidden lg:flex lg:col-span-2 flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+            className={`${selectedJobId ? 'flex col-span-1' : 'hidden lg:flex'} lg:col-span-2 flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden`}
           >
             {selectedJob ? (
               <>
+                {/* Mobile Back Button */}
+                <div className="lg:hidden border-b border-gray-200 px-4 py-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedJobId(null)}
+                    className="flex items-center gap-2 text-gray-600"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to Jobs
+                  </Button>
+                </div>
+                
                 {/* Detail Header */}
                 <div className="bg-linear-to-r from-slate-50 to-amber-50 border-b border-gray-200 px-6 py-6">
                   <div className="flex items-start justify-between mb-4">
@@ -873,6 +1070,48 @@ export default function AdvancedJobSearch() {
                         ))}
                       </ul>
                     </div>
+                  )}
+
+                  {/* Skills */}
+                  {selectedJob.skills && selectedJob.skills.length > 0 && (
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900 mb-3">Required Skills</h2>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedJob.skills.map((skill, index) => (
+                          <Badge
+                            key={index}
+                            className="bg-blue-50 text-blue-700 border border-blue-200 font-medium"
+                          >
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Custom Sections */}
+                  {selectedJob.customSections && selectedJob.customSections.length > 0 && (
+                    <>
+                      {selectedJob.customSections.map((section, index) => (
+                        <div key={section._id || index}>
+                          <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                            {section.title.includes('Perks') && <TrendingUp className="h-5 w-5 text-green-600" />}
+                            {section.title.includes('🔧') && <CheckCircle2 className="h-5 w-5 text-blue-600" />}
+                            {section.title.includes('🧠') && <Award className="h-5 w-5 text-purple-600" />}
+                            {!section.title.includes('Perks') && !section.title.includes('🔧') && !section.title.includes('🧠') && <CheckCircle2 className="h-5 w-5 text-amber-700" />}
+                            {section.title}
+                          </h2>
+                          <div className="space-y-3">
+                            {section.content.split('\n\n').filter(item => item.trim()).map((item, itemIndex) => (
+                              <div key={itemIndex} className="flex items-start gap-3">
+                                <div className="h-2 w-2 bg-amber-700 rounded-full shrink-0 mt-2.5"></div>
+                                <span className="text-gray-700 leading-relaxed">{item.trim()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </>
                   )}
 
                   {/* Application Instructions */}

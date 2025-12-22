@@ -41,7 +41,9 @@ interface ProfileOverviewProps {
 
 export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [profileCompletion, setProfileCompletion] = useState(68);
+  const [profileCompletion, setProfileCompletion] = useState(0);
+  const [fetchedProfileData, setFetchedProfileData] = useState<any>(null);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState('');
   const [newSkillTitle, setNewSkillTitle] = useState('');
   const [newLanguage, setNewLanguage] = useState('');
@@ -50,37 +52,30 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
-    firstName: user?.name?.split(" ")[0] || "",
-    lastName: user?.name?.split(" ")[1] || "",
+    firstName: "",
+    lastName: "",
     email: user?.email || "",
-    phone: user?.phone || "",
-    dateOfBirth: "1995-03-15",
-    gender: "Male",
-    nationality: "Canadian",
-    city: "Toronto",
-    province: "Ontario",
-    postalCode: "M5V 3A8",
-    headline: "Frontend Developer | React & Next.js Specialist",
-    careerObjective: "Seeking a challenging role as a Senior Frontend Developer to lead modern web applications",
-    currentJobTitle: "Frontend Developer",
-    company: "Tech Corp",
-    yearsOfExperience: "5",
-    industry: "Information Technology",
-    employmentType: ["Full-time"],
-    skills: ["React", "Next.js", "TypeScript", "Tailwind CSS"],
-    languages: ["English (Native)", "Spanish (Basic)"],
-    education: [
-      {
-        degree: "Bachelor's Degree",
-        fieldOfStudy: "Computer Science",
-        institution: "University of Toronto",
-        graduationYear: "2020",
-      },
-    ],
-    profileVisibility: true,
-    openToWork: true,
-    showInSearch: true,
-    preferredWorkTypes: ["Remote", "Hybrid"],
+    phone: "",
+    dateOfBirth: "",
+    gender: "",
+    nationality: "",
+    city: "",
+    province: "",
+    postalCode: "",
+    headline: "",
+    careerObjective: "",
+    currentJobTitle: "",
+    company: "",
+    yearsOfExperience: "",
+    industry: "",
+    employmentType: [],
+    skills: [],
+    languages: [],
+    education: [],
+    profileVisibility: false,
+    openToWork: false,
+    showInSearch: false,
+    preferredWorkTypes: [],
   });
 
   const handleInputChange = (field: string, value: any) => {
@@ -171,8 +166,10 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
 
         if (response.status === 200) {
           const profileData = response.data.data;
+          console.log('Fetched profile data:', profileData);
           
-          // Store the profile photo URL - handle both string and object formats
+          // Store the fetched profile data for completion calculation
+          setFetchedProfileData(profileData);
           if (profileData.profilePhoto) {
             const photoUrl = typeof profileData.profilePhoto === 'string' 
               ? profileData.profilePhoto 
@@ -222,6 +219,40 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
     }
   }, [token, user]);
 
+  // Calculate profile completion based on fetched data
+  useEffect(() => {
+    if (!fetchedProfileData) return;
+
+    const totalFields = 13; // Updated to match the actual number of fields checked
+    let completedFields = 0;
+    const missing: string[] = [];
+
+    console.log('Calculating completion with fetched data:', fetchedProfileData);
+
+    // Check each field and track missing ones
+    if (fetchedProfileData.firstName) completedFields++; else missing.push('First Name');
+    if (fetchedProfileData.lastName) completedFields++; else missing.push('Last Name');
+    if (fetchedProfileData.email) completedFields++; else missing.push('Email');
+    if (fetchedProfileData.phone) completedFields++; else missing.push('Phone');
+    if (fetchedProfileData.location) completedFields++; else missing.push('Location');
+    if (fetchedProfileData.jobSeekerProfile?.skills && fetchedProfileData.jobSeekerProfile.skills.length > 0) completedFields++; else missing.push('Skills');
+    if (fetchedProfileData.jobSeekerProfile?.languages && fetchedProfileData.jobSeekerProfile.languages.length > 0) completedFields++; else missing.push('Languages');
+    if (fetchedProfileData.headline) completedFields++; else missing.push('Professional Headline');
+    if (fetchedProfileData.jobSeekerProfile?.currentJobTitle) completedFields++; else missing.push('Current Job Title');
+    if (fetchedProfileData.jobSeekerProfile?.company) completedFields++; else missing.push('Company');
+    if (fetchedProfileData.jobSeekerProfile?.preferredWorkTypes && fetchedProfileData.jobSeekerProfile.preferredWorkTypes.length > 0) completedFields++; else missing.push('Preferred Work Types');
+    if (fetchedProfileData.jobSeekerProfile?.yearsOfExperience) completedFields++; else missing.push('Years of Experience');
+    if (fetchedProfileData.education && fetchedProfileData.education.length > 0) completedFields++; else missing.push('Education');
+
+    const completionPercentage = Math.round((completedFields / totalFields) * 100);
+    console.log(`Profile completion: ${completedFields}/${totalFields} = ${completionPercentage}%`);
+    console.log('Missing fields:', missing);
+    console.log('Fetched job seeker profile:', fetchedProfileData.jobSeekerProfile);
+    
+    setProfileCompletion(completionPercentage);
+    setMissingFields(missing);
+  }, [fetchedProfileData]);
+
   const handleSave = async () => {
     try {
       // Transform formData to match backend schema
@@ -262,37 +293,45 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
 
       if (response.status === 200) {
         const savedData = response.data.data;
-        // Update formData with saved data
+        console.log('Profile saved successfully:', savedData);
+        console.log('Saved headline:', savedData.headline);
+        console.log('Saved bio:', savedData.bio);
+        
+        // Update fetched profile data for completion calculation
+        setFetchedProfileData(savedData);
+        
+        // Update formData with ALL saved data including headline and bio
         setFormData({
-          firstName: savedData.firstName || '',
-          lastName: savedData.lastName || '',
-          email: savedData.email || '',
-          phone: savedData.phone || '',
-          dateOfBirth: formData.dateOfBirth, // Keep local if not in response
+          firstName: savedData.firstName || formData.firstName,
+          lastName: savedData.lastName || formData.lastName,
+          email: savedData.email || formData.email,
+          phone: savedData.phone || formData.phone,
+          dateOfBirth: formData.dateOfBirth,
           gender: formData.gender,
           nationality: formData.nationality,
-          city: savedData.location?.split(', ')[0] || '',
-          province: savedData.location?.split(', ')[1] || '',
-          postalCode: savedData.location?.split(', ')[2] || '',
-          headline: savedData.headline || '',
-          careerObjective: savedData.bio || '',
+          city: savedData.location?.split(', ')[0] || formData.city,
+          province: savedData.location?.split(', ')[1] || formData.province,
+          postalCode: savedData.location?.split(', ')[2] || formData.postalCode,
+          headline: savedData.headline || formData.headline,
+          careerObjective: savedData.bio || formData.careerObjective,
           currentJobTitle: savedData.jobSeekerProfile?.currentJobTitle || formData.currentJobTitle,
           company: savedData.jobSeekerProfile?.company || formData.company,
-          yearsOfExperience: savedData.jobSeekerProfile?.yearsOfExperience || formData.yearsOfExperience,
+          yearsOfExperience: (savedData.jobSeekerProfile?.yearsOfExperience?.toString?.() || formData.yearsOfExperience),
           industry: savedData.jobSeekerProfile?.preferredIndustries?.[0] || formData.industry,
           employmentType: savedData.jobSeekerProfile?.preferredEmploymentTypes || formData.employmentType,
           skills: savedData.jobSeekerProfile?.skills || formData.skills,
           languages: savedData.jobSeekerProfile?.languages || formData.languages,
           education: savedData.education || formData.education,
-          profileVisibility: savedData.privacy?.profileVisibility === 'public' || formData.profileVisibility,
-          openToWork: savedData.privacy?.allowMessages ?? formData.openToWork,
-          showInSearch: savedData.privacy?.showEmail ?? formData.showInSearch,
+          profileVisibility: savedData.privacy?.profileVisibility === 'public',
+          openToWork: savedData.privacy?.allowMessages || formData.openToWork,
+          showInSearch: savedData.privacy?.showEmail || formData.showInSearch,
           preferredWorkTypes: (savedData.jobSeekerProfile?.preferredWorkTypes && savedData.jobSeekerProfile.preferredWorkTypes.length > 0) 
             ? savedData.jobSeekerProfile.preferredWorkTypes 
-            : (savedData.jobSeekerProfile?.openToRemote ? ['Remote'] : formData.preferredWorkTypes),
+            : formData.preferredWorkTypes,
         });
         onProfileUpdate?.(savedData);
         setIsEditing(false);
+        alert('Profile saved successfully!');
       }
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -316,6 +355,11 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
         <p className="text-xs text-gray-600 mt-2">
           Complete these sections to improve your profile visibility and job matches
         </p>
+        {missingFields.length > 0 && (
+          <p className="text-xs text-amber-600 mt-2 font-medium">
+            Missing: {missingFields.join(', ')}
+          </p>
+        )}
       </Card>
 
       {/* Header with Edit Button */}
