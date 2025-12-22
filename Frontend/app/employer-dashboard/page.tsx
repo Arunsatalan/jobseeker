@@ -1,6 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { ProtectedLayout } from "@/components/ProtectedLayout";
+import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -14,13 +16,15 @@ import { MessagingSystem } from "@/components/employer/MessagingSystem";
 import { CompanyProfile } from "@/components/employer/CompanyProfile";
 import { PlanBilling } from "@/components/employer/PlanBilling";
 import { AccountSettings } from "@/components/employer/AccountSettings";
+import { PostJobDialog } from "@/components/employer/PostJobDialog";
+import { ViewJobDialog } from "@/components/employer/ViewJobDialog";
 
-// Mock data
+// Mock data (keep until fully removed if needed, but we are using real data now)
 const mockCompany = {
   name: "TechCorp Solutions",
   email: "hr@techcorp.com",
   phone: "+1 234-567-8900",
-  plan: "Professional" as const,
+  plan: "Professional",
   logo: "https://ui-avatars.com/api/?name=TechCorp+Solutions&background=0d47a1&color=fff",
   industry: "Technology",
   size: "51-200 employees",
@@ -34,41 +38,110 @@ const mockStats = {
   hiresMade: 8,
 };
 
-const mockJobs = [
-  {
-    id: "1",
-    title: "Senior Frontend Developer",
-    department: "Engineering",
-    postedDate: "2025-12-01",
-    expiryDate: "2025-12-31",
-    applicantsCount: 23,
-    status: "Open" as const,
-  },
-  {
-    id: "2",
-    title: "Product Manager",
-    department: "Product",
-    postedDate: "2025-11-28",
-    expiryDate: "2025-12-28",
-    applicantsCount: 15,
-    status: "Open" as const,
-  },
-  {
-    id: "3",
-    title: "UX Designer",
-    department: "Design",
-    postedDate: "2025-11-25",
-    expiryDate: "2025-12-25",
-    applicantsCount: 31,
-    status: "Paused" as const,
-  },
-];
+const mockJobs: any[] = [];
 
 export default function EmployerDashboard() {
-  const [company, setCompany] = useState(mockCompany);
+  const [company, setCompany] = useState<any>({
+    name: "Loading...",
+    email: "",
+    phone: "",
+    plan: "Standard",
+    logo: "",
+    industry: "",
+    size: "",
+    location: "",
+  });
   const [activeSection, setActiveSection] = useState("overview");
   const [stats, setStats] = useState(mockStats);
-  const [jobs, setJobs] = useState(mockJobs);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [isPostJobOpen, setIsPostJobOpen] = useState(false);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(true);
+
+  // Action states
+  const [viewingJob, setViewingJob] = useState<any | null>(null);
+  const [editingJob, setEditingJob] = useState<any | null>(null);
+  const [postJobMode, setPostJobMode] = useState<'create' | 'edit' | 'duplicate'>('create');
+
+  const { toast } = useToast();
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  const fetchJobs = async (showLoading = true) => {
+    if (showLoading) setIsLoadingJobs(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await axios.get(`${apiUrl}/api/v1/jobs/employer/jobs`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.data.success) {
+        // Map backend jobs to the format expected by components
+        const backendJobs = response.data.data;
+        const mappedJobs = backendJobs.map((job: any) => ({
+          ...job, // Preserve all original fields for editing
+          id: job._id,
+          title: job.title,
+          department: job.category || job.industry,
+          postedDate: new Date(job.createdAt).toLocaleDateString(),
+          expiryDate: job.expiresAt ? new Date(job.expiresAt).toLocaleDateString() : 'No Deadline',
+          applicantsCount: job.stats?.applications || 0,
+          status: job.status === 'published' ? 'Open' :
+            job.status === 'paused' ? 'Paused' :
+              job.status === 'draft' ? 'Draft' : 'Closed'
+        }));
+        setJobs(mappedJobs);
+
+        // Calculate real stats from fetched jobs
+        const totalApps = backendJobs.reduce((sum: number, job: any) => sum + (job.stats?.applications || 0), 0);
+        const activeCount = backendJobs.filter((job: any) => job.status === 'published').length;
+
+        setStats(prev => ({
+          ...prev,
+          totalJobs: mappedJobs.length,
+          activeJobs: activeCount,
+          totalApplications: totalApps,
+          // hiresMade can stay mock for now as it's not in the simple job model
+        }));
+      }
+    } catch (error: any) {
+      console.error("Error fetching jobs:", error);
+      toast({
+        title: "Error fetching jobs",
+        description: error.response?.data?.message || "Failed to load your job postings.",
+        variant: "destructive",
+      });
+    } finally {
+      if (showLoading) setIsLoadingJobs(false);
+    }
+  };
+
+  const fetchCompanyData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await axios.get(`${apiUrl}/api/v1/user-profiles/employer/company-data`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.data.success && response.data.data) {
+        setCompany(response.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching company data:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchJobs();
+    fetchCompanyData();
+  }, []);
 
   const handleLogout = () => {
     // Clear authentication data
@@ -84,8 +157,68 @@ export default function EmployerDashboard() {
   };
 
   const handlePostJob = () => {
-    console.log("Post new job");
-    // Navigate to job posting form
+    setPostJobMode('create');
+    setEditingJob(null);
+    setIsPostJobOpen(true);
+  };
+
+  const handleView = (job: any) => {
+    setViewingJob(job);
+  };
+
+  const handleEdit = (job: any) => {
+    setEditingJob(job);
+    setPostJobMode('edit');
+    setIsPostJobOpen(true);
+  };
+
+  const handleDuplicate = (job: any) => {
+    setEditingJob(job);
+    setPostJobMode('duplicate');
+    setIsPostJobOpen(true);
+  };
+
+  const handleDelete = async (jobId: string) => {
+    if (!window.confirm("Are you sure you want to delete this job?")) return;
+
+    // Optimistic Update: Immediately remove from UI
+    setJobs(currentJobs => currentJobs.filter(job => job.id !== jobId));
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${apiUrl}/api/v1/jobs/${jobId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast({ title: "Job Deleted", description: "The job posting has been permanently removed." });
+      fetchJobs(false); // Background sync, no loading spinner
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast({ title: "Error", description: "Failed to delete job.", variant: "destructive" });
+      fetchJobs(false); // Revert state on error
+    }
+  };
+
+  const handleToggleStatus = async (job: any) => {
+    const newStatus = job.status === 'Open' ? 'paused' : 'published';
+    const uiStatus = newStatus === 'published' ? 'Open' : 'Paused';
+
+    // Optimistic Update
+    setJobs(currentJobs => currentJobs.map(j =>
+      j.id === job.id ? { ...j, status: uiStatus } : j
+    ));
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`${apiUrl}/api/v1/jobs/${job.id}`, { status: newStatus }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast({ title: "Status Updated", description: `Job is now ${uiStatus}.` });
+      fetchJobs(false); // Background sync
+    } catch (error) {
+      console.error("Status update error:", error);
+      toast({ title: "Error", description: "Failed to update status.", variant: "destructive" });
+      fetchJobs(false); // Revert
+    }
   };
 
   return (
@@ -146,20 +279,34 @@ export default function EmployerDashboard() {
 
             {/* Main Content - Show selected section only */}
             <div className="max-w-6xl mx-auto">
-              {activeSection === "overview" && (
-                <DashboardOverview
-                  company={company}
-                  stats={stats}
-                  recentJobs={jobs.slice(0, 3)}
-                  onPostJob={handlePostJob}
-                />
-              )}
+              {isLoadingJobs && (activeSection === "overview" || activeSection === "jobs") ? (
+                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl shadow-sm border border-gray-100">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2" style={{ borderTopColor: '#02243b', borderBottomColor: '#02243b' }}></div>
+                  <p className="mt-4 text-gray-500 animate-pulse font-medium">Fetching your dashboard data...</p>
+                </div>
+              ) : (
+                <>
+                  {activeSection === "overview" && (
+                    <DashboardOverview
+                      company={company}
+                      stats={stats}
+                      recentJobs={jobs.slice(0, 3)}
+                      onPostJob={handlePostJob}
+                    />
+                  )}
 
-              {activeSection === "jobs" && (
-                <JobManagement
-                  jobs={jobs}
-                  onPostJob={handlePostJob}
-                />
+                  {activeSection === "jobs" && (
+                    <JobManagement
+                      jobs={jobs}
+                      onPostJob={handlePostJob}
+                      onView={handleView}
+                      onEdit={handleEdit}
+                      onDuplicate={handleDuplicate}
+                      onToggleStatus={handleToggleStatus}
+                      onDelete={handleDelete}
+                    />
+                  )}
+                </>
               )}
 
               {activeSection === "applicants" && (
@@ -246,6 +393,18 @@ export default function EmployerDashboard() {
           </div>
         </div>
       </div>
+      <PostJobDialog
+        open={isPostJobOpen}
+        onOpenChange={setIsPostJobOpen}
+        onSuccess={() => fetchJobs(false)} // No loading spinner on refresh
+        jobToEdit={editingJob}
+        mode={postJobMode}
+      />
+      <ViewJobDialog
+        open={!!viewingJob}
+        onOpenChange={(open) => !open && setViewingJob(null)}
+        job={viewingJob}
+      />
     </ProtectedLayout>
   );
 }

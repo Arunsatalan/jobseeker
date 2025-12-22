@@ -22,6 +22,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Info,
+  Trash2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -78,28 +79,28 @@ export default function Navbar({
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications();
-      
+
       // Auto-refresh notifications every 30 seconds (less frequent than admin)
       const interval = setInterval(() => {
         if (!isDropdownOpen) {
           fetchNotifications();
         }
       }, 30000);
-      
+
       return () => clearInterval(interval);
     }
   }, [isAuthenticated, isDropdownOpen]);
 
   const fetchNotifications = async () => {
     if (!isAuthenticated) return;
-    
+
     try {
       setIsLoadingNotifications(true);
       setNotificationError(null);
       const token = localStorage.getItem('token');
-      
+
       if (!token) return;
-      
+
       const response = await fetch('http://localhost:5000/api/v1/notifications?limit=10', {
         method: 'GET',
         headers: {
@@ -113,7 +114,7 @@ export default function Navbar({
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.data?.notifications) {
         setNotifications(data.data.notifications);
         const unreadCount = data.data.notifications.filter((n: Notification) => !n.isRead).length;
@@ -141,9 +142,9 @@ export default function Navbar({
       });
 
       if (response.ok) {
-        setNotifications(prev => 
-          prev.map(notif => 
-            notif._id === notificationId 
+        setNotifications(prev =>
+          prev.map(notif =>
+            notif._id === notificationId
               ? { ...notif, isRead: true }
               : notif
           )
@@ -163,6 +164,12 @@ export default function Navbar({
         return <FileText className="h-4 w-4 text-blue-500" />;
       case 'job_match':
         return <Briefcase className="h-4 w-4 text-purple-500" />;
+      case 'job_posted':
+        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      case 'admin_new_job':
+        return <AlertCircle className="h-4 w-4 text-amber-600" />;
+      case 'job_deleted':
+        return <Trash2 className="h-4 w-4 text-red-500" />;
       default:
         return <Info className="h-4 w-4 text-gray-500" />;
     }
@@ -172,7 +179,7 @@ export default function Navbar({
     const date = new Date(dateString);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return 'just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
@@ -232,7 +239,7 @@ export default function Navbar({
               </>
             )}
 
-           
+
           </div>
 
           {/* ===== RIGHT: ACTION BUTTONS ===== */}
@@ -270,8 +277,8 @@ export default function Navbar({
                         {notificationCount} unread notification{notificationCount !== 1 ? 's' : ''}
                       </p>
                     </div>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={fetchNotifications}
                       disabled={isLoadingNotifications}
@@ -280,7 +287,7 @@ export default function Navbar({
                     </Button>
                   </div>
                 </div>
-                
+
                 <div className="max-h-80 overflow-y-auto">
                   {isLoadingNotifications ? (
                     <div className="flex items-center justify-center py-8">
@@ -301,9 +308,8 @@ export default function Navbar({
                     notifications.map((notification) => (
                       <div
                         key={notification._id}
-                        className={`border-b px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ${
-                          !notification.isRead ? 'bg-blue-50' : ''
-                        }`}
+                        className={`border-b px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-blue-50' : ''
+                          }`}
                         onClick={() => {
                           if (!notification.isRead) {
                             markNotificationAsRead(notification._id);
@@ -335,7 +341,7 @@ export default function Navbar({
                     ))
                   )}
                 </div>
-                
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="p-3 text-center">
                   <Button variant="ghost" size="sm" className="w-full">
@@ -357,132 +363,131 @@ export default function Navbar({
                     {user.email.charAt(0).toUpperCase()}
                   </div>
                   <ChevronDown
-                    className={`h-4 w-4 transition-transform duration-300 hidden sm:block ${
-                      showUserMenu ? "rotate-180" : "rotate-0"
-                    }`}
+                    className={`h-4 w-4 transition-transform duration-300 hidden sm:block ${showUserMenu ? "rotate-180" : "rotate-0"
+                      }`}
                   />
                 </button>
 
-              {/* Dropdown Menu */}
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 z-50">
-                  {/* User Info Header */}
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {user.email.split('@')[0]}
-                    </p>
-                    <p className="text-xs text-gray-600">{user.email}</p>
-                  </div>
+                {/* Dropdown Menu */}
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                    {/* User Info Header */}
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {user.email.split('@')[0]}
+                      </p>
+                      <p className="text-xs text-gray-600">{user.email}</p>
+                    </div>
 
-                  {/* Menu Items */}
-                  <div className="py-2">
-                    {/* Profile - Show for all users */}
-                    <Link
-                      href={user.role === "employer" ? "/employer-dashboard/profile" : "/profile"}
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-slate-50 transition-colors"
+                    {/* Menu Items */}
+                    <div className="py-2">
+                      {/* Profile - Show for all users */}
+                      <Link
+                        href={user.role === "employer" ? "/employer-dashboard/profile" : "/profile"}
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <FileText className="h-4 w-4 text-slate-700" />
+                        <div>
+                          <p className="text-sm font-medium">Profile</p>
+                          <p className="text-xs text-gray-600">
+                            Manage your profile
+                          </p>{" "}
+                        </div>
+                      </Link>
+
+                      {/* Show additional items only for non-employer users */}
+                      {user.role !== "employer" && (
+                        <>
+                          {/* Tools */}
+                          <Link
+                            href="/tools"
+                            onClick={() => setShowUserMenu(false)}
+                            className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-purple-50 transition-colors"
+                          >
+                            <Zap className="h-4 w-4 text-purple-600" />
+                            <div>
+                              <p className="text-sm font-medium">Tools</p>
+                              <p className="text-xs text-gray-600">
+                                Interview prep & more
+                              </p>
+                            </div>
+                          </Link>
+
+                          {/* Recommended */}
+                          <Link
+                            href="/recommended"
+                            onClick={() => setShowUserMenu(false)}
+                            className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-amber-50 transition-colors"
+                          >
+                            <Star className="h-4 w-4 text-amber-600" />
+                            <div>
+                              <p className="text-sm font-medium">Recommended</p>
+                              <p className="text-xs text-gray-600">
+                                Jobs picked for you
+                              </p>
+                            </div>
+                          </Link>
+
+                          {/* Settings */}
+                          <Link
+                            href="/settings"
+                            onClick={() => setShowUserMenu(false)}
+                            className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+                          >
+                            <Settings className="h-4 w-4 text-gray-600" />
+                            <div>
+                              <p className="text-sm font-medium">Settings</p>
+                              <p className="text-xs text-gray-600">
+                                Account preferences
+                              </p>
+                            </div>
+                          </Link>
+                        </>
+                      )}
+
+                      {/* My Plan - Show for all users */}
+                      <Link
+                        href="/my-plan"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-amber-50 transition-colors"
+                      >
+                        <div className="h-4 w-4 rounded border-2 border-amber-700 flex items-center justify-center">
+                          <div className="h-1.5 w-1.5 bg-amber-700 rounded-full"></div>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">My Plan</p>
+                          <p className="text-xs text-amber-700 font-semibold">
+                            Premium
+                          </p>
+                        </div>
+                      </Link>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="border-t border-gray-100"></div>
+
+                    {/* Logout */}
+                    <button
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-3 px-4 py-2 text-red-700 hover:bg-red-50 transition-colors font-medium"
                     >
-                      <FileText className="h-4 w-4 text-slate-700" />
-                      <div>
-                        <p className="text-sm font-medium">Profile</p>
-                        <p className="text-xs text-gray-600">
-                          Manage your profile
-                        </p>{" "}
-                      </div>
-                    </Link>
-
-                    {/* Show additional items only for non-employer users */}
-                    {user.role !== "employer" && (
-                      <>
-                        {/* Tools */}
-                        <Link
-                          href="/tools"
-                          onClick={() => setShowUserMenu(false)}
-                          className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-purple-50 transition-colors"
-                        >
-                          <Zap className="h-4 w-4 text-purple-600" />
-                          <div>
-                            <p className="text-sm font-medium">Tools</p>
-                            <p className="text-xs text-gray-600">
-                              Interview prep & more
-                            </p>
-                          </div>
-                        </Link>
-
-                        {/* Recommended */}
-                        <Link
-                          href="/recommended"
-                          onClick={() => setShowUserMenu(false)}
-                          className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-amber-50 transition-colors"
-                        >
-                          <Star className="h-4 w-4 text-amber-600" />
-                          <div>
-                            <p className="text-sm font-medium">Recommended</p>
-                            <p className="text-xs text-gray-600">
-                              Jobs picked for you
-                            </p>
-                          </div>
-                        </Link>
-
-                        {/* Settings */}
-                        <Link
-                          href="/settings"
-                          onClick={() => setShowUserMenu(false)}
-                          className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          <Settings className="h-4 w-4 text-gray-600" />
-                          <div>
-                            <p className="text-sm font-medium">Settings</p>
-                            <p className="text-xs text-gray-600">
-                              Account preferences
-                            </p>
-                          </div>
-                        </Link>
-                      </>
-                    )}
-
-                    {/* My Plan - Show for all users */}
-                    <Link
-                      href="/my-plan"
-                      onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-amber-50 transition-colors"
-                    >
-                      <div className="h-4 w-4 rounded border-2 border-amber-700 flex items-center justify-center">
-                        <div className="h-1.5 w-1.5 bg-amber-700 rounded-full"></div>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">My Plan</p>
-                        <p className="text-xs text-amber-700 font-semibold">
-                          Premium
-                        </p>
-                      </div>
-                    </Link>
+                      <LogOut className="h-4 w-4" />
+                      Logout
+                    </button>
                   </div>
-
-                  {/* Divider */}
-                  <div className="border-t border-gray-100"></div>
-
-                  {/* Logout */}
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-red-700 hover:bg-red-50 transition-colors font-medium"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Sign In Button for unauthenticated users */
-            <Button
-              onClick={() => router.push('/')}
-              className="px-4 py-2 bg-linear-to-r from-primary-500 to-secondary-400 text-white font-medium rounded-lg hover:shadow-lg transition-all duration-300"
-            >
-              Sign In
-            </Button>
-          )}
-        </div>
+                )}
+              </div>
+            ) : (
+              /* Sign In Button for unauthenticated users */
+              <Button
+                onClick={() => router.push('/')}
+                className="px-4 py-2 bg-linear-to-r from-primary-500 to-secondary-400 text-white font-medium rounded-lg hover:shadow-lg transition-all duration-300"
+              >
+                Sign In
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Mobile Menu Toggle */}

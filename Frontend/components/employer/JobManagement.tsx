@@ -35,9 +35,22 @@ interface Job {
 interface JobManagementProps {
   jobs: Job[];
   onPostJob: () => void;
+  onView: (job: Job) => void;
+  onEdit: (job: Job) => void;
+  onDuplicate: (job: Job) => void;
+  onToggleStatus: (job: Job) => void;
+  onDelete: (jobId: string) => void;
 }
 
-export function JobManagement({ jobs, onPostJob }: JobManagementProps) {
+export function JobManagement({
+  jobs,
+  onPostJob,
+  onView,
+  onEdit,
+  onDuplicate,
+  onToggleStatus,
+  onDelete
+}: JobManagementProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -58,7 +71,7 @@ export function JobManagement({ jobs, onPostJob }: JobManagementProps) {
 
   const filteredJobs = jobs.filter((job) => {
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.department.toLowerCase().includes(searchTerm.toLowerCase());
+      job.department.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || job.status.toLowerCase() === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -136,38 +149,89 @@ export function JobManagement({ jobs, onPostJob }: JobManagementProps) {
         </TabsList>
 
         <TabsContent value="all">
-          <JobList jobs={filteredJobs} />
+          <JobList
+            jobs={filteredJobs}
+            onView={onView}
+            onEdit={onEdit}
+            onDuplicate={onDuplicate}
+            onToggleStatus={onToggleStatus}
+            onDelete={onDelete}
+          />
         </TabsContent>
         <TabsContent value="open">
-          <JobList jobs={jobsByStatus.open.filter(job => 
-            job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            job.department.toLowerCase().includes(searchTerm.toLowerCase())
-          )} />
+          <JobList
+            jobs={jobsByStatus.open.filter(job =>
+              job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              job.department.toLowerCase().includes(searchTerm.toLowerCase())
+            )}
+            onView={onView}
+            onEdit={onEdit}
+            onDuplicate={onDuplicate}
+            onToggleStatus={onToggleStatus}
+            onDelete={onDelete}
+          />
         </TabsContent>
         <TabsContent value="paused">
-          <JobList jobs={jobsByStatus.paused.filter(job => 
-            job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            job.department.toLowerCase().includes(searchTerm.toLowerCase())
-          )} />
+          <JobList
+            jobs={jobsByStatus.paused.filter(job =>
+              job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              job.department.toLowerCase().includes(searchTerm.toLowerCase())
+            )}
+            onView={onView}
+            onEdit={onEdit}
+            onDuplicate={onDuplicate}
+            onToggleStatus={onToggleStatus}
+            onDelete={onDelete}
+          />
         </TabsContent>
         <TabsContent value="draft">
-          <JobList jobs={jobsByStatus.draft.filter(job => 
-            job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            job.department.toLowerCase().includes(searchTerm.toLowerCase())
-          )} />
+          <JobList
+            jobs={jobsByStatus.draft.filter(job =>
+              job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              job.department.toLowerCase().includes(searchTerm.toLowerCase())
+            )}
+            onView={onView}
+            onEdit={onEdit}
+            onDuplicate={onDuplicate}
+            onToggleStatus={onToggleStatus}
+            onDelete={onDelete}
+          />
         </TabsContent>
         <TabsContent value="closed">
-          <JobList jobs={jobsByStatus.closed.filter(job => 
-            job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            job.department.toLowerCase().includes(searchTerm.toLowerCase())
-          )} />
+          <JobList
+            jobs={jobsByStatus.closed.filter(job =>
+              job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              job.department.toLowerCase().includes(searchTerm.toLowerCase())
+            )}
+            onView={onView}
+            onEdit={onEdit}
+            onDuplicate={onDuplicate}
+            onToggleStatus={onToggleStatus}
+            onDelete={onDelete}
+          />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function JobList({ jobs }: { jobs: Job[] }) {
+interface JobListProps {
+  jobs: Job[];
+  onView: (job: Job) => void;
+  onEdit: (job: Job) => void;
+  onDuplicate: (job: Job) => void;
+  onToggleStatus: (job: Job) => void;
+  onDelete: (jobId: string) => void;
+}
+
+function JobList({
+  jobs,
+  onView,
+  onEdit,
+  onDuplicate,
+  onToggleStatus,
+  onDelete
+}: JobListProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Open":
@@ -210,7 +274,7 @@ function JobList({ jobs }: { jobs: Job[] }) {
                     <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
                     <Badge className={getStatusColor(job.status)}>{job.status}</Badge>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4" />
@@ -235,30 +299,30 @@ function JobList({ jobs }: { jobs: Job[] }) {
 
             {/* Actions */}
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" onClick={() => onView(job)}>
                 <Eye className="h-4 w-4 mr-1" />
                 View
               </Button>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" onClick={() => onEdit(job)}>
                 <Edit3 className="h-4 w-4 mr-1" />
                 Edit
               </Button>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" onClick={() => onDuplicate(job)}>
                 <Copy className="h-4 w-4 mr-1" />
                 Duplicate
               </Button>
               {job.status === "Open" ? (
-                <Button size="sm" variant="outline" className="text-yellow-600 hover:text-yellow-700">
+                <Button size="sm" variant="outline" className="text-yellow-600 hover:text-yellow-700" onClick={() => onToggleStatus(job)}>
                   <Pause className="h-4 w-4 mr-1" />
                   Pause
                 </Button>
               ) : job.status === "Paused" ? (
-                <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700">
+                <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700" onClick={() => onToggleStatus(job)}>
                   <Play className="h-4 w-4 mr-1" />
                   Activate
                 </Button>
               ) : null}
-              <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
+              <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" onClick={() => onDelete(job.id)}>
                 <Trash2 className="h-4 w-4 mr-1" />
                 Delete
               </Button>

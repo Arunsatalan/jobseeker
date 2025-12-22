@@ -48,6 +48,11 @@ const jobSchema = new mongoose.Schema(
       type: Number,
       min: 0,
     },
+    salaryPeriod: {
+      type: String,
+      enum: ['hourly', 'monthly', 'yearly'],
+      default: 'yearly',
+    },
     currency: {
       type: String,
       default: 'CAD',
@@ -77,6 +82,10 @@ const jobSchema = new mongoose.Schema(
     },
     expiresAt: Date,
     tags: [String],
+    customSections: [{
+      title: { type: String, required: true },
+      content: { type: String, required: true }
+    }],
   },
   { timestamps: true }
 );

@@ -10,7 +10,7 @@ router.get('/:id/subcategories', categoryController.getCategorySubcategories);
 
 // Admin routes
 router.post('/', protect, authorize('admin'), categoryController.createCategory);
-router.post('/:id/subcategories', protect, authorize('admin'), categoryController.addSubcategory);
+router.post('/:id/subcategories', protect, authorize('admin', 'employer'), categoryController.addSubcategory);
 router.put('/:id', protect, authorize('admin'), categoryController.updateCategory);
 router.put('/:id/subcategories/:subId', protect, authorize('admin'), categoryController.updateSubcategory);
 router.delete('/:id', protect, authorize('admin'), categoryController.deleteCategory);
