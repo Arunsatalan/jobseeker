@@ -621,6 +621,24 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                                 placeholder="- React.js&#10;- TypeScript&#10;- 3+ years experience"
                                 className="min-h-[100px]"
                             />
+                            {formData.requirements && (
+                                <div className="mt-2 p-3 bg-purple-50 border border-purple-200 rounded-md">
+                                    <p className="text-xs font-semibold text-purple-900 mb-2">Preview ({formData.requirements.split('\n').filter(r => r.trim()).length} requirements):</p>
+                                    <div className="space-y-1">
+                                        {formData.requirements.split('\n').map((req, idx) => {
+                                            const trimmed = req.trim();
+                                            return trimmed ? (
+                                                <div key={idx} className="flex items-center gap-2">
+                                                    <div className="h-2 w-2 bg-purple-500 rounded-full"></div>
+                                                    <span className="text-xs text-purple-900">
+                                                        {trimmed.length > 60 ? trimmed.substring(0, 60) + '...' : trimmed}
+                                                    </span>
+                                                </div>
+                                            ) : null;
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -631,6 +649,21 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                                 onChange={(e) => handleInputChange("skills", e.target.value)}
                                 placeholder="React, Node.js, TypeScript, MongoDB"
                             />
+                            {formData.skills && (
+                                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                    <p className="text-xs font-semibold text-blue-900 mb-2">Preview ({formData.skills.split(',').filter(s => s.trim()).length} skills):</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {formData.skills.split(',').map((skill, idx) => {
+                                            const trimmed = skill.trim();
+                                            return trimmed ? (
+                                                <span key={idx} className="bg-blue-100 text-blue-900 px-2 py-1 rounded text-xs font-medium">
+                                                    {trimmed.length > 20 ? trimmed.substring(0, 20) + '...' : trimmed}
+                                                </span>
+                                            ) : null;
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -642,6 +675,24 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                                 placeholder="- Health Insurance&#10;- Remote Work Options&#10;- Annual Bonus"
                                 className="min-h-[100px]"
                             />
+                            {formData.benefits && (
+                                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                                    <p className="text-xs font-semibold text-green-900 mb-2">Preview ({formData.benefits.split('\n').filter(b => b.trim()).length} benefits):</p>
+                                    <div className="space-y-1">
+                                        {formData.benefits.split('\n').map((benefit, idx) => {
+                                            const trimmed = benefit.trim();
+                                            return trimmed ? (
+                                                <div key={idx} className="flex items-center gap-2">
+                                                    <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                                                    <span className="text-xs text-green-900">
+                                                        {trimmed.length > 60 ? trimmed.substring(0, 60) + '...' : trimmed}
+                                                    </span>
+                                                </div>
+                                            ) : null;
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

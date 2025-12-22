@@ -11,6 +11,7 @@ const messageRoutes = require('./messageRoutes');
 const paymentRoutes = require('./paymentRoutes');
 const adminRoutes = require('./adminRoutes');
 const notificationRoutes = require('./notificationRoutes');
+const companyRoutes = require('./companyRoutes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -23,5 +24,6 @@ router.use('/messages', messageRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/admin', adminRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/companies', companyRoutes);
 
 module.exports = router;
