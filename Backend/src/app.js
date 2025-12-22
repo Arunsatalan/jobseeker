@@ -12,6 +12,7 @@ const { limiter } = require('./middleware/rateLimit');
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const userProfileRoutes = require('./routes/userProfileRoutes');
 const jobRoutes = require('./routes/jobRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
@@ -55,6 +56,7 @@ app.use('/test', express.static(path.join(__dirname, '..')));
 // API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/user-profiles', userProfileRoutes);
 app.use('/api/v1/jobs', jobRoutes);
 app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/applications', applicationRoutes);
