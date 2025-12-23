@@ -32,8 +32,9 @@ interface SidebarProps {
 
 const navigationItems = [
   { id: "user-info", label: "Profile Overview", icon: User },
-  { id: "resumes", label: "Resume Management", icon: FileText },
   { id: "preferences", label: "Job Preferences", icon: Briefcase },
+  { id: "resumes", label: "Resume Management", icon: FileText },
+  
   { id: "progress", label: "Career Progress", icon: TrendingUp },
   { id: "tools", label: "Tools & Resources", icon: Wrench },
   { id: "settings", label: "Account Settings", icon: Settings },
