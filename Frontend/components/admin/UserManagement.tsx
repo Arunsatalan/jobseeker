@@ -78,10 +78,103 @@ export function UserManagement() {
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
+  const [showCompanyDetails, setShowCompanyDetails] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
+  const [loadingCompany, setLoadingCompany] = useState(false);
   const [jobSeekersData, setJobSeekersData] = useState<any[]>([]);
   const [employersData, setEmployersData] = useState<any[]>([]);
   const [companiesData, setCompaniesData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Company ID to name mapping (temporary solution until backend populates company data)
+  // WHY THIS IS NEEDED:
+  // - API returns employer users with 'company' field containing company ID only
+  // - Company name "spyboy3" is stored in separate company collection
+  // - Backend should populate company data but currently doesn't
+  // - User ID is different from company ID - user ID is for the employer user, company ID is for the company they represent
+  const companyMapping: { [key: string]: string } = {
+    '694981060212935e26201eb6': 'spyboy3',
+    // Add more company mappings as needed
+  };
+
+  // Fetch company details by ID or name
+  const fetchCompanyDetails = async (companyId: string | undefined, companyName?: string) => {
+    try {
+      setLoadingCompany(true);
+      console.log('Fetching company details for ID:', companyId, 'or name:', companyName);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No auth token found');
+        return;
+      }
+      
+      let companyData = null;
+      
+      // If we have a company ID, try to fetch by ID first
+      if (companyId) {
+        try {
+          console.log('Trying to fetch by ID:', companyId);
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/companies/${companyId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.data.success && response.data.data) {
+            companyData = response.data.data;
+            console.log('Found company by ID:', companyData);
+          }
+        } catch (idError) {
+          console.log('Company not found by ID, trying by name...');
+        }
+      }
+      
+      // If no company found by ID, or no ID provided, search by name
+      if (!companyData && companyName) {
+        try {
+          console.log('Fetching all companies to find by name:', companyName);
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/companies`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.data.success && response.data.data) {
+            const companies = response.data.data;
+            companyData = companies.find((company: any) => 
+              company.name?.toLowerCase() === companyName.toLowerCase()
+            );
+            console.log('Found company by name:', companyData);
+          }
+        } catch (nameError) {
+          console.log('Error searching companies by name:', nameError);
+        }
+      }
+      
+      if (companyData) {
+        setSelectedCompany(companyData);
+        setShowCompanyDetails(true);
+      } else {
+        console.error('Company not found by ID or name');
+        alert('Company details could not be loaded. The company may not exist in the database.');
+      }
+    } catch (error: any) {
+      console.error('Error fetching company details:', error);
+      console.error('Error response:', error.response?.data);
+      
+      // Show user-friendly error message
+      if (error.response?.status === 404) {
+        alert('Company not found. The company may not exist in the database or the backend server needs to be restarted.');
+      } else {
+        alert('Failed to load company details. Please try again later.');
+      }
+    } finally {
+      setLoadingCompany(false);
+    }
+  };
 
   // Fetch job seekers data from database
   const fetchJobSeekers = async () => {
@@ -93,7 +186,7 @@ export function UserManagement() {
       const token = localStorage.getItem('token');
       console.log('Auth token available:', !!token);
       
-      const response = await axios.get('http://localhost:5000/api/v1/admin/users', {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -153,7 +246,7 @@ export function UserManagement() {
       const token = localStorage.getItem('token');
       console.log('Auth token available:', !!token);
       
-      const response = await axios.get('http://localhost:5000/api/v1/admin/users', {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -165,6 +258,7 @@ export function UserManagement() {
       // Filter for employers and transform the data
       const allUsers = response.data.data || response.data || [];
       console.log('All users count:', allUsers.length);
+      console.log('All users sample:', allUsers.slice(0, 2)); // Show first 2 users for debugging
       
       const employers = allUsers.filter((user: any) => {
         const role = user.role;
@@ -173,15 +267,63 @@ export function UserManagement() {
       });
       
       console.log('Employers found:', employers.length);
+      console.log('Employer sample data:', employers.slice(0, 1)); // Show first employer for debugging
+
+      // Fetch all jobs to match with employers
+      let allJobs = [];
+      try {
+        console.log('Fetching jobs data...');
+        const jobsResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/jobs`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        allJobs = jobsResponse.data.data || jobsResponse.data || [];
+        console.log('Found jobs in DB:', allJobs.length);
+      } catch (error) {
+        console.log("Jobs endpoint not available, proceeding without job data:", error.message);
+        allJobs = [];
+      }
       
-      const transformedData = employers.map((user: any) => ({
+      const transformedData = employers.map((user: any) => {
+        // Get company name from mapping or fallback
+        const companyName = companyMapping[user.company] || user.companyName || user.name || 'Unknown Company';
+        
+        // Find jobs for this employer
+        const employerJobs = allJobs.filter((job: any) =>
+          job.employer === user._id ||
+          job.employer?._id === user._id ||
+          (typeof job.employer === 'string' && job.employer === user._id.toString())
+        );
+
+        console.log(`Employer ${user.email}: Found ${employerJobs.length} jobs`);
+
+        // Sort jobs by creation date (newest first)
+        employerJobs.sort((a: any, b: any) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
+        const lastJob = employerJobs.length > 0 ? new Date(employerJobs[0].createdAt) : null;
+        const lastJobPostedDate = lastJob && !isNaN(lastJob.getTime())
+          ? lastJob.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })
+          : "Never";
+        
+        console.log(`Employer ${user.email}: company field = ${user.company}, companyName = ${user.companyName}, phone = ${user.phone}, mapped companyName = ${companyName}`);
+        
+        return {
         id: user._id || user.id,
-        logo: user.profilePicture || user.companyLogo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.companyName || user.name || 'Company')}&background=02243b&color=fff`,
-        companyName: user.companyName || user.name || 'Unknown Company',
-        adminContact: user.contactPerson || user.name || 'N/A',
+        companyId: user.company, // Store the company ID separately
+        logo: user.profilePicture || user.companyLogo || `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName || 'Company')}&background=02243b&color=fff`,
+        companyName: companyName,
+        adminContact: user.phone || user.contactPerson || user.name || 'N/A',
         email: user.email,
-        jobsPosted: user.jobsPosted || 0,
-        lastJobPosted: user.lastJobPosted || 'Never',
+        jobsPosted: employerJobs.length,
+        lastJobPosted: lastJobPostedDate,
         plan: user.subscriptionPlan || 'Basic',
         status: user.isActive === false ? 'Suspended' : (user.isEmailVerified ? 'Active' : 'Pending'),
         verified: user.isEmailVerified || false,
@@ -189,9 +331,10 @@ export function UserManagement() {
         location: user.location || user.address || 'N/A',
         industry: user.industry || 'Not specified',
         companySize: user.companySize || 'Not specified',
-        activeJobs: user.activeJobsCount || 0,
+        activeJobs: employerJobs.filter((job: any) => job.status === "published").length,
         joinDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      }));
+        };
+      });
       
       console.log('Transformed employers:', transformedData);
       setEmployersData(transformedData);
@@ -216,7 +359,7 @@ export function UserManagement() {
         // Fallback: try to fetch from regular users endpoint if admin fails
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get('http://localhost:5000/api/v1/users/admin/list', {
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/users/admin/list`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
@@ -231,6 +374,23 @@ export function UserManagement() {
             user.role === 'jobseeker' || user.role === 'user' || !user.role
           );
           const employers = allUsers.filter((user: any) => user.role === 'employer');
+          
+          // Fetch all jobs to match with employers (fallback)
+          let allJobsFallback = [];
+          try {
+            console.log('Fetching jobs data (fallback)...');
+            const jobsResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/jobs`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            allJobsFallback = jobsResponse.data.data || jobsResponse.data || [];
+            console.log('Found jobs in DB (fallback):', allJobsFallback.length);
+          } catch (error) {
+            console.log("Jobs endpoint not available in fallback, proceeding without job data:", error.message);
+            allJobsFallback = [];
+          }
           
           // Transform and set data
           const transformedJobSeekers = jobSeekers.map((user: any) => ({
@@ -250,14 +410,44 @@ export function UserManagement() {
             totalApplications: user.applications?.length || 0,
           }));
           
-          const transformedEmployers = employers.map((user: any) => ({
+          const transformedEmployers = employers.map((user: any) => {
+            // Get company name from mapping or fallback
+            const companyName = companyMapping[user.company] || user.companyName || user.name || 'Unknown Company';
+            
+            // Find jobs for this employer (fallback)
+            const employerJobs = allJobsFallback.filter((job: any) =>
+              job.employer === user._id ||
+              job.employer?._id === user._id ||
+              (typeof job.employer === 'string' && job.employer === user._id.toString())
+            );
+
+            console.log(`Fallback Employer ${user.email}: Found ${employerJobs.length} jobs`);
+
+            // Sort jobs by creation date (newest first)
+            employerJobs.sort((a: any, b: any) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+
+            const lastJob = employerJobs.length > 0 ? new Date(employerJobs[0].createdAt) : null;
+            const lastJobPostedDate = lastJob && !isNaN(lastJob.getTime())
+              ? lastJob.toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })
+              : "Never";
+            
+            console.log(`Fallback Employer ${user.email}: company field = ${user.company}, companyName = ${user.companyName}, phone = ${user.phone}, mapped companyName = ${companyName}`);
+            
+            return {
             id: user._id || user.id,
-            logo: user.profilePicture || user.companyLogo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.companyName || user.name || 'Company')}&background=02243b&color=fff`,
-            companyName: user.companyName || user.name || 'Unknown Company',
-            adminContact: user.contactPerson || user.name || 'N/A',
+            companyId: user.company, // Store the company ID separately
+            logo: user.profilePicture || user.companyLogo || `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName || 'Company')}&background=02243b&color=fff`,
+            companyName: companyName,
+            adminContact: user.phone || user.contactPerson || user.name || 'N/A',
             email: user.email,
-            jobsPosted: user.jobsPosted || 0,
-            lastJobPosted: user.lastJobPosted || 'Never',
+            jobsPosted: employerJobs.length,
+            lastJobPosted: lastJobPostedDate,
             plan: user.subscriptionPlan || 'Basic',
             status: user.isActive === false ? 'Suspended' : (user.isEmailVerified ? 'Active' : 'Pending'),
             verified: user.isEmailVerified || false,
@@ -265,9 +455,10 @@ export function UserManagement() {
             location: user.location || user.address || 'N/A',
             industry: user.industry || 'Not specified',
             companySize: user.companySize || 'Not specified',
-            activeJobs: user.activeJobsCount || 0,
+            activeJobs: employerJobs.filter((job: any) => job.status === "published").length,
             joinDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-          }));
+            };
+          });
           
           setJobSeekersData(transformedJobSeekers);
           setEmployersData(transformedEmployers);
@@ -501,10 +692,10 @@ export function UserManagement() {
             <Building2 className="h-4 w-4" />
             Employers ({filteredEmployers.length})
           </TabsTrigger>
-          <TabsTrigger value="companies" className="flex items-center gap-2">
+          {/* <TabsTrigger value="companies" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             Companies
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         {/* Job Seekers Tab */}
@@ -721,7 +912,7 @@ export function UserManagement() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3 text-gray-400" />
-                          {new Date(employer.lastJobPosted).toLocaleDateString()}
+                          {employer.lastJobPosted === 'Never' ? 'Never' : new Date(employer.lastJobPosted).toLocaleDateString()}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -743,7 +934,19 @@ export function UserManagement() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation();
+                              console.log('Employer data:', employer);
+                              console.log('Company ID:', employer.companyId);
+                              console.log('Company field:', employer.company);
+                              console.log('Company Name:', employer.companyName);
+                              if (employer.companyId || employer.companyName) {
+                                fetchCompanyDetails(employer.companyId, employer.companyName);
+                              } else {
+                                console.error('No company ID or name available for this employer');
+                                alert('No company information available for this employer.');
+                              }
+                            }}>
                               <Building2 className="mr-2 h-4 w-4" />
                               View Company Page
                             </DropdownMenuItem>
@@ -751,7 +954,7 @@ export function UserManagement() {
                               <Briefcase className="mr-2 h-4 w-4" />
                               See Posted Jobs
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            {/* <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
                               {employer.status === 'Active' ? (
                                 <>
                                   <Ban className="mr-2 h-4 w-4" />
@@ -763,15 +966,15 @@ export function UserManagement() {
                                   Reactivate Employer
                                 </>
                               )}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            </DropdownMenuItem> */}
+                            {/* <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
                               <MessageSquare className="mr-2 h-4 w-4" />
                               Send Notification
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
                               <TrendingUp className="mr-2 h-4 w-4" />
                               Upgrade/Downgrade Plan
-                            </DropdownMenuItem>
+                            </DropdownMenuItem> */}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -784,9 +987,9 @@ export function UserManagement() {
         </TabsContent>
 
         {/* Companies Tab */}
-        <TabsContent value="companies" className="space-y-4">
+        {/* <TabsContent value="companies" className="space-y-4">
           <CompaniesTable />
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
 
       {/* User Details Dialog */}
@@ -870,6 +1073,91 @@ export function UserManagement() {
                   </Button>
                 </div>
               ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Company Details Modal */}
+      {selectedCompany && showCompanyDetails && (
+        <Dialog open={showCompanyDetails} onOpenChange={setShowCompanyDetails}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Company Details</DialogTitle>
+              <DialogDescription>
+                Detailed information about {selectedCompany.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={selectedCompany.logo?.url} />
+                  <AvatarFallback>
+                    {selectedCompany.name?.split(' ').map((n: string) => n[0]).join('') || 'C'}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-lg font-semibold">{selectedCompany.name}</h3>
+                  <p className="text-gray-600">{selectedCompany.email}</p>
+                  <p className="text-sm text-gray-500">{selectedCompany.industry}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Company ID</label>
+                  <p className="text-sm text-gray-900">{selectedCompany._id}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Phone</label>
+                  <p className="text-sm text-gray-900">{selectedCompany.phone || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Website</label>
+                  <p className="text-sm text-gray-900">
+                    {selectedCompany.website ? (
+                      <a href={selectedCompany.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {selectedCompany.website}
+                      </a>
+                    ) : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Location</label>
+                  <p className="text-sm text-gray-900">{selectedCompany.location || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Company Size</label>
+                  <p className="text-sm text-gray-900">{selectedCompany.size || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Founded Year</label>
+                  <p className="text-sm text-gray-900">{selectedCompany.foundedYear || 'N/A'}</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-sm font-medium text-gray-700">Description</label>
+                  <p className="text-sm text-gray-900">{selectedCompany.description || 'No description available'}</p>
+                </div>
+                {/* <div>
+                  <label className="text-sm font-medium text-gray-700">Verified</label>
+                  <p className="text-sm text-gray-900">{selectedCompany.verified ? 'Yes' : 'No'}</p>
+                </div> */}
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Created</label>
+                  <p className="text-sm text-gray-900">
+                    {selectedCompany.createdAt ? new Date(selectedCompany.createdAt).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setShowCompanyDetails(false)}>
+                  Close
+                </Button>
+                {/* <Button style={{ backgroundColor: 'var(--admin-primary)', color: 'white' }}>
+                  Edit Company
+                </Button> */}
+              </div>
             </div>
           </DialogContent>
         </Dialog>

@@ -97,14 +97,14 @@ export function AdminHeader({ admin, activeSection, navItems, onRefresh }: Admin
         return;
       }
 
-      console.log('[Notifications] Fetching with token:', token.substring(0, 20) + '...');
-      console.log('[Notifications] User:', user);
+      // console.log('[Notifications] Fetching with token:', token.substring(0, 20) + '...');
+      // console.log('[Notifications] User:', user);
       
       // Add timeout to the fetch request
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
       
-      const response = await fetch('http://localhost:5000/api/v1/notifications?limit=10', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/notifications?limit=10`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -195,7 +195,7 @@ export function AdminHeader({ admin, activeSection, navItems, onRefresh }: Admin
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:5000/api/v1/notifications/${notificationId}/read`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/notifications/${notificationId}/read`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
