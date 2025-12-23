@@ -10,6 +10,7 @@ import {
   useScrollPositionMemory,
   useJobListKeyboardNav 
 } from '@/hooks/useScrollBehavior'
+import { useAuth } from '@/contexts/AuthContext'
 import SignIn from '@/components/signin'
 import SignUp from '@/components/signup'
 
@@ -224,6 +225,7 @@ const convertApiJobToJob = (apiJob: ApiJob): Job => {
 export default function AdvancedJobSearch() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { isAuthenticated } = useAuth()
   const jobListRef = useRef<HTMLDivElement>(null)
   const detailPanelRef = useRef<HTMLDivElement>(null)
   const jobCardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
@@ -662,7 +664,15 @@ export default function AdvancedJobSearch() {
   }
 
   const handleApply = (job: Job) => {
-    setShowSignInModal(true)
+    if (isAuthenticated) {
+      // User is already signed in, apply directly
+      console.log('User authenticated, applying for job:', job.id)
+      // TODO: Call API to submit application
+      alert(`Application submitted for ${job.title}`)
+    } else {
+      // User not signed in, show signin modal
+      setShowSignInModal(true)
+    }
   }
 
   const handleClearFilters = () => {
@@ -1234,7 +1244,7 @@ export default function AdvancedJobSearch() {
                     className="flex-1 bg-amber-700 hover:bg-amber-800 text-white font-semibold h-12 rounded-lg flex items-center justify-center gap-2"
                   >
                     <LogIn className="h-5 w-5" />
-                    Sign In to Apply
+                    {isAuthenticated ? 'Apply Now' : 'Sign In to Apply'}
                   </Button>
                   <Button
                     variant="outline"

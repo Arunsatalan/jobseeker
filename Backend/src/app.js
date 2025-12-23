@@ -23,6 +23,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const companyRoutes = require('./routes/companyRoutes');
 const debugRoutes = require('./routes/debugRoutes');
+const jobSeekerPreferencesRoutes = require('./routes/jobSeekerPreferencesRoutes');
 
 const app = express();
 
@@ -67,6 +68,7 @@ app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/companies', companyRoutes);
+app.use('/api/v1/jobseeker', jobSeekerPreferencesRoutes);
 app.use('/api/v1/debug', debugRoutes);
 
 // 404 handler

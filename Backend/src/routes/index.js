@@ -12,6 +12,7 @@ const paymentRoutes = require('./paymentRoutes');
 const adminRoutes = require('./adminRoutes');
 const notificationRoutes = require('./notificationRoutes');
 const companyRoutes = require('./companyRoutes');
+const jobSeekerPreferencesRoutes = require('./jobSeekerPreferencesRoutes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -25,5 +26,6 @@ router.use('/payments', paymentRoutes);
 router.use('/admin', adminRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/companies', companyRoutes);
+router.use('/jobseeker', jobSeekerPreferencesRoutes);
 
 module.exports = router;
