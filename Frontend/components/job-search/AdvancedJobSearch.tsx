@@ -10,6 +10,8 @@ import {
   useScrollPositionMemory,
   useJobListKeyboardNav 
 } from '@/hooks/useScrollBehavior'
+import SignIn from '@/components/signin'
+import SignUp from '@/components/signup'
 
 // Configure axios base URL
 axios.defaults.baseURL = 'http://localhost:5000'
@@ -256,6 +258,8 @@ export default function AdvancedJobSearch() {
 
   // Analytics
   const [scrollPosition, setScrollPosition] = useState(0)
+  const [showSignInModal, setShowSignInModal] = useState(false)
+  const [showSignUpModal, setShowSignUpModal] = useState(false)
 
   // Hooks for scroll management (AFTER all state declarations)
   const { saveScrollPosition, restoreScrollPosition } = useScrollPositionMemory('jobListScroll')
@@ -658,7 +662,7 @@ export default function AdvancedJobSearch() {
   }
 
   const handleApply = (job: Job) => {
-    router.push('/login')
+    setShowSignInModal(true)
   }
 
   const handleClearFilters = () => {
@@ -1154,23 +1158,7 @@ export default function AdvancedJobSearch() {
                       ))}
                     </ul>
                   </div>
-
-                  {/* Benefits */}
-                  {selectedJob.benefits && selectedJob.benefits.length > 0 && (
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-900 mb-3">Benefits & Perks</h2>
-                      <ul className="space-y-2">
-                        {selectedJob.benefits.map((benefit, index) => (
-                          <li key={index} className="flex items-start gap-3">
-                            <TrendingUp className="h-5 w-5 text-slate-700 shrink-0 mt-0.5" />
-                            <span className="text-gray-700">{benefit}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Skills */}
+ {/* Skills */}
                   {selectedJob.skills && selectedJob.skills.length > 0 && (
                     <div>
                       <h2 className="text-lg font-bold text-gray-900 mb-3">Required Skills</h2>
@@ -1187,6 +1175,22 @@ export default function AdvancedJobSearch() {
                     </div>
                   )}
 
+                  {/* Benefits */}
+                  {selectedJob.benefits && selectedJob.benefits.length > 0 && (
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900 mb-3">Benefits & Perks</h2>
+                      <ul className="space-y-2">
+                        {selectedJob.benefits.map((benefit, index) => (
+                          <li key={index} className="flex items-start gap-3">
+                            <TrendingUp className="h-5 w-5 text-slate-700 shrink-0 mt-0.5" />
+                            <span className="text-gray-700">{benefit}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                 
                   {/* Custom Sections */}
                   {selectedJob.customSections && selectedJob.customSections.length > 0 && (
                     <>
@@ -1250,6 +1254,28 @@ export default function AdvancedJobSearch() {
           </div>
         </div>
       </div>
+
+      {/* Sign In Modal */}
+      {showSignInModal && (
+        <SignIn 
+          onClose={() => setShowSignInModal(false)} 
+          onSwitchToSignUp={() => {
+            setShowSignInModal(false)
+            setShowSignUpModal(true)
+          }}
+        />
+      )}
+
+      {/* Sign Up Modal */}
+      {showSignUpModal && (
+        <SignUp 
+          onClose={() => setShowSignUpModal(false)} 
+          onSwitchToSignIn={() => {
+            setShowSignUpModal(false)
+            setShowSignInModal(true)
+          }}
+        />
+      )}
     </div>
   )
 }

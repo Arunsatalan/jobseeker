@@ -68,103 +68,6 @@ import {
   X,
 } from "lucide-react";
 
-// Mock data for jobs
-const mockJobs = [
-  {
-    id: "1",
-    title: "Senior Full Stack Developer",
-    company: "TechCorp Solutions",
-    companyLogo: "https://ui-avatars.com/api/?name=TechCorp&background=02243b&color=fff",
-    location: "Toronto, ON",
-    type: "Full-time",
-    category: "Technology",
-    subcategory: "Software Development",
-    status: "Live",
-    priority: "Featured",
-    postedDate: "2025-12-15",
-    expiryDate: "2026-01-15",
-    applicants: 45,
-    views: 1250,
-    salary: "$120,000 - $150,000",
-    remote: true,
-    urgent: false,
-    sponsored: true,
-    tags: ["React", "Node.js", "TypeScript", "Remote"],
-    approvedBy: "Admin User",
-    approvedDate: "2025-12-15",
-  },
-  {
-    id: "2",
-    title: "UX/UI Designer",
-    company: "Creative Studio Inc",
-    companyLogo: "https://ui-avatars.com/api/?name=Creative+Studio&background=8a4b04&color=fff",
-    location: "Vancouver, BC",
-    type: "Full-time",
-    category: "Design",
-    subcategory: "User Experience",
-    status: "Pending",
-    priority: "Normal",
-    postedDate: "2025-12-16",
-    expiryDate: "2026-01-16",
-    applicants: 0,
-    views: 0,
-    salary: "$80,000 - $100,000",
-    remote: true,
-    urgent: true,
-    sponsored: false,
-    tags: ["Figma", "Adobe XD", "Prototyping", "Remote"],
-    approvedBy: null,
-    approvedDate: null,
-  },
-  {
-    id: "3",
-    title: "Data Scientist",
-    company: "Analytics Pro",
-    companyLogo: "https://ui-avatars.com/api/?name=Analytics+Pro&background=10b981&color=fff",
-    location: "Montreal, QC",
-    type: "Contract",
-    category: "Data Science",
-    subcategory: "Machine Learning",
-    status: "Expired",
-    priority: "Normal",
-    postedDate: "2025-11-01",
-    expiryDate: "2025-12-01",
-    applicants: 23,
-    views: 890,
-    salary: "$90,000 - $110,000",
-    remote: false,
-    urgent: false,
-    sponsored: false,
-    tags: ["Python", "ML", "TensorFlow"],
-    approvedBy: "Admin User",
-    approvedDate: "2025-11-01",
-  },
-  {
-    id: "4",
-    title: "Marketing Manager",
-    company: "Growth Marketing Co",
-    companyLogo: "https://ui-avatars.com/api/?name=Growth&background=f59e0b&color=fff",
-    location: "Calgary, AB",
-    type: "Full-time",
-    category: "Marketing",
-    subcategory: "Digital Marketing",
-    status: "Rejected",
-    priority: "Normal",
-    postedDate: "2025-12-10",
-    expiryDate: "2026-01-10",
-    applicants: 0,
-    views: 156,
-    salary: "$70,000 - $85,000",
-    remote: false,
-    urgent: false,
-    sponsored: false,
-    tags: ["SEO", "PPC", "Analytics"],
-    approvedBy: null,
-    approvedDate: null,
-    rejectionReason: "Incomplete job description",
-  },
-];
-
 export function JobManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -179,6 +82,8 @@ export function JobManagement() {
   const [subcategories, setSubcategories] = useState<any[]>([]);
   const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
 
   // Fetch categories from API
   useEffect(() => {
@@ -198,6 +103,63 @@ export function JobManagement() {
     };
 
     fetchCategories();
+  }, []);
+
+  // Fetch jobs from API
+  useEffect(() => {
+    const fetchJobs = async () => {
+      setJobsLoading(true);
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/jobs`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            // Transform API data to match component expectations
+            const transformedJobs = data.data.map((job: any) => ({
+              id: job._id,
+              title: job.title,
+              company: job.company,
+              companyLogo: `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company)}&background=02243b&color=fff`,
+              location: job.location,
+              type: job.employmentType,
+              category: job.category,
+              subcategory: job.industry,
+              status: job.status === 'published' ? 'Live' : 
+                     job.status === 'draft' ? 'Pending' : 
+                     job.status === 'expired' ? 'Expired' : 
+                     job.status === 'rejected' ? 'Rejected' : job.status,
+              priority: 'Normal', // Default, could be enhanced later
+              postedDate: job.createdAt,
+              expiryDate: job.expiresAt,
+              applicants: job.stats?.applications || 0,
+              views: job.stats?.views || 0,
+              salary: job.salaryMin && job.salaryMax ? 
+                `$${job.salaryMin.toLocaleString()} - $${job.salaryMax.toLocaleString()}` : 
+                'Salary not specified',
+              remote: job.remote || false,
+              urgent: false, // Default, could be enhanced later
+              sponsored: false, // Default, could be enhanced later
+              tags: job.tags || [],
+              approvedBy: null, // Not available in current API
+              approvedDate: null, // Not available in current API
+            }));
+            setJobs(transformedJobs);
+          }
+        } else {
+          console.error('Failed to fetch jobs');
+        }
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+      } finally {
+        setJobsLoading(false);
+      }
+    };
+
+    fetchJobs();
   }, []);
 
   const StatusBadge = ({ status }: { status: string }) => {
@@ -239,7 +201,7 @@ export function JobManagement() {
     );
   };
 
-  const filteredJobs = mockJobs.filter(job => {
+  const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          job.company.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === "all" || job.status.toLowerCase() === filterStatus;
@@ -250,11 +212,11 @@ export function JobManagement() {
   });
 
   const jobStats = {
-    total: mockJobs.length,
-    live: mockJobs.filter(j => j.status === "Live").length,
-    pending: mockJobs.filter(j => j.status === "Pending").length,
-    rejected: mockJobs.filter(j => j.status === "Rejected").length,
-    expired: mockJobs.filter(j => j.status === "Expired").length,
+    total: jobs.length,
+    live: jobs.filter(j => j.status === "Live").length,
+    pending: jobs.filter(j => j.status === "Pending").length,
+    rejected: jobs.filter(j => j.status === "Rejected").length,
+    expired: jobs.filter(j => j.status === "Expired").length,
   };
 
   const handleApproveJob = (jobId: string) => {
@@ -270,6 +232,80 @@ export function JobManagement() {
   const handleToggleFeatured = (jobId: string) => {
     console.log("Toggle featured:", jobId);
     // Implementation for toggling featured status
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    const reason = prompt('Please provide a reason for deleting this job (optional):', '');
+    
+    if (reason === null) {
+      return; // User cancelled
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/jobs/${jobId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reason: reason || 'Administrative action',
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh jobs list
+        const jobsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/jobs`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        if (jobsResponse.ok) {
+          const data = await jobsResponse.json();
+          if (data.success && data.data) {
+            const transformedJobs = data.data.map((job: any) => ({
+              id: job._id,
+              title: job.title,
+              company: job.company,
+              companyLogo: `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company)}&background=02243b&color=fff`,
+              location: job.location,
+              type: job.employmentType,
+              category: job.category,
+              subcategory: job.industry,
+              status: job.status === 'published' ? 'Live' : 
+                     job.status === 'draft' ? 'Pending' : 
+                     job.status === 'expired' ? 'Expired' : 
+                     job.status === 'rejected' ? 'Rejected' : job.status,
+              priority: 'Normal',
+              postedDate: job.createdAt,
+              expiryDate: job.expiresAt,
+              applicants: job.stats?.applications || 0,
+              views: job.stats?.views || 0,
+              salary: job.salaryMin && job.salaryMax ? 
+                `$${job.salaryMin.toLocaleString()} - $${job.salaryMax.toLocaleString()}` : 
+                'Salary not specified',
+              remote: job.remote || false,
+              urgent: false,
+              sponsored: false,
+              tags: job.tags || [],
+              approvedBy: null,
+              approvedDate: null,
+            }));
+            setJobs(transformedJobs);
+          }
+        }
+        alert('Job deleted successfully. Notifications have been sent to the company and admin.');
+      } else {
+        console.error('Failed to delete job');
+        alert('Failed to delete job');
+      }
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      alert('Error deleting job');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddCategory = async () => {
@@ -574,7 +610,7 @@ export function JobManagement() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold">Job Listings</CardTitle>
             <div className="text-sm text-gray-500">
-              Showing {filteredJobs.length} of {mockJobs.length} jobs
+              Showing {filteredJobs.length} of {jobs.length} jobs
             </div>
           </div>
         </CardHeader>
@@ -689,15 +725,19 @@ export function JobManagement() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedJob(job);
+                            setShowJobDetails(true);
+                          }}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                          {/* <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit Job
-                          </DropdownMenuItem>
-                          {job.status === "Pending" && (
+                          </DropdownMenuItem> */}
+                          {/* {job.status === "Pending" && (
                             <>
                               <DropdownMenuItem 
                                 onClick={(e) => {
@@ -725,9 +765,12 @@ export function JobManagement() {
                             <Star className="mr-2 h-4 w-4" />
                             Toggle Featured
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
+                          <DropdownMenuSeparator /> */}
                           <DropdownMenuItem 
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteJob(job.id);
+                            }}
                             className="text-red-600"
                           >
                             <Ban className="mr-2 h-4 w-4" />

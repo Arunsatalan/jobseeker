@@ -57,6 +57,7 @@ export default function Navbar({
   const [notificationCount, setNotificationCount] = useState(0);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [notificationError, setNotificationError] = useState<string | null>(null);
+  const [expandedNotifications, setExpandedNotifications] = useState<Set<string>>(new Set());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -186,9 +187,21 @@ export default function Navbar({
     return date.toLocaleDateString();
   };
 
+  const toggleNotificationExpansion = (notificationId: string) => {
+    setExpandedNotifications(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(notificationId)) {
+        newSet.delete(notificationId);
+      } else {
+        newSet.add(notificationId);
+      }
+      return newSet;
+    });
+  };
+
   const handleLogout = () => {
     logout();
-    setShowUserMenu(false);
+    router.push('/');
   };
 
   return (
@@ -305,40 +318,55 @@ export default function Navbar({
                       <p className="text-xs text-gray-400 mt-1">We'll notify you of important updates</p>
                     </div>
                   ) : (
-                    notifications.map((notification) => (
-                      <div
-                        key={notification._id}
-                        className={`border-b px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-blue-50' : ''
-                          }`}
-                        onClick={() => {
-                          if (!notification.isRead) {
-                            markNotificationAsRead(notification._id);
-                          }
-                        }}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="mt-1">
-                            {getNotificationIcon(notification.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="font-medium text-sm text-gray-900">
-                                {notification.title}
-                              </p>
-                              {!notification.isRead && (
-                                <div className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0 mt-1" />
-                              )}
+                    notifications.map((notification) => {
+                      const isExpanded = expandedNotifications.has(notification._id);
+                      return (
+                        <div
+                          key={notification._id}
+                          className={`border-b px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-blue-50' : ''
+                            }`}
+                          onClick={() => {
+                            if (!notification.isRead) {
+                              markNotificationAsRead(notification._id);
+                            }
+                            toggleNotificationExpansion(notification._id);
+                          }}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="mt-1">
+                              {getNotificationIcon(notification.type)}
                             </div>
-                            <p className="text-sm text-gray-600 line-clamp-2 mt-1">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {formatDate(notification.createdAt)}
-                            </p>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="font-medium text-sm text-gray-900">
+                                  {notification.title}
+                                </p>
+                                {!notification.isRead && (
+                                  <div className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0 mt-1" />
+                                )}
+                              </div>
+                              <p className={`text-sm text-gray-600 mt-1 ${isExpanded ? '' : 'line-clamp-2'}`}>
+                                {notification.message}
+                              </p>
+                              <div className="flex items-center justify-between mt-1">
+                                <p className="text-xs text-gray-400">
+                                  {formatDate(notification.createdAt)}
+                                </p>
+                                <button
+                                  className="text-xs text-blue-600 hover:text-blue-800"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleNotificationExpansion(notification._id);
+                                  }}
+                                >
+                                  {isExpanded ? 'Show less' : 'Show more'}
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 

@@ -3,6 +3,7 @@ const Job = require('../models/Job');
 const Application = require('../models/Application');
 const AdminLog = require('../models/AdminLog');
 const analyticsService = require('../services/analyticsService');
+const notificationService = require('../services/notificationService');
 const asyncHandler = require('../middleware/async');
 const { sendSuccess, sendError, sendPaginated } = require('../utils/response');
 const helpers = require('../utils/helpers');
@@ -132,6 +133,45 @@ exports.deleteJob = asyncHandler(async (req, res, next) => {
 
   if (!job) {
     return sendError(res, 404, 'Job not found');
+  }
+
+  // Send notification to the employer (company)
+  try {
+    await notificationService.createNotification(
+      job.employer,
+      'job_deleted',
+      'Job Removed by Admin',
+      `Your job "${job.title}" has been removed by an administrator. ${reason ? `Reason: ${reason}` : ''}`,
+      {
+        jobId: job._id,
+        jobTitle: job.title,
+        reason: reason || 'Administrative action',
+        deletedBy: req.user._id,
+        deletedAt: new Date(),
+      }
+    );
+  } catch (notificationError) {
+    logger.error(`Failed to send notification to employer: ${notificationError.message}`);
+  }
+
+  // Send notification to admin (confirmation)
+  try {
+    await notificationService.createNotification(
+      req.user._id,
+      'job_deleted_admin',
+      'Job Deletion Completed',
+      `You have successfully deleted the job "${job.title}" posted by ${job.company}.`,
+      {
+        jobId: job._id,
+        jobTitle: job.title,
+        company: job.company,
+        employerId: job.employer,
+        reason: reason || 'Administrative action',
+        deletedAt: new Date(),
+      }
+    );
+  } catch (notificationError) {
+    logger.error(`Failed to send notification to admin: ${notificationError.message}`);
   }
 
   // Log admin action
