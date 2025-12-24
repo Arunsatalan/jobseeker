@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { MapPin, DollarSign, Briefcase, Clock, Eye, Plus, X, Save, Loader2, Trash2 } from "lucide-react";
+import { MapPin, DollarSign, Briefcase, Clock, Eye, Plus, X, Save, Loader2, Trash2, Target } from "lucide-react";
+import { MatchedJobs } from "./MatchedJobs";
 
 interface JobPreferencesProps {
   preferences?: {
@@ -97,6 +98,8 @@ export function JobPreferences({
   const [success, setSuccess] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [profileVisible, setProfileVisible] = useState(initialVisible);
+  const [showMatchedJobs, setShowMatchedJobs] = useState(false);
+  const [hasValidPreferences, setHasValidPreferences] = useState(false);
 
   // Form State
   const [preferences, setPreferences] = useState({
@@ -118,6 +121,15 @@ export function JobPreferences({
   useEffect(() => {
     fetchPreferences();
   }, []);
+
+  // Check if user has enough preferences for matching
+  useEffect(() => {
+    const hasRoles = preferences.desiredRoles.length > 0;
+    const hasLocations = preferences.locations.length > 0 || preferences.workType.includes('Remote');
+    const hasSalary = preferences.salaryMin > 0 && preferences.salaryMax > 0;
+    
+    setHasValidPreferences(hasRoles && (hasLocations || hasSalary));
+  }, [preferences]);
 
   // Fetch Preferences from Database
   const fetchPreferences = async () => {
@@ -334,29 +346,30 @@ export function JobPreferences({
   }
 
   return (
-    <Card className="p-6 mb-6 bg-white border-0 shadow-md">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">Job Preferences</h3>
-        <div className="flex gap-2">
-          {isEditing && (
+    <>
+      <Card className="p-6 mb-6 bg-white border-0 shadow-md">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">Job Preferences</h3>
+          <div className="flex gap-2">
+            {isEditing && (
+              <Button
+                onClick={() => setIsEditing(false)}
+                variant="outline"
+                size="sm"
+              >
+                Cancel
+              </Button>
+            )}
             <Button
-              onClick={() => setIsEditing(false)}
-              variant="outline"
+              onClick={() => setIsEditing(!isEditing)}
+              variant={isEditing ? "default" : "outline"}
               size="sm"
+              className={isEditing ? "bg-amber-700 hover:bg-amber-800" : ""}
             >
-              Cancel
+              {isEditing ? "Done" : "Edit"}
             </Button>
-          )}
-          <Button
-            onClick={() => setIsEditing(!isEditing)}
-            variant={isEditing ? "default" : "outline"}
-            size="sm"
-            className={isEditing ? "bg-amber-700 hover:bg-amber-800" : ""}
-          >
-            {isEditing ? "Done" : "Edit"}
-          </Button>
+          </div>
         </div>
-      </div>
 
       {/* Error & Success Messages */}
       {error && (
@@ -746,8 +759,66 @@ export function JobPreferences({
             </label>
             <Switch checked={profileVisible} onCheckedChange={handleVisibilityChange} />
           </div>
+
+          {/* Find Jobs Action */}
+          {hasValidPreferences && !showMatchedJobs && (
+            <div className="pt-4 border-t">
+              <Button
+                onClick={() => setShowMatchedJobs(true)}
+                className="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2"
+              >
+                <Target className="h-5 w-5" />
+                Find Matching Jobs with AI
+              </Button>
+            </div>
+          )}
         </div>
       )}
-    </Card>
+      </Card>
+
+      {/* AI-Matched Jobs Section */}
+      {showMatchedJobs && hasValidPreferences && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-gray-900">Jobs Matched For You</h3>
+            <Button
+              onClick={() => setShowMatchedJobs(false)}
+              variant="outline"
+              size="sm"
+            >
+              Hide Matches
+            </Button>
+          </div>
+          <MatchedJobs 
+            userPreferences={preferences} 
+            onJobSelect={(job) => {
+              console.log('Selected job:', job);
+              // You can add job detail modal or navigation here
+            }}
+          />
+        </div>
+      )}
+
+      {/* Preferences Required Message */}
+      {showMatchedJobs && !hasValidPreferences && (
+        <Card className="mt-6 p-6 bg-yellow-50 border-yellow-200">
+          <div className="text-center">
+            <Target className="h-12 w-12 text-yellow-600 mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-yellow-800 mb-2">
+              Set Your Preferences First
+            </h3>
+            <p className="text-yellow-700 mb-4">
+              To find matching jobs, please add at least one desired role and location (or select Remote work).
+            </p>
+            <Button
+              onClick={() => setIsEditing(true)}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white"
+            >
+              Edit Preferences
+            </Button>
+          </div>
+        </Card>
+      )}
+    </>
   );
 }

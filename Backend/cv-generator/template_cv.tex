@@ -1,0 +1,177 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{ifthen}
+
+\setstretch{1.0}
+\pagenumbering{gobble}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries\color{black}}{}{0pt}{}[\titlerule]
+\titlespacing{\section}{0pt}{12pt}{6pt}
+
+% Subsection formatting
+\titleformat{\subsection}{\normalsize\bfseries}{}{0pt}{}
+\titlespacing{\subsection}{0pt}{8pt}{4pt}
+
+% Helper commands for conditional content
+\newcommand{\conditionalitem}[1]{\ifthenelse{\equal{#1}{}}{}{\item #1}}
+\newcommand{\conditionalsection}[2]{\ifthenelse{\equal{#2}{}}{}{#1}}
+
+\begin{document}
+
+% HEADER
+\begin{center}
+{\Large\bfseries @@USER_FULL_NAME@@} \\[4pt]
+\conditionalsection{{\normalsize @@USER_JOB_TITLE@@} \\[8pt]}{@@USER_JOB_TITLE@@}
+\small 
+\ifthenelse{\equal{@@USER_EMAIL@@}{}}{}{@@USER_EMAIL@@}%
+\ifthenelse{\equal{@@USER_PHONE@@}{}}{}{%
+  \ifthenelse{\equal{@@USER_EMAIL@@}{}}{}{ | }@@USER_PHONE@@%
+}%
+\ifthenelse{\equal{@@USER_LOCATION@@}{}}{}{%
+  \ifthenelse{\equal{@@USER_EMAIL@@@@USER_PHONE@@}{}}{}{ | }@@USER_LOCATION@@%
+}%
+\ifthenelse{\equal{@@USER_LINKEDIN@@}{}}{}{%
+  \ifthenelse{\equal{@@USER_EMAIL@@@@USER_PHONE@@@@USER_LOCATION@@}{}}{}{ | }LinkedIn: @@USER_LINKEDIN@@%
+}%
+\ifthenelse{\equal{@@USER_GITHUB@@}{}}{}{%
+  \ifthenelse{\equal{@@USER_EMAIL@@@@USER_PHONE@@@@USER_LOCATION@@@@USER_LINKEDIN@@}{}}{}{ | }GitHub: @@USER_GITHUB@@%
+}
+\\[8pt]
+\end{center}
+
+% PROFESSIONAL SUMMARY
+\conditionalsection{
+\section*{PROFESSIONAL SUMMARY}
+@@USER_SUMMARY@@
+}{@@USER_SUMMARY@@}
+
+% TECHNICAL SKILLS
+\ifthenelse{\equal{@@TECH_LANGUAGES@@@@TECH_FRAMEWORKS@@@@TECH_DATABASES@@@@TECH_CLOUD@@@@TECH_TOOLS@@}{}}{}{%
+\section*{TECHNICAL SKILLS}
+\ifthenelse{\equal{@@TECH_LANGUAGES@@}{}}{}{\textbf{Languages:} @@TECH_LANGUAGES@@ \\
+}
+\ifthenelse{\equal{@@TECH_FRAMEWORKS@@}{}}{}{\textbf{Frameworks:} @@TECH_FRAMEWORKS@@ \\
+}
+\ifthenelse{\equal{@@TECH_DATABASES@@}{}}{}{\textbf{Databases:} @@TECH_DATABASES@@ \\
+}
+\ifthenelse{\equal{@@TECH_CLOUD@@}{}}{}{\textbf{Cloud:} @@TECH_CLOUD@@ \\
+}
+\ifthenelse{\equal{@@TECH_TOOLS@@}{}}{}{\textbf{Tools:} @@TECH_TOOLS@@ \\
+}
+}
+
+% SOFT SKILLS
+\conditionalsection{
+\section*{SOFT SKILLS}
+@@SOFT_SKILLS@@
+}{@@SOFT_SKILLS@@}
+
+% PROFESSIONAL EXPERIENCE
+\section*{PROFESSIONAL EXPERIENCE}
+
+% Experience 1
+\ifthenelse{\equal{@@EXP1_TITLE@@@@EXP1_COMPANY@@}{}}{}{%
+\noindent\textbf{@@EXP1_TITLE@@}\ifthenelse{\equal{@@EXP1_COMPANY@@}{}}{}{ | @@EXP1_COMPANY@@} \hfill \ifthenelse{\equal{@@EXP1_START@@}{}}{}{@@EXP1_START@@\ifthenelse{\equal{@@EXP1_END@@}{}}{}{--@@EXP1_END@@}} \\
+\ifthenelse{\equal{@@EXP1_LOCATION@@}{}}{}{{\small\textit{@@EXP1_LOCATION@@} \\}}
+\begin{itemize}
+    \setlength\itemsep{-4pt}
+    \conditionalitem{@@EXP1_BULLET1@@}
+    \conditionalitem{@@EXP1_BULLET2@@}
+    \conditionalitem{@@EXP1_BULLET3@@}
+\end{itemize}
+}
+
+% Experience 2
+\ifthenelse{\equal{@@EXP2_TITLE@@@@EXP2_COMPANY@@}{}}{}{%
+\noindent\textbf{@@EXP2_TITLE@@}\ifthenelse{\equal{@@EXP2_COMPANY@@}{}}{}{ | @@EXP2_COMPANY@@} \hfill \ifthenelse{\equal{@@EXP2_START@@}{}}{}{@@EXP2_START@@\ifthenelse{\equal{@@EXP2_END@@}{}}{}{--@@EXP2_END@@}} \\
+\ifthenelse{\equal{@@EXP2_LOCATION@@}{}}{}{{\small\textit{@@EXP2_LOCATION@@} \\}}
+\begin{itemize}
+    \setlength\itemsep{-4pt}
+    \conditionalitem{@@EXP2_BULLET1@@}
+    \conditionalitem{@@EXP2_BULLET2@@}
+    \conditionalitem{@@EXP2_BULLET3@@}
+\end{itemize}
+}
+
+% Experience 3
+\ifthenelse{\equal{@@EXP3_TITLE@@@@EXP3_COMPANY@@}{}}{}{%
+\noindent\textbf{@@EXP3_TITLE@@}\ifthenelse{\equal{@@EXP3_COMPANY@@}{}}{}{ | @@EXP3_COMPANY@@} \hfill \ifthenelse{\equal{@@EXP3_START@@}{}}{}{@@EXP3_START@@\ifthenelse{\equal{@@EXP3_END@@}{}}{}{--@@EXP3_END@@}} \\
+\ifthenelse{\equal{@@EXP3_LOCATION@@}{}}{}{{\small\textit{@@EXP3_LOCATION@@} \\}}
+\begin{itemize}
+    \setlength\itemsep{-4pt}
+    \conditionalitem{@@EXP3_BULLET1@@}
+    \conditionalitem{@@EXP3_BULLET2@@}
+    \conditionalitem{@@EXP3_BULLET3@@}
+\end{itemize}
+}
+
+% EDUCATION
+\ifthenelse{\equal{@@EDU1_DEGREE@@@@EDU1_INSTITUTION@@}{}}{}{%
+\section*{EDUCATION}
+
+% Education 1
+\ifthenelse{\equal{@@EDU1_DEGREE@@}{}}{}{%
+\noindent\textbf{@@EDU1_DEGREE@@\ifthenelse{\equal{@@EDU1_FIELD@@}{}}{}{, @@EDU1_FIELD@@}} \hfill \ifthenelse{\equal{@@EDU1_END@@}{}}{}{@@EDU1_END@@} \\
+\ifthenelse{\equal{@@EDU1_INSTITUTION@@}{}}{}{%
+{\small\textit{@@EDU1_INSTITUTION@@}\ifthenelse{\equal{@@EDU1_LOCATION@@}{}}{}{, @@EDU1_LOCATION@@} \\}%
+}%
+}
+
+% Education 2
+\ifthenelse{\equal{@@EDU2_DEGREE@@}{}}{}{%
+\noindent\textbf{@@EDU2_DEGREE@@\ifthenelse{\equal{@@EDU2_FIELD@@}{}}{}{, @@EDU2_FIELD@@}} \hfill \ifthenelse{\equal{@@EDU2_END@@}{}}{}{@@EDU2_END@@} \\
+\ifthenelse{\equal{@@EDU2_INSTITUTION@@}{}}{}{%
+{\small\textit{@@EDU2_INSTITUTION@@}\ifthenelse{\equal{@@EDU2_LOCATION@@}{}}{}{, @@EDU2_LOCATION@@} \\}%
+}%
+}
+}
+
+% CERTIFICATIONS
+\ifthenelse{\equal{@@CERT1_NAME@@@@CERT2_NAME@@}{}}{}{%
+\section*{CERTIFICATIONS}
+\begin{itemize}
+    \setlength\itemsep{-4pt}
+    \ifthenelse{\equal{@@CERT1_NAME@@}{}}{}{%
+    \item @@CERT1_NAME@@\ifthenelse{\equal{@@CERT1_ISSUER@@}{}}{}{-- @@CERT1_ISSUER@@}\ifthenelse{\equal{@@CERT1_DATE@@}{}}{}{(@@CERT1_DATE@@)}
+    }%
+    \ifthenelse{\equal{@@CERT2_NAME@@}{}}{}{%
+    \item @@CERT2_NAME@@\ifthenelse{\equal{@@CERT2_ISSUER@@}{}}{}{-- @@CERT2_ISSUER@@}\ifthenelse{\equal{@@CERT2_DATE@@}{}}{}{(@@CERT2_DATE@@)}
+    }%
+\end{itemize}
+}
+
+% LANGUAGES
+\ifthenelse{\equal{@@USER_LANGUAGES@@}{}}{}{%
+\section*{LANGUAGES}
+@@USER_LANGUAGES@@
+}
+
+% PROJECTS
+\ifthenelse{\equal{@@PROJECT1_NAME@@@@PROJECT2_NAME@@}{}}{}{%
+\section*{KEY PROJECTS}
+
+\ifthenelse{\equal{@@PROJECT1_NAME@@}{}}{}{%
+\noindent\textbf{@@PROJECT1_NAME@@} \\
+\ifthenelse{\equal{@@PROJECT1_TECH@@}{}}{}{%
+\textit{Technologies: @@PROJECT1_TECH@@} \\
+}%
+\ifthenelse{\equal{@@PROJECT1_DESCRIPTION@@}{}}{}{@@PROJECT1_DESCRIPTION@@ \\[6pt]}
+}
+
+\ifthenelse{\equal{@@PROJECT2_NAME@@}{}}{}{%
+\noindent\textbf{@@PROJECT2_NAME@@} \\
+\ifthenelse{\equal{@@PROJECT2_TECH@@}{}}{}{%
+\textit{Technologies: @@PROJECT2_TECH@@} \\
+}%
+\ifthenelse{\equal{@@PROJECT2_DESCRIPTION@@}{}}{}{@@PROJECT2_DESCRIPTION@@ \\}
+}
+}
+
+\end{document}

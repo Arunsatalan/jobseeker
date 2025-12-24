@@ -5,6 +5,7 @@ const { validateUserUpdate, validateUserPreferences } = require('../validators/u
 const userController = require('../controllers/userController');
 
 // Protected routes
+router.get('/me', protect, userController.getProfile);
 router.get('/profile', protect, userController.getProfile);
 router.put('/profile', protect, validate(validateUserUpdate), userController.updateProfile);
 router.get('/:id', userController.getUserPublic);

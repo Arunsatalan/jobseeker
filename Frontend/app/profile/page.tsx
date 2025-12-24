@@ -1,4 +1,3 @@
-
 "use client";
 import { useState, useEffect } from "react";
 import { ProtectedLayout } from "@/components/ProtectedLayout";
@@ -25,49 +24,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Mock data
-const mockUser = {
-  name: "Arun Kumar",
-  email: "arun@example.com",
-  phone: "+1 234-567-8901",
-  accountType: "Free" as const,
-  profilePic: "https://ui-avatars.com/api/?name=Arun+Kumar",
-};
-
-const mockResumes = [
-  {
-    filename: "ArunKumar_Frontend_v2.pdf",
-    version: "v2",
-    date: "2025-12-01",
-    atsScore: 85,
-    parsed: true,
-  },
-  {
-    filename: "ArunKumar_Frontend_v1.pdf",
-    version: "v1",
-    date: "2025-10-15",
-    atsScore: 72,
-    parsed: false,
-  },
-];
-
-const mockJobPreferences = {
-  desiredRoles: ["Frontend Developer", "UI Engineer"],
-  locations: ["Remote", "Toronto"],
-  salaryRange: "$90k+",
-  workType: ["Full-time"],
-  availability: "Immediately",
-};
-
-const mockSkillGaps = ["TypeScript", "React.js", "Next.js"];
-
 export default function ProfilePage() {
   const { user, logout, isLoading } = useAuth()
   const [profileVisible, setProfileVisible] = useState(true);
-  const [userResumes, setUserResumes] = useState(mockResumes);
+  const [userResumes, setUserResumes] = useState([]);
   const [activeSection, setActiveSection] = useState("user-info");
   const [editingResumeId, setEditingResumeId] = useState<string | null>(null);
+  const [showPreviewByDefault, setShowPreviewByDefault] = useState(false);
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
+  const [previewResumeId, setPreviewResumeId] = useState<string | null>(null);
+  const [previewResumeData, setPreviewResumeData] = useState<any>(null);
 
   // Check if user needs to complete profile
   useEffect(() => {
@@ -76,8 +42,120 @@ export default function ProfilePage() {
     }
   }, [user]);
 
-  const handleResumeDelete = (index: number) => {
-    setUserResumes((prev) => prev.filter((_, i) => i !== index));
+  // Fetch user resumes on component mount
+  useEffect(() => {
+    const fetchUserResumes = async () => {
+      if (!user) return;
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch('/api/v1/resumes', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUserResumes(data.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching resumes:', error);
+      }
+    };
+
+    fetchUserResumes();
+  }, [user]);
+
+  const handleResumeDelete = async (index: number) => {
+    const resume = userResumes[index];
+    if (!resume || !resume._id) {
+      console.error('Resume ID not found');
+      alert('Unable to delete resume. Please try again.');
+      return;
+    }
+
+    // Ask for confirmation
+    if (!confirm(`Are you sure you want to delete "${resume.filename || resume.title || 'Resume'}"?`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No token found');
+        alert('Authentication failed. Please log in again.');
+        return;
+      }
+
+      const response = await fetch(`/api/v1/resumes/${resume._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete resume');
+      }
+
+      // Remove from state after successful deletion
+      setUserResumes((prev) => prev.filter((_, i) => i !== index));
+      alert('Resume deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting resume:', error);
+      alert('Failed to delete resume. Please try again.');
+    }
+  };
+
+  const handleResumeBuilderSave = async (data: any) => {
+    console.log("Resume saved:", data);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/v1/resumes/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save resume');
+      }
+
+      const result = await response.json();
+      console.log('Resume saved to database:', result);
+      alert('Resume saved successfully!');
+      
+      // Add resume to list
+      if (editingResumeId === "new-resume") {
+        const newResume = {
+          id: result.data._id,
+          filename: data.name || "New Resume",
+          version: "v1",
+          date: new Date().toISOString().split("T")[0],
+          atsScore: 75,
+          parsed: true,
+          tags: ["edited"],
+          isDefault: false,
+          applicationCount: 0,
+          lastUsed: new Date().toISOString(),
+        };
+        setUserResumes((prev) => [newResume, ...prev]);
+      }
+    } catch (error) {
+      console.error('Error saving resume:', error);
+      alert('Failed to save resume. Please try again.');
+    }
+    
+    setEditingResumeId(null);
   };
 
   return (
@@ -99,9 +177,16 @@ export default function ProfilePage() {
           setActiveSection={setActiveSection}
           editingResumeId={editingResumeId}
           setEditingResumeId={setEditingResumeId}
+          showPreviewByDefault={showPreviewByDefault}
+          setShowPreviewByDefault={setShowPreviewByDefault}
+          previewResumeId={previewResumeId}
+          setPreviewResumeId={setPreviewResumeId}
+          previewResumeData={previewResumeData}
+          setPreviewResumeData={setPreviewResumeData}
           needsProfileCompletion={needsProfileCompletion}
           setNeedsProfileCompletion={setNeedsProfileCompletion}
           onResumeDelete={handleResumeDelete}
+          onResumeBuilderSave={handleResumeBuilderSave}
           logout={logout}
         />
       )}
@@ -116,47 +201,119 @@ function ProfilePageContent({
   setActiveSection,
   editingResumeId,
   setEditingResumeId,
+  showPreviewByDefault,
+  setShowPreviewByDefault,
+  previewResumeId,
+  setPreviewResumeId,
+  previewResumeData,
+  setPreviewResumeData,
   needsProfileCompletion,
   setNeedsProfileCompletion,
   onResumeDelete,
+  onResumeBuilderSave,
   logout,
 }: any) {
   const [profileVisible, setProfileVisible] = useState(true);
 
   const handleResumeEdit = (index: number) => {
-    console.log("Edit resume:", index);
-    setEditingResumeId(`resume-${index}`);
+    const resume = userResumes[index];
+    if (resume && resume._id) {
+      console.log("Edit resume:", resume._id);
+      setEditingResumeId(resume._id);
+      setShowPreviewByDefault(false);
+      // Scroll to top for better UX
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      console.log("Edit resume (new):", index);
+      setEditingResumeId("new-resume");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleResumePreview = async (index: number) => {
+    const resume = userResumes[index];
+    if (resume && resume._id) {
+      console.log("Preview resume:", resume._id);
+      setPreviewResumeId(resume._id);
+      
+      // Load resume data for preview
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/v1/resumes/${resume._id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setPreviewResumeData(data.data);
+        }
+      } catch (error) {
+        console.error('Error loading resume for preview:', error);
+      }
+    }
   };
 
   const handleResumeDownload = (index: number) => {
-    console.log("Download resume:", index);
-    // Implement download functionality
+    const resume = userResumes[index];
+    if (!resume || !resume._id) {
+      console.error('Resume ID not found');
+      return;
+    }
+
+    // Trigger download via backend API
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.error('No token found');
+      return;
+    }
+
+    const downloadUrl = `/api/v1/resumes/${resume._id}/download`;
+    const anchor = document.createElement('a');
+    anchor.href = downloadUrl;
+    anchor.download = resume.filename || 'resume.pdf';
+    anchor.click();
+  };
+
+  const handleResumeDelete = async (index: number) => {
+    try {
+      const resume = userResumes[index];
+      if (!resume || !resume._id) {
+        console.error('Resume ID not found');
+        return;
+      }
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
+
+      const response = await fetch(`/api/v1/resumes/${resume._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Remove from local state
+        setUserResumes(userResumes.filter((_, i) => i !== index));
+        console.log('Resume deleted successfully');
+      } else {
+        console.error('Failed to delete resume');
+      }
+    } catch (error) {
+      console.error('Error deleting resume:', error);
+    }
   };
 
   const handleCreateNewResume = () => {
     console.log("Create new resume");
     setEditingResumeId("new-resume");
-  };
-
-  const handleResumeBuilderSave = (data: any) => {
-    console.log("Resume saved:", data);
-    // Add resume to list
-    if (editingResumeId === "new-resume") {
-      const newResume = {
-        id: `resume-${Date.now()}`,
-        filename: data.name || "New Resume",
-        version: "v1",
-        date: new Date().toISOString().split("T")[0],
-        atsScore: 75,
-        parsed: true,
-        tags: ["edited"],
-        isDefault: false,
-        applicationCount: 0,
-        lastUsed: new Date().toISOString(),
-      };
-      setUserResumes((prev) => [newResume, ...prev]);
-    }
-    setEditingResumeId(null);
   };
 
   const handleLogout = () => {
@@ -252,8 +409,12 @@ function ProfilePageContent({
               <div className="mb-8">
                 <ResumeBuilder
                   resumeId={editingResumeId}
-                  onSave={handleResumeBuilderSave}
-                  onBack={() => setEditingResumeId(null)}
+                  onSave={onResumeBuilderSave}
+                  onBack={() => {
+                    setEditingResumeId(null);
+                    setShowPreviewByDefault(false);
+                  }}
+                  defaultShowPreview={showPreviewByDefault}
                 />
               </div>
             )}
@@ -265,27 +426,41 @@ function ProfilePageContent({
             {!editingResumeId && activeSection === "resumes" && (
               <ResumeListView
                 resumes={userResumes.map((r, idx) => ({
-                  id: `resume-${idx}`,
-                  filename: r.filename,
-                  version: r.version,
-                  date: r.date,
-                  atsScore: r.atsScore,
-                  parsed: r.parsed,
-                  tags: [],
-                  isDefault: false,
-                  applicationCount: 0,
+                  id: r._id || `resume-${idx}`,
+                  filename: r.filename || r.title || r.name || `Resume ${idx + 1}`,
+                  version: r.version || "v1",
+                  date: r.date || r.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+                  atsScore: r.atsScore || 75,
+                  parsed: r.parsed !== undefined ? r.parsed : true,
+                  tags: r.tags || [],
+                  isDefault: r.isDefault || false,
+                  applicationCount: r.applicationCount || 0,
                 }))}
                 onEdit={(id) => {
-                  const idx = parseInt(id.split('-')[1]);
-                  handleResumeEdit(idx);
+                  const resumeIndex = userResumes.findIndex(r => r._id === id);
+                  if (resumeIndex >= 0) {
+                    handleResumeEdit(resumeIndex);
+                  }
+                }}
+                onPreview={(id) => {
+                  const resumeIndex = userResumes.findIndex(r => r._id === id);
+                  if (resumeIndex >= 0) {
+                    handleResumePreview(resumeIndex);
+                  }
                 }}
                 onDownload={(id) => {
-                  const idx = parseInt(id.split('-')[1]);
-                  handleResumeDownload(idx);
+                  const resumeIndex = userResumes.findIndex(r => r._id === id);
+                  if (resumeIndex >= 0) {
+                    handleResumeDownload(resumeIndex);
+                  }
                 }}
                 onDelete={(id) => {
-                  const idx = parseInt(id.split('-')[1]);
-                  if (!isNaN(idx)) handleResumeDelete(idx);
+                  const resumeIndex = userResumes.findIndex(r => r._id === id);
+                  if (resumeIndex >= 0) {
+                    handleResumeDelete(resumeIndex);
+                  } else {
+                    console.error('Resume not found:', id);
+                  }
                 }}
                 onCreateNew={handleCreateNewResume}
               />
@@ -293,7 +468,13 @@ function ProfilePageContent({
 
             {!editingResumeId && activeSection === "preferences" && (
               <JobPreferences
-                preferences={mockJobPreferences}
+                preferences={{
+                  desiredRoles: user?.preferredJobTitles || [],
+                  locations: user?.preferredLocations || [],
+                  salaryRange: user?.salaryExpectation ? `$${user.salaryExpectation.min}-${user.salaryExpectation.max}` : "",
+                  workType: user?.preferredEmploymentTypes || [],
+                  availability: "Immediately",
+                }}
                 profileVisible={profileVisible}
                 onProfileVisibilityChange={setProfileVisible}
               />
@@ -304,7 +485,7 @@ function ProfilePageContent({
                 jobMatchScore={87}
                 savedJobs={12}
                 applications={5}
-                skillGaps={mockSkillGaps}
+                skillGaps={user?.skills?.filter(skill => skill.category === 'gap')?.map(s => s.name) || []}
               />
             )}
 
@@ -392,6 +573,196 @@ function ProfilePageContent({
             Complete Profile
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Resume Preview Modal */}
+    <Dialog open={!!previewResumeId} onOpenChange={(open) => {
+      if (!open) {
+        setPreviewResumeId(null);
+        setPreviewResumeData(null);
+      }
+    }}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Resume Preview</DialogTitle>
+          <DialogDescription>Professional PDF Format</DialogDescription>
+        </DialogHeader>
+        
+        {previewResumeData && (
+          <div className="space-y-4">
+            {/* Preview Panel - PDF Style */}
+            <div className="bg-white p-8 border-2 border-gray-300 rounded-lg font-serif text-sm leading-relaxed max-h-[600px] overflow-y-auto">
+              {/* Header */}
+              <div className="mb-6 border-b-2 border-gray-400 pb-4">
+                <h1 className="text-2xl font-bold text-center text-gray-900">
+                  {previewResumeData.parsedData?.name || "Your Name"}
+                </h1>
+                <div className="text-center text-xs text-gray-700 space-y-1 mt-2">
+                  {previewResumeData.parsedData?.email && (
+                    <p>{previewResumeData.parsedData.email}</p>
+                  )}
+                  {previewResumeData.parsedData?.phone && (
+                    <p>{previewResumeData.parsedData.phone}</p>
+                  )}
+                  {previewResumeData.parsedData?.location && (
+                    <p>{previewResumeData.parsedData.location}</p>
+                  )}
+                  <div className="space-x-4 text-xs">
+                    {previewResumeData.parsedData?.linkedin && (
+                      <span>{previewResumeData.parsedData.linkedin}</span>
+                    )}
+                    {previewResumeData.parsedData?.github && (
+                      <span>{previewResumeData.parsedData.github}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Professional Summary */}
+              {previewResumeData.parsedData?.summary && (
+                <div className="mb-4">
+                  <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
+                    PROFESSIONAL SUMMARY
+                  </h2>
+                  <p className="text-xs text-gray-800 leading-relaxed">
+                    {previewResumeData.parsedData.summary}
+                  </p>
+                </div>
+              )}
+
+              {/* Experience */}
+              {previewResumeData.parsedData?.experience && previewResumeData.parsedData.experience.length > 0 && (
+                <div className="mb-4">
+                  <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
+                    EXPERIENCE
+                  </h2>
+                  <div className="space-y-3">
+                    {previewResumeData.parsedData.experience.map((exp: any, idx: number) => (
+                      <div key={idx} className="text-xs">
+                        <div className="flex justify-between">
+                          <span className="font-bold text-gray-900">{exp.title}</span>
+                          <span className="text-gray-700">{exp.duration}</span>
+                        </div>
+                        <div className="text-gray-800">{exp.company}</div>
+                        {exp.description && (
+                          <p className="text-gray-700 mt-1">{exp.description}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Education */}
+              {previewResumeData.parsedData?.education && previewResumeData.parsedData.education.length > 0 && (
+                <div className="mb-4">
+                  <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
+                    EDUCATION
+                  </h2>
+                  <div className="space-y-2">
+                    {previewResumeData.parsedData.education.map((edu: any, idx: number) => (
+                      <div key={idx} className="text-xs">
+                        <div className="flex justify-between">
+                          <span className="font-bold text-gray-900">{edu.degree}</span>
+                          <span className="text-gray-700">{edu.year}</span>
+                        </div>
+                        <div className="text-gray-800">{edu.school}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Skills */}
+              {previewResumeData.parsedData?.skills && previewResumeData.parsedData.skills.length > 0 && (
+                <div className="mb-4">
+                  <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
+                    SKILLS
+                  </h2>
+                  <div className="space-y-2">
+                    {/* Technical Skills */}
+                    {(() => {
+                      const technicalSkills = previewResumeData.parsedData.skills.find((skillGroup: any) =>
+                        skillGroup.category === "Technical"
+                      );
+                      return technicalSkills?.items && technicalSkills.items.length > 0 ? (
+                        <div>
+                          <h3 className="text-xs font-semibold text-gray-700 mb-1">Technical Skills</h3>
+                          <p className="text-xs text-gray-800">
+                            {technicalSkills.items.filter((item: any) => item && item.trim && item.trim().length > 0).join(" • ")}
+                          </p>
+                        </div>
+                      ) : null;
+                    })()}
+
+                    {/* Soft Skills */}
+                    {(() => {
+                      const softSkills = previewResumeData.parsedData.skills.find((skillGroup: any) =>
+                        skillGroup.category === "Soft Skills"
+                      );
+                      return softSkills?.items && softSkills.items.length > 0 ? (
+                        <div>
+                          <h3 className="text-xs font-semibold text-gray-700 mb-1">Soft Skills</h3>
+                          <p className="text-xs text-gray-800">
+                            {softSkills.items.filter((item: any) => item && item.trim && item.trim().length > 0).join(" • ")}
+                          </p>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Certifications */}
+              {previewResumeData.parsedData?.certifications && previewResumeData.parsedData.certifications.length > 0 && (
+                <div className="mb-4">
+                  <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
+                    CERTIFICATIONS
+                  </h2>
+                  <div className="space-y-2">
+                    {previewResumeData.parsedData.certifications.map((cert: any, idx: number) => (
+                      <div key={idx} className="text-xs">
+                        <p className="font-bold">{cert.title}</p>
+                        <p className="text-gray-700">{cert.issuer}{cert.date && ` • ${cert.date}`}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Languages */}
+              {previewResumeData.parsedData?.languages && previewResumeData.parsedData.languages.length > 0 && (
+                <div>
+                  <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
+                    LANGUAGES
+                  </h2>
+                  <p className="text-xs text-gray-800">
+                    {previewResumeData.parsedData.languages.map((lang: any) => `${lang.language} (${lang.proficiency})`).join(" • ")}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => {
+                setPreviewResumeId(null);
+                setPreviewResumeData(null);
+              }}>
+                Close Preview
+              </Button>
+              <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => {
+                // Download functionality
+                const resumeName = previewResumeData.filename || "resume.pdf";
+                // Call download API
+                window.location.href = `/api/v1/resumes/${previewResumeId}/download`;
+              }}>
+                Download PDF
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
     </div>

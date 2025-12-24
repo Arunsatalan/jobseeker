@@ -3,6 +3,7 @@ const router = require('express').Router();
 // Import all route modules
 const authRoutes = require('./authRoutes');
 const userRoutes = require('./userRoutes');
+const userProfileRoutes = require('./userProfileRoutes');
 const jobRoutes = require('./jobRoutes');
 const categoryRoutes = require('./categoryRoutes');
 const applicationRoutes = require('./applicationRoutes');
@@ -13,10 +14,13 @@ const adminRoutes = require('./adminRoutes');
 const notificationRoutes = require('./notificationRoutes');
 const companyRoutes = require('./companyRoutes');
 const jobSeekerPreferencesRoutes = require('./jobSeekerPreferencesRoutes');
+const cvRoutes = require('./cvRoutes');
 
 // Mount routes
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
+router.use('/user-profiles', userProfileRoutes);
+router.use('/cv', cvRoutes);
 router.use('/jobs', jobRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/applications', applicationRoutes);
