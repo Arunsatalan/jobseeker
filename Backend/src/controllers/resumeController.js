@@ -120,6 +120,62 @@ exports.deleteResume = asyncHandler(async (req, res, next) => {
   return sendSuccess(res, 200, 'Resume deleted successfully');
 });
 
+// @desc Save structured resume data
+// @route POST /api/v1/resumes/save
+// @desc Save structured resume data
+// @route POST /api/v1/resumes/save
+// @access Private
+exports.saveResumeData = asyncHandler(async (req, res, next) => {
+  const resumeData = req.body;
+
+  if (!resumeData.name) {
+    return sendError(res, 400, 'Resume name is required');
+  }
+
+  // Process skills to preserve category information
+  const processedSkills = resumeData.skills?.map(group => ({
+    category: group.category || 'other',
+    items: group.items && Array.isArray(group.items) ? group.items.filter(item => item && item.trim()) : []
+  })) || [];
+
+  try {
+    // Create resume with structured data
+    const resume = await Resume.create({
+      user: req.user._id,
+      title: resumeData.name || 'My Resume',
+      fileUrl: '', // No file URL for structured data
+      publicId: '',
+      parsedData: {
+        name: resumeData.name,
+        email: resumeData.email,
+        phone: resumeData.phone,
+        location: resumeData.location,
+        linkedin: resumeData.linkedin,
+        github: resumeData.github,
+        summary: resumeData.summary,
+        experience: resumeData.experience || [],
+        education: resumeData.education || [],
+        skills: processedSkills,
+        certifications: resumeData.certifications || [],
+        languages: resumeData.languages || [],
+        projects: resumeData.projects || [],
+      },
+    });
+
+    // Add resume to user
+    req.user.resumes.push(resume._id);
+    await req.user.save();
+
+    logger.info(`Resume data saved: ${resume._id}`);
+
+    return sendSuccess(res, 201, 'Resume data saved successfully', resume);
+  } catch (error) {
+    logger.error(`Error saving resume: ${error.message}`);
+    console.error('Resume save error details:', error);
+    return sendError(res, 500, `Failed to save resume: ${error.message}`);
+  }
+});
+
 // @desc Set default resume
 // @route POST /api/v1/resumes/:id/set-default
 // @access Private
@@ -147,4 +203,28 @@ exports.setDefaultResume = asyncHandler(async (req, res, next) => {
   logger.info(`Default resume set: ${resume._id}`);
 
   return sendSuccess(res, 200, 'Default resume set successfully', resume);
+});
+
+// @desc Download resume
+// @route GET /api/v1/resumes/:id/download
+// @access Private
+exports.downloadResume = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  const resume = await Resume.findById(id);
+
+  if (!resume) {
+    return sendError(res, 404, 'Resume not found');
+  }
+
+  if (!resume.fileUrl) {
+    return sendError(res, 400, 'No file available for download');
+  }
+
+  res.download(resume.fileUrl, resume.title || 'resume.pdf', (err) => {
+    if (err) {
+      logger.error(`Error downloading resume: ${err.message}`);
+      return sendError(res, 500, 'Error downloading file');
+    }
+  });
 });

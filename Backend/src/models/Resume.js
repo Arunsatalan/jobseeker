@@ -14,7 +14,7 @@ const resumeSchema = new mongoose.Schema(
     },
     fileUrl: {
       type: String,
-      required: true,
+      required: false, // Not required for structured resumes
     },
     publicId: String,
     isPrimary: {
@@ -22,11 +22,62 @@ const resumeSchema = new mongoose.Schema(
       default: false,
     },
     parsedData: {
-      skills: [String],
-      experience: [String],
-      education: [String],
+      // Basic info
+      name: String,
       email: String,
       phone: String,
+      location: String,
+      linkedin: String,
+      github: String,
+      summary: String,
+      
+      // Detailed arrays
+      experience: [{
+        company: String,
+        role: String,
+        startDate: String,
+        endDate: String,
+        location: String,
+        description: String,
+        _id: false
+      }],
+      education: [{
+        school: String,
+        degree: String,
+        field: String,
+        graduationDate: String,
+        gpa: String,
+        _id: false
+      }],
+      skills: [{
+        category: String,
+        items: [String],
+        _id: false
+      }],
+      certifications: [{
+        title: String,
+        issuer: String,
+        date: String,
+        _id: false
+      }],
+      languages: [{
+        language: String,
+        proficiency: String,
+        _id: false
+      }],
+      projects: [{
+        name: String,
+        technologies: String,
+        demoUrl: String,
+        githubUrl: String,
+        description: String,
+        _id: false
+      }],
+      
+      // Legacy fields for backward compatibility
+      skills_legacy: [String],
+      experience_legacy: [String],
+      education_legacy: [String],
     },
     views: {
       type: Number,

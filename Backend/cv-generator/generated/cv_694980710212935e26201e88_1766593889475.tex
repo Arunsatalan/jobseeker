@@ -1,0 +1,190 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=0.75in]{geometry}
+\usepackage{setspace}
+\usepackage{titlesec}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{ifthen}
+
+\setstretch{1.0}
+\pagenumbering{gobble}
+
+% Section formatting
+\titleformat{\section}{\large\bfseries\color{black}}{}{0pt}{}[\titlerule]
+\titlespacing{\section}{0pt}{12pt}{6pt}
+
+% Subsection formatting
+\titleformat{\subsection}{\normalsize\bfseries}{}{0pt}{}
+\titlespacing{\subsection}{0pt}{8pt}{4pt}
+
+% Helper commands for conditional content
+\newcommand{\conditionalitem}[1]{\ifthenelse{\equal{#1}{}}{}{\item #1}}
+\newcommand{\conditionalsection}[2]{\ifthenelse{\equal{#2}{}}{}{#1}}
+
+\begin{document}
+
+% HEADER
+\begin{center}
+{\Large\bfseries Satalan Arunthavanathan} \\[4pt]
+\conditionalsection{{\normalsize Professional} \\[8pt]}{Professional}
+\small 
+\ifthenelse{\equal{satalanarun2000@gmail.com}{}}{}{satalanarun2000@gmail.com}%
+\ifthenelse{\equal{0701149548}{}}{}{%
+  \ifthenelse{\equal{satalanarun2000@gmail.com}{}}{0701149548}{ \quad | \quad 0701149548}%
+}%
+\ifthenelse{\equal{kilinochchi}{}}{}{%
+  \ifthenelse{\equal{satalanarun2000@gmail.com0701149548}{}}{kilinochchi}{ \quad | \quad kilinochchi}%
+}%
+\ifthenelse{\equal{@@USER_LINKEDIN@@}{}}{}{%
+  \ifthenelse{\equal{satalanarun2000@gmail.com0701149548kilinochchi}{}}{LinkedIn: @@USER_LINKEDIN@@}{ \quad | \quad LinkedIn: @@USER_LINKEDIN@@}%
+}%
+\ifthenelse{\equal{@@USER_GITHUB@@}{}}{}{%
+  \ifthenelse{\equal{satalanarun2000@gmail.com0701149548kilinochchi@@USER_LINKEDIN@@}{}}{GitHub: @@USER_GITHUB@@}{ \quad | \quad GitHub: @@USER_GITHUB@@}%
+} \\[8pt]
+\end{center}
+
+% PROFESSIONAL SUMMARY
+\conditionalsection{
+\section*{PROFESSIONAL SUMMARY}
+To leverage my expertise in modern frontend frameworks to build scalable, user-friendly web applications, while continuously learning and contributing to innovative projects in the education and technology sectors.
+}{To leverage my expertise in modern frontend frameworks to build scalable, user-friendly web applications, while continuously learning and contributing to innovative projects in the education and technology sectors.}
+
+% CORE COMPETENCIES
+\conditionalsection{
+\section*{CORE COMPETENCIES}
+
+}{}
+
+% PROFESSIONAL EXPERIENCE
+\section*{PROFESSIONAL EXPERIENCE}
+
+% Experience 1
+\ifthenelse{\equal{Software Developer Intern  }{}}{}{%
+\noindent\textbf{Software Developer Intern  } \hfill \textit{2024-07\ifthenelse{\equal{2024-12}{}}{}{--2024-12}} \\
+\ifthenelse{\equal{ABC}{}}{}{%
+\textit{ABC}\ifthenelse{\equal{Colombo, Sri Lanka}{}}{}{| Colombo, Sri Lanka} \\
+}%
+\begin{itemize}
+    \setlength\itemsep{-4pt}
+    \conditionalitem{Developed and deployed responsive web applications using React.js, Node.js, and MongoDB.}
+    \conditionalitem{}
+    \conditionalitem{Automated testing processes, reducing manual QA time by 30\%.}
+\end{itemize}
+}
+
+% Experience 2
+\ifthenelse{\equal{Research Assistant  }{}}{}{%
+\noindent\textbf{Research Assistant  } \hfill \textit{2023-03\ifthenelse{\equal{2024-01}{}}{}{--2024-01}} \\
+\ifthenelse{\equal{CDE}{}}{}{%
+\textit{CDE}\ifthenelse{\equal{Colombo, Sri Lanka}{}}{}{| Colombo, Sri Lanka} \\
+}%
+\begin{itemize}
+    \setlength\itemsep{-4pt}
+    \conditionalitem{Conducted structured research on digital image processing and wireless communication.}
+    \conditionalitem{}
+    \conditionalitem{Designed and presented a research poster, earning recognition for clarity and ethical practice.}
+\end{itemize}
+}
+
+% Experience 3
+\ifthenelse{\equal{}{}}{}{%
+\noindent\textbf{} \hfill \textit{\ifthenelse{\equal{}{}}{}{--}} \\
+\ifthenelse{\equal{}{}}{}{%
+\textit{}\ifthenelse{\equal{}{}}{}{| } \\
+}%
+\begin{itemize}
+    \setlength\itemsep{-4pt}
+    \conditionalitem{}
+    \conditionalitem{}
+    \conditionalitem{}
+\end{itemize}
+}
+
+% EDUCATION
+\ifthenelse{\equal{Bachelor's DegreeUva Wellassa University  }{}}{}{%
+\section*{EDUCATION}
+
+% Education 1
+\ifthenelse{\equal{Bachelor's Degree}{}}{}{%
+\noindent\textbf{Bachelor's Degree\ifthenelse{\equal{Computer Science}{}}{}{in Computer Science}} \hfill \ifthenelse{\equal{2022}{}}{}{2022} \\
+\ifthenelse{\equal{Uva Wellassa University  }{}}{}{%
+\textit{Uva Wellassa University  }\ifthenelse{\equal{}{}}{}{| } \\
+}%
+\ifthenelse{\equal{}{}}{}{GPA:  \\}%
+[8pt]
+}
+
+% Education 2
+\ifthenelse{\equal{}{}}{}{%
+\noindent\textbf{\ifthenelse{\equal{}{}}{}{in }} \hfill \ifthenelse{\equal{}{}}{}{} \\
+\ifthenelse{\equal{}{}}{}{%
+\textit{}\ifthenelse{\equal{}{}}{}{| } \\
+}%
+}
+}
+
+% TECHNICAL SKILLS
+\ifthenelse{\equal{}{}}{}{%
+\section*{TECHNICAL SKILLS}
+
+\ifthenelse{\equal{}{}}{}{%
+\noindent\textbf{Programming Languages:}  \\[4pt]
+}%
+\ifthenelse{\equal{}{}}{}{%
+\textbf{Frameworks \& Libraries:}  \\[4pt]
+}%
+\ifthenelse{\equal{}{}}{}{%
+\textbf{Databases:}  \\[4pt]
+}%
+\ifthenelse{\equal{}{}}{}{%
+\textbf{Cloud Platforms:}  \\[4pt]
+}%
+\ifthenelse{\equal{}{}}{}{%
+\textbf{Tools \& Technologies:}  \\
+}%
+}
+
+% CERTIFICATIONS
+\ifthenelse{\equal{Certified Web DeveloperSoftware Quality Assurance Fundamentals}{}}{}{%
+\section*{CERTIFICATIONS}
+\begin{itemize}
+    \setlength\itemsep{-4pt}
+    \ifthenelse{\equal{Certified Web Developer}{}}{}{%
+    \item Certified Web Developer\ifthenelse{\equal{Microsoft }{}}{}{-- Microsoft }\ifthenelse{\equal{2024}{}}{}{(2024)}
+    }%
+    \ifthenelse{\equal{Software Quality Assurance Fundamentals}{}}{}{%
+    \item Software Quality Assurance Fundamentals\ifthenelse{\equal{Coursera }{}}{}{-- Coursera }\ifthenelse{\equal{2025}{}}{}{(2025)}
+    }%
+\end{itemize}
+}
+
+% LANGUAGES
+\ifthenelse{\equal{@@USER_LANGUAGES@@}{}}{}{%
+\section*{LANGUAGES}
+@@USER_LANGUAGES@@
+}
+
+% PROJECTS
+\ifthenelse{\equal{}{}}{}{%
+\section*{KEY PROJECTS}
+
+\ifthenelse{\equal{}{}}{}{%
+\noindent\textbf{} \\
+\ifthenelse{\equal{}{}}{}{%
+\textit{Technologies: } \\
+}%
+\ifthenelse{\equal{}{}}{}{ \\[6pt]}
+}
+
+\ifthenelse{\equal{}{}}{}{%
+\noindent\textbf{} \\
+\ifthenelse{\equal{}{}}{}{%
+\textit{Technologies: } \\
+}%
+\ifthenelse{\equal{}{}}{}{ \\}
+}
+}
+
+\end{document}

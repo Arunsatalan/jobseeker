@@ -150,10 +150,10 @@ export function ResumeListView({
                     {/* ATS Score */}
                     <div className="flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-gray-500" />
-                      <span className="text-xs text-gray-600">ATS Score:</span>
-                      <span className={`font-bold ${getATSColor(resume.atsScore)}`}>
+                      <span className="text-xs text-gray-600">ATS Score</span>
+                      {/* <span className={`font-bold ${getATSColor(resume.atsScore)}`}>
                         {resume.atsScore}%
-                      </span>
+                      </span> */}
                     </div>
 
                     {/* Parse Status */}
