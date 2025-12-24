@@ -214,7 +214,7 @@ export function UserManagement() {
         phone: user.phone || 'N/A',
         avatar: user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.username || 'User')}&background=02243b&color=fff`,
         location: user.location || 'N/A',
-        resumeCount: user.resumes?.length || 0,
+        resumeCount: user.resumeCount || 0,
         atsScore: user.atsScore || Math.floor(Math.random() * 40) + 60, // Random score if not available
         plan: user.subscriptionPlan || 'Free',
         status: user.isActive === false ? 'Suspended' : (user.isEmailVerified ? 'Active' : 'Pending'),
@@ -400,7 +400,7 @@ export function UserManagement() {
             phone: user.phone || 'N/A',
             avatar: user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.username || 'User')}&background=02243b&color=fff`,
             location: user.location || 'N/A',
-            resumeCount: user.resumes?.length || 0,
+            resumeCount: user.resumeCount || 0,
             atsScore: user.atsScore || Math.floor(Math.random() * 40) + 60,
             plan: user.subscriptionPlan || 'Free',
             status: user.isActive === false ? 'Suspended' : (user.isEmailVerified ? 'Active' : 'Pending'),

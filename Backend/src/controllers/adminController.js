@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Job = require('../models/Job');
 const Application = require('../models/Application');
+const Resume = require('../models/Resume');
 const AdminLog = require('../models/AdminLog');
 const analyticsService = require('../services/analyticsService');
 const notificationService = require('../services/notificationService');
@@ -40,13 +41,34 @@ exports.getAllUsers = asyncHandler(async (req, res, next) => {
 
   const pagination = helpers.getPaginationData(page, limit, await User.countDocuments(query));
 
-  const users = await User.find(query)
-    .select('-password')
-    .limit(pagination.limit)
-    .skip(pagination.startIndex)
-    .sort({ createdAt: -1 });
+  // Get users with resume counts using aggregation
+  const usersWithResumeCounts = await User.aggregate([
+    { $match: query },
+    {
+      $lookup: {
+        from: 'resumes',
+        localField: '_id',
+        foreignField: 'user',
+        as: 'resumes'
+      }
+    },
+    {
+      $addFields: {
+        resumeCount: { $size: '$resumes' }
+      }
+    },
+    {
+      $project: {
+        password: 0,
+        resumes: 0 // Don't include the full resumes array
+      }
+    },
+    { $sort: { createdAt: -1 } },
+    { $skip: pagination.startIndex },
+    { $limit: pagination.limit }
+  ]);
 
-  return sendPaginated(res, 200, 'Users retrieved', users, pagination);
+  return sendPaginated(res, 200, 'Users retrieved', usersWithResumeCounts, pagination);
 });
 
 // @desc Update user status
