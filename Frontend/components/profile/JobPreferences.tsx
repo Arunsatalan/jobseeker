@@ -197,6 +197,7 @@ export function JobPreferences({
   // Update Preferences (Partial Update)
   const updatePreferences = async (updates: Partial<typeof preferences>) => {
     try {
+      console.log('Updating preferences:', updates);
       await axios.put(
         "/api/v1/jobseeker/preferences",
         updates,
@@ -206,11 +207,10 @@ export function JobPreferences({
           },
         }
       );
-
-      setPreferences((prev) => ({ ...prev, ...updates }));
-      onPreferencesChange?.({ ...preferences, ...updates });
+      console.log('Preferences updated successfully');
     } catch (err) {
       console.error("Failed to update preferences:", err);
+      throw err; // Re-throw so the caller can handle it
     }
   };
 
@@ -255,8 +255,18 @@ export function JobPreferences({
 
   // Remove Role
   const removeRole = (role: string) => {
-    const updated = preferences.desiredRoles.filter((r) => r !== role);
-    setPreferences({ ...preferences, desiredRoles: updated });
+    console.log('removeRole called with:', role);
+    console.log('Current desiredRoles:', preferences.desiredRoles);
+    console.log('Role type:', typeof role, 'length:', role.length);
+    console.log('Role trimmed:', role.trim());
+    
+    const updated = preferences.desiredRoles.filter((r) => {
+      console.log('Comparing:', r, 'with:', role, 'equal:', r === role);
+      return r !== role;
+    });
+    
+    console.log('Updated roles:', updated);
+    setPreferences((prev) => ({ ...prev, desiredRoles: updated }));
     updatePreferences({ desiredRoles: updated });
   };
 
@@ -272,8 +282,10 @@ export function JobPreferences({
 
   // Remove Location
   const removeLocation = (location: string) => {
+    console.log('Removing location:', location, 'from:', preferences.locations);
     const updated = preferences.locations.filter((l) => l !== location);
-    setPreferences({ ...preferences, locations: updated });
+    console.log('Updated locations:', updated);
+    setPreferences((prev) => ({ ...prev, locations: updated }));
     updatePreferences({ locations: updated });
   };
 
@@ -389,7 +401,7 @@ export function JobPreferences({
 
           {/* Desired Roles */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+            <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
               <Briefcase className="h-4 w-4" />
               Desired Roles
             </label>
@@ -409,10 +421,19 @@ export function JobPreferences({
               {preferences.desiredRoles.map((role) => (
                 <Badge key={role} variant="secondary" className="flex items-center gap-1">
                   {role}
-                  <X
-                    className="h-3 w-3 cursor-pointer hover:text-red-500"
-                    onClick={() => removeRole(role)}
-                  />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('X clicked for role:', role);
+                      removeRole(role);
+                    }}
+                    className="ml-1 inline-flex items-center justify-center"
+                    aria-label={`Remove ${role}`}
+                  >
+                    <X className="h-3 w-3 cursor-pointer hover:text-red-500" />
+                  </button>
                 </Badge>
               ))}
             </div>
@@ -420,7 +441,7 @@ export function JobPreferences({
 
           {/* Locations */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+            <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
               <MapPin className="h-4 w-4" />
               Locations
             </label>
@@ -440,10 +461,19 @@ export function JobPreferences({
               {preferences.locations.map((location) => (
                 <Badge key={location} variant="secondary" className="flex items-center gap-1">
                   {location}
-                  <X
-                    className="h-3 w-3 cursor-pointer hover:text-red-500"
-                    onClick={() => removeLocation(location)}
-                  />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('X clicked for location:', location);
+                      removeLocation(location);
+                    }}
+                    className="ml-1 inline-flex items-center justify-center"
+                    aria-label={`Remove ${location}`}
+                  >
+                    <X className="h-3 w-3 cursor-pointer hover:text-red-500" />
+                  </button>
                 </Badge>
               ))}
             </div>
@@ -452,7 +482,7 @@ export function JobPreferences({
           {/* Salary Range */}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
                 <DollarSign className="h-4 w-4" />
                 Salary Min
               </label>
@@ -470,7 +500,7 @@ export function JobPreferences({
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-2">
+              <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
                 Salary Max
               </label>
               <select
@@ -487,7 +517,7 @@ export function JobPreferences({
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-900 mb-2">
+              <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
                 Period
               </label>
               <select
@@ -506,7 +536,7 @@ export function JobPreferences({
 
           {/* Experience Level */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+            <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
               <Briefcase className="h-4 w-4" />
               Experience Level
             </label>
@@ -525,7 +555,7 @@ export function JobPreferences({
 
           {/* Work Type */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+            <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
               <Briefcase className="h-4 w-4" />
               Work Type (Select all that apply)
             </label>
@@ -546,7 +576,7 @@ export function JobPreferences({
 
           {/* Availability */}
           <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+            <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
               <Clock className="h-4 w-4" />
               Availability
             </label>
@@ -613,7 +643,7 @@ export function JobPreferences({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                    <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
                       <Briefcase className="h-3 w-3" />
                       Desired Roles
                     </label>
@@ -641,7 +671,7 @@ export function JobPreferences({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                    <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
                       <MapPin className="h-3 w-3" />
                       Locations
                     </label>
@@ -669,7 +699,7 @@ export function JobPreferences({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                    <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
                       <DollarSign className="h-3 w-3" />
                       Salary Expectation
                     </label>
@@ -691,7 +721,7 @@ export function JobPreferences({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                    <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
                       <Briefcase className="h-3 w-3" />
                       Experience Level
                     </label>
@@ -709,7 +739,7 @@ export function JobPreferences({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                    <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
                       <Briefcase className="h-3 w-3" />
                       Work Type
                     </label>
@@ -737,7 +767,7 @@ export function JobPreferences({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                    <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
                       <Clock className="h-3 w-3" />
                       Availability
                     </label>
@@ -765,7 +795,7 @@ export function JobPreferences({
             <div className="pt-4 border-t">
               <Button
                 onClick={() => setShowMatchedJobs(true)}
-                className="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2"
+                className="w-full bg-linear-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2"
               >
                 <Target className="h-5 w-5" />
                 Find Matching Jobs with AI
