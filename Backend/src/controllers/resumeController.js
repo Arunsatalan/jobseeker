@@ -72,7 +72,7 @@ exports.getResumeById = asyncHandler(async (req, res, next) => {
 // @route PUT /api/v1/resumes/:id
 // @access Private
 exports.updateResume = asyncHandler(async (req, res, next) => {
-  const { title } = req.body;
+  const { title, role, parsedData } = req.body;
 
   let resume = await Resume.findById(req.params.id);
 
@@ -84,9 +84,14 @@ exports.updateResume = asyncHandler(async (req, res, next) => {
     return sendError(res, 403, 'Not authorized to update this resume');
   }
 
+  const updateData = {};
+  if (title !== undefined) updateData.title = title;
+  if (role !== undefined) updateData.role = role;
+  if (parsedData !== undefined) updateData.parsedData = parsedData;
+
   resume = await Resume.findByIdAndUpdate(
     req.params.id,
-    { title },
+    updateData,
     { new: true, runValidators: true }
   );
 
@@ -142,7 +147,8 @@ exports.saveResumeData = asyncHandler(async (req, res, next) => {
     // Create resume with structured data
     const resume = await Resume.create({
       user: req.user._id,
-      title: resumeData.name || 'My Resume',
+      title: resumeData.title || resumeData.name || 'My Resume',
+      role: resumeData.role || null,
       fileUrl: '', // No file URL for structured data
       publicId: '',
       parsedData: {

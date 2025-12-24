@@ -24,9 +24,10 @@ interface ResumeBuilderProps {
   onSave?: (data: any) => void;
   onBack?: () => void;
   defaultShowPreview?: boolean;
+  selectedRole?: string;
 }
 
-export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview }: ResumeBuilderProps) {
+export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview, selectedRole }: ResumeBuilderProps) {
   const [resumeData, setResumeData] = useState({
     name: "",
     email: "",
@@ -51,6 +52,8 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview }: 
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [userPreferences, setUserPreferences] = useState(null);
+  const [currentRole, setCurrentRole] = useState(selectedRole || null);
 
   // Fetch user data and resume data on component mount
   useEffect(() => {
@@ -63,6 +66,11 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview }: 
     };
     loadData();
   }, [resumeId]);
+
+  // Monitor userPreferences changes
+  useEffect(() => {
+    // Preferences loaded, component will re-render
+  }, [userPreferences]);
 
   const fetchUserData = async () => {
     setIsLoading(true);
@@ -96,6 +104,37 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview }: 
         if (userResponse.ok) {
           const userData = await userResponse.json();
           const user = userData.data;
+          
+          // Fetch user preferences for desired roles
+          try {
+            const preferencesResponse = await fetch('/api/v1/jobseeker/preferences', {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            if (preferencesResponse.ok) {
+              const preferencesData = await preferencesResponse.json();
+              setUserPreferences(preferencesData.data);
+            } else {
+              console.log('Failed to fetch preferences from /api/v1/jobseeker/preferences, trying /api/v1/job-seeker-preferences');
+              // Try alternative endpoint
+              const altResponse = await fetch('/api/v1/job-seeker-preferences', {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+              });
+              if (altResponse.ok) {
+                const altData = await altResponse.json();
+                setUserPreferences(altData.data);
+              } else {
+                console.log('Failed to fetch from alternative endpoint too');
+              }
+            }
+          } catch (error) {
+            console.log('Error fetching preferences:', error);
+          }
           
           // Populate resume data with user information
           setResumeData({
@@ -266,6 +305,7 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview }: 
               description: proj.description || '',
             })) || [],
           });
+          setCurrentRole(resume.role || null);
         }
       } else {
         // Resume not found, try to load user data as fallback
@@ -291,10 +331,23 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview }: 
         }))
       };
 
-      console.log('Data being prepared for save:', JSON.stringify(dataToSave, null, 2));
+      // Generate role-specific title if role is selected
+      let resumeTitle = resumeData.name || 'My Resume';
+      if (currentRole && resumeData.name) {
+        resumeTitle = `${resumeData.name} - ${currentRole} Resume`;
+      }
+
+      // Add title and role to the data
+      const saveData = {
+        ...dataToSave,
+        title: resumeTitle,
+        role: currentRole
+      };
+
+      console.log('Data being prepared for save:', JSON.stringify(saveData, null, 2));
 
       // Call the onSave prop for handling the actual save
-      onSave?.(dataToSave);
+      onSave?.(saveData);
     } catch (error) {
       console.error('Error preparing resume data:', error);
       alert('Failed to prepare resume data. Please try again.');
@@ -311,7 +364,10 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview }: 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(resumeData)
+        body: JSON.stringify({
+          ...resumeData,
+          jobTitle: currentRole || "Professional"
+        })
       });
 
       if (!response.ok) {
@@ -450,6 +506,48 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview }: 
       {/* Main Content */}
       {!isLoading && !error && (
         <>
+          {/* Role Selection Card (for new resumes) */}
+          {(!resumeId || resumeId === "new-resume") && userPreferences?.desiredRoles?.length > 0 && (
+            <Card className="p-6 mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold text-blue-900 mb-2">
+                  {currentRole ? `Selected Role: ${currentRole}` : 'Choose Your Target Role'}
+                </h3>
+                <p className="text-blue-700 mb-4">
+                  {currentRole
+                    ? 'You can change your selection or continue with this role:'
+                    : 'Select the role you\'re creating this resume for to get the best results:'
+                  }
+                </p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  {userPreferences.desiredRoles.map((role) => (
+                    <Button
+                      key={role}
+                      onClick={() => setCurrentRole(role)}
+                      variant={currentRole === role ? "default" : "outline"}
+                      className={currentRole === role
+                        ? "bg-blue-600 hover:bg-blue-700 text-white"
+                        : "bg-white hover:bg-blue-100 border-blue-300 text-blue-700"
+                      }
+                    >
+                      {role}
+                    </Button>
+                  ))}
+                  <Button
+                    onClick={() => setCurrentRole('general')}
+                    variant={currentRole === 'general' ? "default" : "ghost"}
+                    className={currentRole === 'general'
+                      ? "bg-blue-600 hover:bg-blue-700 text-white"
+                      : "text-blue-600 hover:bg-blue-50"
+                    }
+                  >
+                    General Resume
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -458,10 +556,25 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview }: 
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Resume Builder</h1>
-            <p className="text-sm text-gray-600">Edit your resume content</p>
+            <p className="text-sm text-gray-600">
+              {currentRole ? `Creating resume for: ${currentRole}` : 'Edit your resume content'}
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
+          {/* Role Selection Dropdown (only for new resumes) */}
+          {(!resumeId || resumeId === "new-resume") && userPreferences?.desiredRoles?.length > 0 && (
+            <select
+              value={currentRole || ''}
+              onChange={(e) => setCurrentRole(e.target.value || null)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select Role (Optional)</option>
+              {userPreferences.desiredRoles.map((role) => (
+                <option key={role} value={role}>{role}</option>
+              ))}
+            </select>
+          )}
           <Button 
             variant="outline" 
             onClick={() => setShowPreview(!showPreview)}
@@ -493,7 +606,7 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview }: 
             className="gap-2 bg-blue-600 hover:bg-blue-700"
           >
             <Save className="h-4 w-4" />
-            Save Resume
+            {currentRole ? `Save ${currentRole} Resume` : 'Save Resume'}
           </Button>
         </div>
       </div>
@@ -894,7 +1007,7 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview }: 
                 {/* Modern Header */}
                 <div className="text-center pb-6 mb-6 border-b-2 border-blue-600">
                   <h1 className="text-3xl font-bold mb-2 text-gray-900 tracking-tight">{resumeData.name || "Your Name"}</h1>
-                  <p className="text-lg text-blue-600 font-medium mb-3">Professional</p>
+                  <p className="text-lg text-blue-600 font-medium mb-3">{currentRole || "Professional"}</p>
                   
                   <div className="text-sm text-gray-600 space-y-1">
                     <div className="flex flex-wrap justify-center gap-3">

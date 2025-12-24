@@ -117,28 +117,67 @@ export default function ProfilePage() {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/v1/resumes/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(data)
-      });
+      
+      let response;
+      let result;
+      
+      if (editingResumeId && editingResumeId !== "new-resume") {
+        // Update existing resume
+        response = await fetch(`/api/v1/resumes/${editingResumeId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            title: data.title,
+            role: data.role,
+            parsedData: {
+              name: data.name,
+              email: data.email,
+              phone: data.phone,
+              location: data.location,
+              linkedin: data.linkedin,
+              github: data.github,
+              summary: data.summary,
+              experience: data.experience || [],
+              education: data.education || [],
+              skills: data.skills?.map(group => ({
+                category: group.category || 'other',
+                items: group.items && Array.isArray(group.items) ? group.items.filter(item => item && item.trim()) : []
+              })) || [],
+              certifications: data.certifications || [],
+              languages: data.languages || [],
+              projects: data.projects || [],
+            }
+          })
+        });
+      } else {
+        // Create new resume
+        response = await fetch('/api/v1/resumes/save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(data)
+        });
+      }
 
       if (!response.ok) {
         throw new Error('Failed to save resume');
       }
 
-      const result = await response.json();
+      result = await response.json();
       console.log('Resume saved to database:', result);
       alert('Resume saved successfully!');
       
-      // Add resume to list
+      // Update resume in list
       if (editingResumeId === "new-resume") {
         const newResume = {
-          id: result.data._id,
-          filename: data.name || "New Resume",
+          _id: result.data._id,
+          title: data.title,
+          filename: data.title || data.name || "New Resume",
           version: "v1",
           date: new Date().toISOString().split("T")[0],
           atsScore: 75,
@@ -149,6 +188,13 @@ export default function ProfilePage() {
           lastUsed: new Date().toISOString(),
         };
         setUserResumes((prev) => [newResume, ...prev]);
+      } else if (editingResumeId) {
+        // Update existing resume in the list
+        setUserResumes((prev) => prev.map(r => 
+          r._id === editingResumeId 
+            ? { ...r, title: data.title, filename: data.title || data.name, role: data.role }
+            : r
+        ));
       }
     } catch (error) {
       console.error('Error saving resume:', error);
@@ -173,6 +219,7 @@ export default function ProfilePage() {
         <ProfilePageContent 
           user={user}
           userResumes={userResumes}
+          setUserResumes={setUserResumes}
           activeSection={activeSection}
           setActiveSection={setActiveSection}
           editingResumeId={editingResumeId}
@@ -197,6 +244,7 @@ export default function ProfilePage() {
 function ProfilePageContent({
   user,
   userResumes,
+  setUserResumes,
   activeSection,
   setActiveSection,
   editingResumeId,
@@ -426,8 +474,10 @@ function ProfilePageContent({
             {!editingResumeId && activeSection === "resumes" && (
               <ResumeListView
                 resumes={userResumes.map((r, idx) => ({
-                  id: r._id || `resume-${idx}`,
+                  id: r._id || r.id || `resume-${idx}`,
+                  title: r.title,
                   filename: r.filename || r.title || r.name || `Resume ${idx + 1}`,
+                  role: r.role,
                   version: r.version || "v1",
                   date: r.date || r.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
                   atsScore: r.atsScore || 75,
@@ -437,25 +487,25 @@ function ProfilePageContent({
                   applicationCount: r.applicationCount || 0,
                 }))}
                 onEdit={(id) => {
-                  const resumeIndex = userResumes.findIndex(r => r._id === id);
+                  const resumeIndex = userResumes.findIndex(r => (r._id || r.id) === id);
                   if (resumeIndex >= 0) {
                     handleResumeEdit(resumeIndex);
                   }
                 }}
                 onPreview={(id) => {
-                  const resumeIndex = userResumes.findIndex(r => r._id === id);
+                  const resumeIndex = userResumes.findIndex(r => (r._id || r.id) === id);
                   if (resumeIndex >= 0) {
                     handleResumePreview(resumeIndex);
                   }
                 }}
                 onDownload={(id) => {
-                  const resumeIndex = userResumes.findIndex(r => r._id === id);
+                  const resumeIndex = userResumes.findIndex(r => (r._id || r.id) === id);
                   if (resumeIndex >= 0) {
                     handleResumeDownload(resumeIndex);
                   }
                 }}
                 onDelete={(id) => {
-                  const resumeIndex = userResumes.findIndex(r => r._id === id);
+                  const resumeIndex = userResumes.findIndex(r => (r._id || r.id) === id);
                   if (resumeIndex >= 0) {
                     handleResumeDelete(resumeIndex);
                   } else {
@@ -463,6 +513,10 @@ function ProfilePageContent({
                   }
                 }}
                 onCreateNew={handleCreateNewResume}
+                onOptimize={(id) => {
+                  console.log('Optimize resume:', id);
+                  // Implement optimize functionality
+                }}
               />
             )}
 
@@ -598,6 +652,11 @@ function ProfilePageContent({
                 <h1 className="text-2xl font-bold text-center text-gray-900">
                   {previewResumeData.parsedData?.name || "Your Name"}
                 </h1>
+                {previewResumeData.role && (
+                  <p className="text-lg text-blue-600 font-medium text-center mt-1">
+                    {previewResumeData.role}
+                  </p>
+                )}
                 <div className="text-center text-xs text-gray-700 space-y-1 mt-2">
                   {previewResumeData.parsedData?.email && (
                     <p>{previewResumeData.parsedData.email}</p>

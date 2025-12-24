@@ -12,6 +12,11 @@ const resumeSchema = new mongoose.Schema(
       required: [true, 'Resume title is required'],
       trim: true,
     },
+    role: {
+      type: String,
+      trim: true,
+      index: true, // Index for easy searching
+    },
     fileUrl: {
       type: String,
       required: false, // Not required for structured resumes

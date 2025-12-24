@@ -28,7 +28,9 @@ import {
 
 interface Resume {
   id: string;
+  title?: string;
   filename: string;
+  role?: string;
   version: string;
   date: string;
   atsScore: number;
@@ -61,6 +63,15 @@ export function ResumeListView({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showOptimizeDialog, setShowOptimizeDialog] = useState(false);
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+
+  // Get unique roles for filter
+  const uniqueRoles = Array.from(new Set(resumes.map(r => r.role).filter(Boolean)));
+
+  // Filter resumes based on selected role
+  const filteredResumes = roleFilter === "all" 
+    ? resumes 
+    : resumes.filter(r => r.role === roleFilter);
 
   const getATSColor = (score: number) => {
     if (score >= 85) return "text-green-600";
@@ -121,9 +132,31 @@ export function ResumeListView({
         </Card>
       ) : (
         <>
+          {/* Filter and Search */}
+          <Card className="p-4 mb-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">Filter by Role:</label>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="border border-gray-300 rounded px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">All Roles</option>
+                  {uniqueRoles.map((role) => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="text-sm text-gray-600">
+                Showing {filteredResumes.length} of {resumes.length} resumes
+              </div>
+            </div>
+          </Card>
+
           {/* Resume Cards Grid */}
           <div className="grid gap-4">
-            {resumes.map((resume) => (
+            {filteredResumes.map((resume) => (
               <Card key={resume.id} className="hover:shadow-md transition-shadow">
                 <div className="p-6">
                   {/* Header */}
@@ -131,7 +164,12 @@ export function ResumeListView({
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <FileText className="h-5 w-5 text-gray-600" />
-                        <h3 className="font-semibold text-gray-900">{resume.filename}</h3>
+                        <h3 className="font-semibold text-gray-900">{resume.title || resume.filename}</h3>
+                        {resume.role && (
+                          <Badge className="bg-blue-100 text-blue-700 text-xs">
+                            {resume.role}
+                          </Badge>
+                        )}
                         {resume.isDefault && (
                           <Badge className="bg-amber-100 text-amber-700">Default</Badge>
                         )}
