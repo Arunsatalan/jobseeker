@@ -39,8 +39,11 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
     const [isLoading, setIsLoading] = useState(false);
     const [industries, setIndustries] = useState<any[]>([]); // Categories from DB
     const [categories, setCategories] = useState<any[]>([]); // Subcategories from DB
+    const [companies, setCompanies] = useState<any[]>([]); // Companies from DB
     const [isNewCategory, setIsNewCategory] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState("");
+    const [isNewCompany, setIsNewCompany] = useState(false);
+    const [newCompanyName, setNewCompanyName] = useState("");
 
     const [formData, setFormData] = useState({
         title: "",
@@ -86,6 +89,14 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                 setIsNewCategory(false);
             }
         }
+
+        if (field === "company") {
+            if (value === "other") {
+                setIsNewCompany(true);
+            } else {
+                setIsNewCompany(false);
+            }
+        }
     };
 
     const fetchIndustries = async () => {
@@ -96,6 +107,17 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
             }
         } catch (error) {
             console.error("Failed to fetch industries", error);
+        }
+    };
+
+    const fetchCompanies = async () => {
+        try {
+            const res = await axios.get(`${apiUrl}/api/v1/companies`);
+            if (res.data.success) {
+                setCompanies(res.data.data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch companies", error);
         }
     };
 
@@ -137,17 +159,17 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
     useEffect(() => {
         if (open) {
             fetchIndustries();
+            fetchCompanies();
         }
     }, [open]);
 
     useEffect(() => {
-        if (open) {
-            fetchIndustries();
+        if (open && companies.length > 0) {
             if (jobToEdit && (mode === 'edit' || mode === 'duplicate')) {
                 // Populate form with job data
                 setFormData({
                     title: mode === 'duplicate' ? `${jobToEdit.title} (Copy)` : jobToEdit.title,
-                    company: jobToEdit.company?.name || jobToEdit.company || "", // Handle populated company object or string
+                    company: jobToEdit.company?._id || jobToEdit.company || "", // Handle populated company object or string
                     industry: jobToEdit.industry,
                     category: jobToEdit.category,
                     location: jobToEdit.location,
@@ -165,32 +187,19 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                     status: mode === 'duplicate' ? 'published' : (jobToEdit.status === 'Open' ? 'published' : jobToEdit.status), // Reset status for duplicate
                     customSections: jobToEdit.customSections || [],
                 });
+                // Handle company selection - check if company exists in database
+                const companyId = jobToEdit.company?._id || jobToEdit.company || "";
+                const companyName = jobToEdit.company?.name || jobToEdit.company || "";
+                const existingCompany = companies.find(c => c._id === companyId);
+                if (!existingCompany && companyName) {
+                    setIsNewCompany(true);
+                    setNewCompanyName(companyName);
+                    setFormData(prev => ({ ...prev, company: "other" }));
+                }
                 // Assuming industry/category are names from backend, no need to set ID-based states effectively
-            } else {
-                // Reset form for create mode
-                setFormData({
-                    title: "",
-                    company: "",
-                    location: "",
-                    workMode: "onsite",
-                    employmentType: "full-time",
-                    experience: "mid",
-                    salaryMin: "",
-                    salaryMax: "",
-                    salaryPeriod: "yearly",
-                    industry: "",
-                    category: "",
-                    description: "",
-                    requirements: "",
-                    skills: "",
-                    benefits: "",
-                    deadline: "",
-                    status: "published",
-                    customSections: [],
-                });
             }
         }
-    }, [open, jobToEdit, mode]);
+    }, [open, jobToEdit, mode, companies]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -214,6 +223,15 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
             return;
         }
 
+        if (isNewCompany && !newCompanyName) {
+            toast({
+                title: "Missing Company Name",
+                description: "Please enter a name for the new company.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         setIsLoading(true);
 
         try {
@@ -228,6 +246,33 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
             }
 
             let finalCategoryId = formData.category;
+            let finalCompanyId = formData.company;
+
+            // Handle new company creation first
+            if (isNewCompany && newCompanyName) {
+                try {
+                    const newCompanyRes = await axios.post(`${apiUrl}/api/v1/companies`, {
+                        name: newCompanyName,
+                        description: "Company created during job posting"
+                    }, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+
+                    if (newCompanyRes.data.success) {
+                        finalCompanyId = newCompanyRes.data.data._id;
+                        // Just in case the API structure is different, check response
+                        if (!finalCompanyId && newCompanyRes.data.data.id) finalCompanyId = newCompanyRes.data.data.id;
+                    }
+                } catch (companyError: any) {
+                    toast({
+                        title: "Error Creating Company",
+                        description: companyError.response?.data?.message || "Could not create new company.",
+                        variant: "destructive",
+                    });
+                    setIsLoading(false);
+                    return;
+                }
+            }
 
             // Handle new category creation
             if (isNewCategory && newCategoryName) {
@@ -275,11 +320,12 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
             // Find names instead of IDs for the backend Job model
             const selectedIndustry = industries.find(ind => ind._id === formData.industry)?.name || formData.industry;
             let selectedCategory = isNewCategory ? newCategoryName : (categories.find(cat => cat._id === finalCategoryId)?.name || finalCategoryId);
+            let selectedCompanyId = finalCompanyId; // Use the final company ID (created or existing)
 
             // Construct clean payload (excluding frontend-only fields like workMode)
             const payload = {
                 title: formData.title,
-                company: formData.company,
+                company: selectedCompanyId, // Send company ID for database relationship
                 location: formData.location,
                 description: formData.description,
                 industry: selectedIndustry,
@@ -350,6 +396,12 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                 });
                 setIsNewCategory(false);
                 setNewCategoryName("");
+                setIsNewCompany(false);
+                setNewCompanyName("");
+                setIsNewCompany(false);
+                setNewCompanyName("");
+                setIsNewCompany(false);
+                setNewCompanyName("");
             }
         } catch (error: any) {
             console.error("Error posting job:", error);
@@ -404,13 +456,30 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
 
                             <div className="space-y-2">
                                 <Label htmlFor="company">Company Name *</Label>
-                                <Input
-                                    id="company"
-                                    required
+                                <Select
                                     value={formData.company}
-                                    onChange={(e) => handleInputChange("company", e.target.value)}
-                                    placeholder="Your Company Name"
-                                />
+                                    onValueChange={(value) => handleInputChange("company", value)}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select Company" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {companies.map((company) => (
+                                            <SelectItem key={company._id} value={company._id}>
+                                                {company.name}
+                                            </SelectItem>
+                                        ))}
+                                        <SelectItem value="other">+ Add New Company</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {isNewCompany && (
+                                    <Input
+                                        className="mt-2"
+                                        placeholder="Enter new company name"
+                                        value={newCompanyName}
+                                        onChange={(e) => setNewCompanyName(e.target.value)}
+                                    />
+                                )}
                             </div>
 
                             <div className="space-y-2">

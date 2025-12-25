@@ -13,18 +13,22 @@ const router = express.Router();
 // Import middleware
 const { protect, authorize } = require('../middleware/auth');
 
-// All routes require authentication and admin role
-router.use(protect);
-router.use(authorize('admin'));
-
+// Public route for viewing companies (no auth required)
 router
   .route('/')
-  .get(getCompanies)
-  .post(createCompany);
+  .get(getCompanies) // Public - anyone can view companies
+  .post(protect, createCompany); // Protected - only authenticated users can create
+
+// Public route for viewing individual companies (no auth required)
+router
+  .route('/:id')
+  .get(getCompany);
+
+// All other routes require authentication
+router.use(protect);
 
 router
   .route('/:id')
-  .get(getCompany)
   .put(updateCompany)
   .delete(deleteCompany);
 

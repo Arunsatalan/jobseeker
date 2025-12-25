@@ -185,6 +185,7 @@ export function CompanyProfile({ company, onUpdateCompany }: CompanyProfileProps
           companySize: formData.size,
           companyWebsite: formData.website,
           companyDescription: formData.description,
+          foundedYear: formData.founded ? parseInt(formData.founded) : undefined,
           companyLogo: formData.logo ? { url: formData.logo } : undefined,
           socialLinks: formData.socialLinks,
         }, {

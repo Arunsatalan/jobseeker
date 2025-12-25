@@ -53,7 +53,7 @@ import { MOCK_SOFTWARE_ENGINEER_JOBS } from './mockSoftwareEngineerJobs'
 interface ApiJob {
   _id: string
   title: string
-  company: string
+  company: string | { _id: string; name: string; logo?: string; industry?: string; size?: string; location?: string; description?: string; website?: string; socialLinks?: { linkedin?: string; twitter?: string; facebook?: string }; foundedYear?: number }
   location: string
   employmentType: string
   experience: string
@@ -81,6 +81,7 @@ interface Job {
   id: string
   title: string
   company: string
+  companyId?: string
   location: string
   employmentType: string
   experience: string
@@ -175,7 +176,8 @@ const convertApiJobToJob = (apiJob: ApiJob): Job => {
   const converted: Job = {
     id: apiJob._id,
     title: apiJob.title || '',
-    company: apiJob.company || '',
+    company: typeof apiJob.company === 'object' && apiJob.company ? apiJob.company.name || '' : apiJob.company || '',
+    companyId: typeof apiJob.company === 'object' && apiJob.company ? apiJob.company._id : undefined,
     location: apiJob.location || '',
     employmentType: apiJob.employmentType || 'full-time',
     experience: apiJob.experience || 'mid',
@@ -225,7 +227,7 @@ const convertApiJobToJob = (apiJob: ApiJob): Job => {
 export default function AdvancedJobSearch() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, token, user } = useAuth()
   const jobListRef = useRef<HTMLDivElement>(null)
   const detailPanelRef = useRef<HTMLDivElement>(null)
   const jobCardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
@@ -262,6 +264,9 @@ export default function AdvancedJobSearch() {
   const [scrollPosition, setScrollPosition] = useState(0)
   const [showSignInModal, setShowSignInModal] = useState(false)
   const [showSignUpModal, setShowSignUpModal] = useState(false)
+  const [showCompanyProfileModal, setShowCompanyProfileModal] = useState(false)
+  const [companyProfileData, setCompanyProfileData] = useState<any>(null)
+  const [companyProfileLoading, setCompanyProfileLoading] = useState(false)
 
   // Hooks for scroll management (AFTER all state declarations)
   const { saveScrollPosition, restoreScrollPosition } = useScrollPositionMemory('jobListScroll')
@@ -343,6 +348,46 @@ export default function AdvancedJobSearch() {
     (id) => setSelectedJobId(id),
     true
   )
+
+  // Fetch company profile data when modal opens
+  useEffect(() => {
+    if (showCompanyProfileModal && selectedJob) {
+      const fetchCompanyProfile = async () => {
+        setCompanyProfileLoading(true)
+
+        try {
+          const companyId = selectedJob.companyId
+          if (!companyId) {
+            console.log('No company ID available for job:', selectedJob.id)
+            setCompanyProfileData(null)
+            setCompanyProfileLoading(false)
+            return
+          }
+
+          console.log('Fetching company profile for ID:', companyId)
+          const response = await axios.get(`/api/v1/companies/${companyId}`)
+          console.log('Company response:', response.data)
+
+          if (response.data.success && response.data.data) {
+            console.log('Setting company data:', response.data.data)
+            setCompanyProfileData(response.data.data)
+          } else {
+            console.log('No company data found')
+            setCompanyProfileData(null)
+          }
+        } catch (err: any) {
+          console.error('Failed to fetch company profile:', err.response?.status, err.message)
+          setCompanyProfileData(null)
+        } finally {
+          setCompanyProfileLoading(false)
+        }
+      }
+      fetchCompanyProfile()
+    } else {
+      setCompanyProfileData(null)
+      setCompanyProfileLoading(false)
+    }
+  }, [showCompanyProfileModal, selectedJob])
 
   // Initialize from URL params and fetch jobs
   useEffect(() => {
@@ -1090,6 +1135,15 @@ export default function AdvancedJobSearch() {
                     </div>
                     <div className="flex gap-2">
                       <Button
+                        onClick={() => setShowCompanyProfileModal(true)}
+                        variant="outline"
+                        size="sm"
+                        className="text-slate-600 hover:text-slate-800"
+                      >
+                        <Building2 className="h-4 w-4 mr-1" />
+                        Company Profile
+                      </Button>
+                      <Button
                         onClick={(e) => handleBookmark(selectedJob.id, e)}
                         variant="outline"
                         size="icon"
@@ -1285,6 +1339,91 @@ export default function AdvancedJobSearch() {
             setShowSignInModal(true)
           }}
         />
+      )}
+
+      {/* Company Profile Modal */}
+      {showCompanyProfileModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-slate-600" />
+              Company Profile
+            </h2>
+            {!isAuthenticated ? (
+              <div className="text-center py-8">
+                <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600 mb-4">Please sign in to view company profiles</p>
+                <Button onClick={() => { setShowCompanyProfileModal(false); setShowSignInModal(true); }} className="bg-slate-600 hover:bg-slate-700">
+                  Sign In
+                </Button>
+              </div>
+            ) : companyProfileLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-600 border-t-transparent"></div>
+                <span className="ml-2 text-gray-600">Loading company profile...</span>
+              </div>
+            ) : companyProfileData?.error === 'forbidden' ? (
+              <div className="text-center py-8">
+                <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600">Please sign in to view company profiles</p>
+              </div>
+            ) : companyProfileData ? (
+              <div className="space-y-4">
+                <div>
+                  <strong>Name:</strong> {companyProfileData.name || selectedJob?.company}
+                </div>
+                <div>
+                  <strong>Location:</strong> {companyProfileData.location || selectedJob?.location}
+                </div>
+                {companyProfileData.website && (
+                  <div>
+                    <strong>Website:</strong> <a href={companyProfileData.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{companyProfileData.website}</a>
+                  </div>
+                )}
+                {companyProfileData.description && (
+                  <div>
+                    <strong>Description:</strong> <p className="mt-1 text-gray-700">{companyProfileData.description}</p>
+                  </div>
+                )}
+                <div>
+                  <strong>Industry:</strong> {companyProfileData.industry || 'Not specified'}
+                </div>
+                {companyProfileData.size && (
+                  <div>
+                    <strong>Company Size:</strong> {companyProfileData.size}
+                  </div>
+                )}
+                {companyProfileData.foundedYear && (
+                  <div>
+                    <strong>Founded Year:</strong> {companyProfileData.foundedYear}
+                  </div>
+                )}
+                {companyProfileData.socialLinks && (
+                  <div>
+                    <strong>Social Links:</strong>
+                    <div className="mt-2 space-y-1">
+                      {companyProfileData.socialLinks.linkedin && (
+                        <a href={companyProfileData.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="block text-blue-600 hover:underline">LinkedIn</a>
+                      )}
+                      {companyProfileData.socialLinks.twitter && (
+                        <a href={companyProfileData.socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="block text-blue-600 hover:underline">Twitter</a>
+                      )}
+                      {companyProfileData.socialLinks.facebook && (
+                        <a href={companyProfileData.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="block text-blue-600 hover:underline">Facebook</a>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600">Company profile not available</p>
+              </div>
+            )}
+            <button onClick={() => setShowCompanyProfileModal(false)} className="mt-6 px-4 py-2 bg-gray-600 text-white rounded w-full">Close</button>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -87,6 +87,7 @@ const userProfileSchema = new mongoose.Schema(
       companySize: String,
       companyWebsite: String,
       companyDescription: String,
+      foundedYear: Number,
       companyLogo: {
         url: { type: String, default: null },
         publicId: { type: String, default: null },
