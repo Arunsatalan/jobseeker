@@ -15,6 +15,7 @@ const notificationRoutes = require('./notificationRoutes');
 const companyRoutes = require('./companyRoutes');
 const jobSeekerPreferencesRoutes = require('./jobSeekerPreferencesRoutes');
 const cvRoutes = require('./cvRoutes');
+const aiRoutes = require('./aiRoutes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -31,5 +32,6 @@ router.use('/admin', adminRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/companies', companyRoutes);
 router.use('/jobseeker', jobSeekerPreferencesRoutes);
+router.use('/ai', aiRoutes);
 
 module.exports = router;
