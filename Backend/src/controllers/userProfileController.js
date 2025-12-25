@@ -195,7 +195,7 @@ exports.updateEmployerProfile = catchAsync(async (req, res, next) => {
     return next(new ErrorResponse('Only employers can update employer profile', 403));
   }
 
-  const { companyName, industry, companySize, companyWebsite, companyDescription, companyLogo, socialLinks, email } = req.body;
+  const { companyName, industry, companySize, companyWebsite, companyDescription, companyLogo, socialLinks, email, foundedYear } = req.body;
 
   let userProfile = await UserProfile.findOne({ userId: req.user.id });
   let user = await User.findById(req.user.id);
@@ -257,6 +257,7 @@ exports.updateEmployerProfile = catchAsync(async (req, res, next) => {
   if (companySize !== undefined) userProfile.employerProfile.companySize = companySize;
   if (companyWebsite !== undefined) userProfile.employerProfile.companyWebsite = companyWebsite;
   if (companyDescription !== undefined) userProfile.employerProfile.companyDescription = companyDescription;
+  if (foundedYear !== undefined) userProfile.employerProfile.foundedYear = foundedYear;
 
   // Handle companyLogo - only set if provided with a valid URL
   if (companyLogo && companyLogo.url) {
@@ -300,6 +301,7 @@ exports.updateEmployerProfile = catchAsync(async (req, res, next) => {
           publicId: companyLogo.publicId || null
         };
       }
+      if (foundedYear !== undefined) company.foundedYear = foundedYear;
 
       await company.save();
     }
@@ -371,7 +373,7 @@ exports.getEmployerCompanyData = catchAsync(async (req, res, next) => {
     size: companyDataFromModel?.size || userProfile.employerProfile?.companySize || '',
     description: companyDataFromModel?.description || userProfile.employerProfile?.companyDescription || '',
     logo: companyDataFromModel?.logo?.url || userProfile.employerProfile?.companyLogo?.url || '',
-    founded: companyDataFromModel?.foundedYear ? companyDataFromModel.foundedYear.toString() : '',
+    founded: companyDataFromModel?.foundedYear ? companyDataFromModel.foundedYear.toString() : (userProfile.employerProfile?.foundedYear ? userProfile.employerProfile.foundedYear.toString() : ''),
     tagline: userProfile.headline || '', // Tagline not in Company model schema
     culture: userProfile.bio || '', // Using bio for culture as per previous logic
     socialLinks: companyDataFromModel?.socialLinks || userProfile.socialLinks || {},

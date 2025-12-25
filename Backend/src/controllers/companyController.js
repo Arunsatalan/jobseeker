@@ -3,11 +3,18 @@ const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
 const logger = require('../utils/logger');
 
-// @desc    Get all companies
+// @desc    Get all companies (with optional name filter)
 // @route   GET /api/v1/companies
 // @access  Private/Admin
 exports.getCompanies = asyncHandler(async (req, res, next) => {
-  const companies = await Company.find().populate('employees', 'name email').populate('jobs', 'title status');
+  let query = {};
+
+  // Filter by name if provided
+  if (req.query.name) {
+    query.name = { $regex: req.query.name, $options: 'i' }; // Case-insensitive search
+  }
+
+  const companies = await Company.find(query).populate('employees', 'name email').populate('jobs', 'title status');
 
   res.status(200).json({
     success: true,

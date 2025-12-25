@@ -17,6 +17,7 @@ exports.getAllJobs = asyncHandler(async (req, res, next) => {
 
   const jobs = await Job.find({ status: 'published' })
     .populate('employer', 'firstName lastName company')
+    .populate('company', 'name logo industry size location description website socialLinks foundedYear')
     .limit(pagination.limit)
     .skip(pagination.startIndex)
     .sort({ createdAt: -1 });
@@ -41,7 +42,8 @@ exports.getJobById = asyncHandler(async (req, res, next) => {
     req.params.id,
     { $inc: { 'stats.views': 1 } },
     { new: true }
-  ).populate('employer', 'firstName lastName company email');
+  ).populate('employer', 'firstName lastName company email')
+   .populate('company', 'name logo industry size location description website socialLinks foundedYear');
 
   if (!job) {
     return sendError(res, 404, 'Job not found');
@@ -57,6 +59,13 @@ exports.createJob = asyncHandler(async (req, res, next) => {
   // logger.info(`Create Job Request Body: ${JSON.stringify(req.body)}`); // Debug log
 
   try {
+    // Validate that company exists
+    const Company = require('../models/Company');
+    const company = await Company.findById(req.body.company);
+    if (!company) {
+      return sendError(res, 400, 'Invalid company selected');
+    }
+
     const jobData = {
       ...req.body,
       employer: req.user._id,
@@ -64,6 +73,12 @@ exports.createJob = asyncHandler(async (req, res, next) => {
     };
 
     const job = await Job.create(jobData);
+
+    // Add job to company's jobs array
+    await Company.findByIdAndUpdate(req.body.company, {
+      $push: { jobs: job._id },
+      $inc: { 'stats.jobsPosted': 1 }
+    });
 
     logger.info(`Job created: ${job._id}`);
 
@@ -92,7 +107,7 @@ exports.createJob = asyncHandler(async (req, res, next) => {
           admin._id,
           'admin_new_job',
           'New Job Posted',
-          `${req.user.firstName}  (Company: ${job.company}) has posted a new job: ${job.title}`,
+          `${req.user.firstName}  (Company: ${company.name}) has posted a new job: ${job.title}`,
           {
             jobId: job._id,
             employerId: req.user._id,
@@ -125,14 +140,49 @@ exports.updateJob = asyncHandler(async (req, res, next) => {
     return sendError(res, 404, 'Job not found');
   }
 
+  // Debug logging
+  console.log('Job employer:', job.employer);
+  console.log('Req user _id:', req.user?._id);
+
+  if (!req.user || !req.user._id) {
+    return sendError(res, 401, 'User not authenticated');
+  }
+
+  if (!job.employer) {
+    return sendError(res, 500, 'Job employer not found');
+  }
+
   if (job.employer.toString() !== req.user._id.toString()) {
     return sendError(res, 403, 'Not authorized to update this job');
+  }
+
+  // If company is being changed, update company relationships
+  if (req.body.company && job.company && req.body.company !== job.company.toString()) {
+    const Company = require('../models/Company');
+
+    // Validate new company exists
+    const newCompany = await Company.findById(req.body.company);
+    if (!newCompany) {
+      return sendError(res, 400, 'Invalid company selected');
+    }
+
+    // Remove job from old company's jobs array
+    await Company.findByIdAndUpdate(job.company, {
+      $pull: { jobs: job._id },
+      $inc: { 'stats.jobsPosted': -1 }
+    });
+
+    // Add job to new company's jobs array
+    await Company.findByIdAndUpdate(req.body.company, {
+      $push: { jobs: job._id },
+      $inc: { 'stats.jobsPosted': 1 }
+    });
   }
 
   job = await Job.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true,
-  });
+  }).populate('company', 'name logo industry size location');
 
   logger.info(`Job updated: ${job._id}`);
 
@@ -143,7 +193,7 @@ exports.updateJob = asyncHandler(async (req, res, next) => {
 // @route DELETE /api/v1/jobs/:id
 // @access Private/Employer or Admin
 exports.deleteJob = asyncHandler(async (req, res, next) => {
-  const job = await Job.findById(req.params.id);
+  const job = await Job.findById(req.params.id).populate('company', 'name');
 
   if (!job) {
     return sendError(res, 404, 'Job not found');
@@ -153,7 +203,17 @@ exports.deleteJob = asyncHandler(async (req, res, next) => {
     return sendError(res, 403, 'Not authorized to delete this job');
   }
 
+  // Store company name for notifications before deleting
+  const companyName = job.company?.name || 'Unknown Company';
+
   await Job.findByIdAndDelete(req.params.id);
+
+  // Remove job from company's jobs array
+  const Company = require('../models/Company');
+  await Company.findByIdAndUpdate(job.company, {
+    $pull: { jobs: job._id },
+    $inc: { 'stats.jobsPosted': -1 }
+  });
 
   // Notify Employer
   try {
@@ -176,7 +236,7 @@ exports.deleteJob = asyncHandler(async (req, res, next) => {
         admin._id,
         'job_deleted',
         'Job Deleted',
-        `${req.user.firstName} (Company: ${job.company}) has deleted the job: ${job.title}`,
+        `${req.user.firstName} (Company: ${companyName}) has deleted the job: ${job.title}`,
         {
           jobId: job._id,
           employerId: req.user._id,
@@ -202,6 +262,7 @@ exports.getEmployerJobs = asyncHandler(async (req, res, next) => {
   const pagination = helpers.getPaginationData(page, limit, await Job.countDocuments({ employer: req.user._id }));
 
   const jobs = await Job.find({ employer: req.user._id })
+    .populate('company', 'name logo industry size location description website socialLinks foundedYear')
     .limit(pagination.limit)
     .skip(pagination.startIndex)
     .sort({ createdAt: -1 });

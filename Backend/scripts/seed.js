@@ -74,6 +74,19 @@ const seedDatabase = async () => {
         website: 'https://financeplus.com',
         description: 'Financial services provider',
       },
+      {
+        name: 'vinasai',
+        industry: 'Technology',
+        size: 'startup',
+        location: 'Remote',
+        website: 'https://vinasai.com',
+        description: 'AI-powered job matching platform',
+        foundedYear: 2023,
+        socialLinks: {
+          linkedin: 'https://linkedin.com/company/vinasai',
+          twitter: 'https://twitter.com/vinasai'
+        }
+      },
     ]);
 
     logger.info(`Created ${companies.length} companies`);
@@ -158,6 +171,21 @@ const seedDatabase = async () => {
         skills: ['Excel', 'Financial Analysis', 'SQL'],
         industry: 'Finance',
         category: 'Finance',
+        status: 'published',
+      },
+      {
+        title: 'AI/ML Engineer',
+        description: 'Build the future of job matching with AI',
+        company: 'vinasai',
+        employer: employers[0]._id,
+        location: 'Remote',
+        employmentType: 'full-time',
+        experience: 'mid',
+        salaryMin: 90000,
+        salaryMax: 130000,
+        skills: ['Python', 'Machine Learning', 'TensorFlow'],
+        industry: 'Technology',
+        category: 'Data Science',
         status: 'published',
       },
     ]);
