@@ -13,6 +13,9 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import SignIn from '@/components/signin'
 import SignUp from '@/components/signup'
+import ApplicationModal from './ApplicationModal'
+import ApplicationDashboard from './ApplicationDashboard'
+import GamificationSystem from './GamificationSystem'
 
 // Configure axios base URL
 axios.defaults.baseURL = 'http://localhost:5000'
@@ -45,8 +48,16 @@ import {
   AlertCircle,
   TrendingUp,
   ArrowRight,
-  Award
+  Award,
+  Trophy,
+  BarChart3,
+  Zap,
+  Target,
+  Brain,
+  Volume2,
+  VolumeX
 } from 'lucide-react'
+import { useMobileEnhancements, useHaptic, useVoiceGuidance, useAccessibility } from './hooks/useMobileEnhancements'
 import { MOCK_SOFTWARE_ENGINEER_JOBS } from './mockSoftwareEngineerJobs'
 
 // API Job interface from backend
@@ -267,6 +278,52 @@ export default function AdvancedJobSearch() {
   const [showCompanyProfileModal, setShowCompanyProfileModal] = useState(false)
   const [companyProfileData, setCompanyProfileData] = useState<any>(null)
   const [companyProfileLoading, setCompanyProfileLoading] = useState(false)
+
+  // Enhanced Application System
+  const [showApplicationModal, setShowApplicationModal] = useState(false)
+  const [showApplicationDashboard, setShowApplicationDashboard] = useState(false)
+  const [showGamificationModal, setShowGamificationModal] = useState(false)
+  const [selectedJobForApplication, setSelectedJobForApplication] = useState<Job | null>(null)
+  const [userApplications, setUserApplications] = useState<any[]>([])
+  const [userProfile, setUserProfile] = useState<any>(null)
+  const [userStats, setUserStats] = useState({
+    level: 5,
+    xp: 1250,
+    xpToNext: 750,
+    applicationsThisWeek: 3,
+    streakDays: 7,
+    profileCompleteness: 85,
+    interviewsCompleted: 2,
+    totalApplications: 12
+  })
+  const [achievements, setAchievements] = useState<any[]>([
+    {
+      id: 'first_app',
+      title: 'First Step',
+      description: 'Submit your first job application',
+      icon: '🎯',
+      category: 'application',
+      rarity: 'common',
+      unlockedDate: new Date().toISOString(),
+      reward: '+100 XP'
+    },
+    {
+      id: 'profile_complete',
+      title: 'Profile Master',
+      description: 'Complete your profile to 100%',
+      icon: '⭐',
+      category: 'profile',
+      rarity: 'rare',
+      progress: 85,
+      maxProgress: 100
+    }
+  ])
+
+  // Mobile and Accessibility Enhancements
+  const { isMobile, hasTouch } = useMobileEnhancements()
+  const { lightTap, success, error } = useHaptic()
+  const { speak, isEnabled: voiceEnabled, toggle: toggleVoice } = useVoiceGuidance()
+  const { highContrast, largeText, announceToScreenReader } = useAccessibility()
 
   // Hooks for scroll management (AFTER all state declarations)
   const { saveScrollPosition, restoreScrollPosition } = useScrollPositionMemory('jobListScroll')
@@ -709,15 +766,73 @@ export default function AdvancedJobSearch() {
   }
 
   const handleApply = (job: Job) => {
+    lightTap() // Haptic feedback
+    
     if (isAuthenticated) {
-      // User is already signed in, apply directly
-      console.log('User authenticated, applying for job:', job.id)
-      // TODO: Call API to submit application
-      alert(`Application submitted for ${job.title}`)
+      // User is already signed in, open advanced application modal
+      setSelectedJobForApplication(job)
+      setShowApplicationModal(true)
+      announceToScreenReader(`Opening smart application for ${job.title} at ${job.company}`)
+      speak(`Starting application process for ${job.title}`)
     } else {
       // User not signed in, show signin modal
       setShowSignInModal(true)
+      speak('Please sign in to apply for jobs')
     }
+  }
+
+  const handleApplicationSubmit = async (applicationData: any) => {
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      // Add to user applications
+      const newApplication = {
+        id: Date.now().toString(),
+        jobTitle: selectedJobForApplication?.title,
+        company: selectedJobForApplication?.company,
+        location: selectedJobForApplication?.location,
+        appliedDate: new Date().toISOString(),
+        status: 'submitted',
+        matchScore: 87,
+        aiTips: [
+          'Your profile matches 87% of the requirements',
+          'Consider adding React certification to improve your chances',
+          'Follow up in 3-5 business days for best results'
+        ]
+      }
+      
+      setUserApplications(prev => [newApplication, ...prev])
+      
+      // Update stats and achievements
+      setUserStats(prev => ({
+        ...prev,
+        totalApplications: prev.totalApplications + 1,
+        applicationsThisWeek: prev.applicationsThisWeek + 1,
+        xp: prev.xp + 100
+      }))
+      
+      // Success feedback
+      success()
+      announceToScreenReader(`Application submitted successfully for ${selectedJobForApplication?.title}`)
+      speak('Application submitted successfully! You earned 100 XP.')
+      
+    } catch (error) {
+      console.error(error);
+      throw error
+    }
+  }
+
+  const handleClaimReward = (achievementId: string) => {
+    setAchievements(prev => 
+      prev.map(achievement => 
+        achievement.id === achievementId 
+          ? { ...achievement, claimed: true }
+          : achievement
+      )
+    )
+    success()
+    speak('Reward claimed successfully!')
   }
 
   const handleClearFilters = () => {
@@ -845,9 +960,51 @@ export default function AdvancedJobSearch() {
 
             {/* ===== FLOATING BUTTONS (RIGHT BOTTOM CORNER) ===== */}
             <div className="fixed bottom-6 right-6 z-20 flex flex-col gap-3">
+              {/* Application Dashboard Button */}
+              {isAuthenticated && (
+                <button
+                  onClick={() => {
+                    lightTap()
+                    setShowApplicationDashboard(true)
+                    speak('Opening application dashboard')
+                  }}
+                  className="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                  title="Application Dashboard"
+                >
+                  <BarChart3 className="h-5 w-5" />
+                  {userApplications.length > 0 && (
+                    <span className="bg-white text-blue-600 text-xs font-bold rounded-full px-2 py-0.5">
+                      {userApplications.length}
+                    </span>
+                  )}
+                </button>
+              )}
+              
+              {/* Gamification Button */}
+              {isAuthenticated && (
+                <button
+                  onClick={() => {
+                    lightTap()
+                    setShowGamificationModal(true)
+                    speak(`Opening career quest. You are level ${userStats.level}`)
+                  }}
+                  className="flex items-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                  title="Career Quest"
+                >
+                  <Trophy className="h-5 w-5" />
+                  <span className="bg-white text-purple-600 text-xs font-bold rounded-full px-2 py-0.5">
+                    {userStats.level}
+                  </span>
+                </button>
+              )}
+              
               {/* Saved Jobs Button */}
               <button
-                onClick={() => setShowSavedJobs(!showSavedJobs)}
+                onClick={() => {
+                  lightTap()
+                  setShowSavedJobs(!showSavedJobs)
+                  speak(showSavedJobs ? 'Closing saved jobs' : `Opening saved jobs. You have ${savedJobs.length} saved jobs`)
+                }}
                 aria-expanded={showSavedJobs}
                 aria-controls="saved-jobs-panel"
                 className="flex items-center gap-2 px-4 py-3 bg-amber-700 hover:bg-amber-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
@@ -860,9 +1017,13 @@ export default function AdvancedJobSearch() {
                 )}
               </button>
 
-              {/* Filter Button */}
+              {/* Enhanced Filter Button with Voice */}
               <button
-                onClick={() => setShowFilters(!showFilters)}
+                onClick={() => {
+                  lightTap()
+                  setShowFilters(!showFilters)
+                  speak(showFilters ? 'Closing filters' : `Opening filters. ${activeFilterCount} filters active`)
+                }}
                 aria-expanded={showFilters}
                 aria-controls="filter-panel"
                 className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold relative"
@@ -882,7 +1043,7 @@ export default function AdvancedJobSearch() {
               </button>
             </div>
 
-            {/* ===== EXPANDABLE FILTER PANEL (RIGHT SIDE) ===== */}
+            {/* ===== EXPANDABLE FILTER PANEL (RIGHT SIDE BELOW HEADER) ===== */}
             {showFilters && (
               <>
                 {/* Backdrop */}
@@ -1222,7 +1383,7 @@ export default function AdvancedJobSearch() {
                       ))}
                     </ul>
                   </div>
- {/* Skills */}
+                  {/* Skills */}
                   {selectedJob.skills && selectedJob.skills.length > 0 && (
                     <div>
                       <h2 className="text-lg font-bold text-gray-900 mb-3">Required Skills</h2>
@@ -1254,7 +1415,6 @@ export default function AdvancedJobSearch() {
                     </div>
                   )}
 
-                 
                   {/* Custom Sections */}
                   {selectedJob.customSections && selectedJob.customSections.length > 0 && (
                     <>
@@ -1300,12 +1460,12 @@ export default function AdvancedJobSearch() {
                     <LogIn className="h-5 w-5" />
                     {isAuthenticated ? 'Apply Now' : 'Sign In to Apply'}
                   </Button>
-                  <Button
+                  {/* <Button
                     variant="outline"
                     className="h-12 px-6 rounded-lg"
                   >
                     Learn More
-                  </Button>
+                  </Button> */}
                 </div>
               </>
             ) : (
@@ -1425,6 +1585,37 @@ export default function AdvancedJobSearch() {
           </div>
         </div>
       )}
+
+      {/* Enhanced Application Modal */}
+      {selectedJobForApplication && (
+        <ApplicationModal
+          job={selectedJobForApplication}
+          isOpen={showApplicationModal}
+          onClose={() => {
+            setShowApplicationModal(false)
+            setSelectedJobForApplication(null)
+          }}
+          onSubmit={handleApplicationSubmit}
+          userProfile={userProfile}
+          isAuthenticated={isAuthenticated}
+        />
+      )}
+
+      {/* Application Dashboard */}
+      <ApplicationDashboard
+        isOpen={showApplicationDashboard}
+        onClose={() => setShowApplicationDashboard(false)}
+        applications={userApplications}
+      />
+
+      {/* Gamification System */}
+      <GamificationSystem
+        isOpen={showGamificationModal}
+        onClose={() => setShowGamificationModal(false)}
+        userStats={userStats}
+        achievements={achievements}
+        onClaimReward={handleClaimReward}
+      />
     </div>
   )
 }
