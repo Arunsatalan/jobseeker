@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+<<<<<<< HEAD
 import {
   Brain,
   CheckCircle2,
@@ -25,6 +26,27 @@ import {
   TrendingUp,
   User,
   X,
+=======
+import { 
+  Brain, 
+  CheckCircle2, 
+  Clock, 
+  FileText, 
+  Globe, 
+  Linkedin, 
+  Mail, 
+  Mic, 
+  MicOff, 
+  PlayCircle, 
+  RotateCcw, 
+  Send, 
+  Sparkles, 
+  Star, 
+  Target, 
+  TrendingUp, 
+  User, 
+  X, 
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
   Zap,
   Shield,
   Award,
@@ -141,6 +163,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
 
   // Initialize with user profile data
   useEffect(() => {
+<<<<<<< HEAD
     console.log('=== ApplicationModal useEffect ===')
     console.log('isOpen:', isOpen)
     console.log('userProfile:', userProfile)
@@ -151,10 +174,17 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
       generateAICoverLetter()
       performAIAnalysis()
 
+=======
+    if (isOpen && userProfile) {
+      generateAICoverLetter()
+      performAIAnalysis()
+      
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
       // Focus management for accessibility
       setTimeout(() => {
         firstInputRef.current?.focus()
       }, 100)
+<<<<<<< HEAD
     } else if (isOpen && !userProfile) {
       console.error('❌ Modal opened but userProfile is missing!')
       console.log('Creating mock userProfile for testing...')
@@ -173,6 +203,8 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
 
       // Trigger analysis with mock profile
       performAIAnalysis()
+=======
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
     }
   }, [isOpen, userProfile])
 
@@ -189,6 +221,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
   const generateAICoverLetter = async () => {
     if (!userProfile) return
 
+<<<<<<< HEAD
     try {
       const token = localStorage.getItem('token')
       const response = await fetch('http://localhost:5000/api/v1/ai/generate-cover-letter', {
@@ -228,6 +261,15 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
 
       // Fallback to template-based cover letter
       const fallbackCoverLetter = `Dear ${job.company} Hiring Team,
+=======
+    const prompt = `Generate a personalized cover letter for ${userProfile.name} applying for ${job.title} at ${job.company}. 
+    User skills: ${userProfile.skills.join(', ')}
+    Job requirements: ${job.requirements.join(', ')}
+    Keep it concise and professional.`
+
+    // Simulated AI response - in real app, this would call an AI service
+    const mockCoverLetter = `Dear ${job.company} Hiring Team,
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
 
 I am excited to apply for the ${job.title} position. With my background in ${userProfile.skills.slice(0, 3).join(', ')}, I am confident I can contribute effectively to your team.
 
@@ -240,6 +282,7 @@ Thank you for your consideration.
 Best regards,
 ${userProfile.name}`
 
+<<<<<<< HEAD
       setApplicationData(prev => ({
         ...prev,
         coverLetter: fallbackCoverLetter
@@ -247,10 +290,19 @@ ${userProfile.name}`
 
       speak("Cover letter generated successfully")
     }
+=======
+    setApplicationData(prev => ({
+      ...prev,
+      coverLetter: mockCoverLetter
+    }))
+
+    speak("Cover letter generated successfully")
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
   }
 
   // AI resume analysis and optimization
   const performAIAnalysis = async () => {
+<<<<<<< HEAD
     console.log('🔍 performAIAnalysis called')
     console.log('userProfile:', userProfile)
 
@@ -320,20 +372,37 @@ ${userProfile.name}`
       console.error('AI analysis error:', error)
 
       // Fallback to rule-based analysis
+=======
+    if (!userProfile) return
+
+    setIsAnalyzing(true)
+    
+    // Simulate AI analysis
+    setTimeout(() => {
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
       const matchPercentage = Math.floor(Math.random() * 20) + 75 // 75-95%
       const analysis: AIAnalysis = {
         matchPercentage,
         strengths: [
+<<<<<<< HEAD
           `Strong ${profile.skills[0] || 'technical'} skills`,
+=======
+          `Strong ${userProfile.skills[0] || 'technical'} skills`,
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
           'Relevant experience in the field',
           'Good cultural fit based on profile'
         ],
         improvements: [
+<<<<<<< HEAD
           `Consider adding ${job.skills.find(s => !profile.skills.includes(s)) || 'Python'} to your skillset`,
+=======
+          `Consider adding ${job.skills.find(s => !userProfile.skills.includes(s)) || 'Python'} to your skillset`,
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
           'Highlight leadership experience more prominently',
           'Add specific metrics to quantify achievements'
         ],
         optimizedResume: `Optimized resume content with keywords: ${job.skills.slice(0, 3).join(', ')}`,
+<<<<<<< HEAD
         suggestedSkills: job.skills.filter(s => !profile.skills.includes(s)).slice(0, 3)
       }
 
@@ -383,6 +452,24 @@ ${userProfile.name}`
       addAchievement('resume_optimizer')
       speak("Resume optimized with AI suggestions")
     }
+=======
+        suggestedSkills: job.skills.filter(s => !userProfile.skills.includes(s)).slice(0, 3)
+      }
+      
+      setAIAnalysis(analysis)
+      setIsAnalyzing(false)
+      
+      speak(`Resume analysis complete. You have a ${matchPercentage}% match with this position.`)
+    }, 2000)
+  }
+
+  // Optimize resume with AI suggestions
+  const optimizeResume = () => {
+    setResumeOptimized(true)
+    setShowOptimizedResume(true)
+    addAchievement('resume_optimizer')
+    speak("Resume optimized with AI suggestions")
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
   }
 
   // Handle application submission
@@ -409,11 +496,19 @@ ${userProfile.name}`
 
     try {
       await onSubmit(applicationData)
+<<<<<<< HEAD
 
       setSubmitProgress(100)
       setApplicationStatus('success')
       setStatusMessage("Application submitted successfully!")
 
+=======
+      
+      setSubmitProgress(100)
+      setApplicationStatus('success')
+      setStatusMessage("Application submitted successfully!")
+      
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
       // Update gamification stats
       setApplicationCount(prev => prev + 1)
       addAchievement('first_application')
@@ -422,7 +517,11 @@ ${userProfile.name}`
       }
 
       speak("Application submitted successfully! You'll receive updates on your dashboard.")
+<<<<<<< HEAD
 
+=======
+      
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
       // Auto-close after success
       setTimeout(() => {
         onClose()
@@ -469,10 +568,18 @@ ${userProfile.name}`
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+<<<<<<< HEAD
       <div
         ref={modalRef}
         className={`bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto ${highContrast ? 'bg-black text-white border-2 border-yellow-400' : ''
           } ${fontSize === 'large' ? 'text-lg' : fontSize === 'small' ? 'text-sm' : 'text-base'}`}
+=======
+      <div 
+        ref={modalRef}
+        className={`bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto ${
+          highContrast ? 'bg-black text-white border-2 border-yellow-400' : ''
+        } ${fontSize === 'large' ? 'text-lg' : fontSize === 'small' ? 'text-sm' : 'text-base'}`}
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
         role="dialog"
         aria-labelledby="application-modal-title"
         aria-describedby="application-modal-description"
@@ -499,7 +606,11 @@ ${userProfile.name}`
             >
               {isVoiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             </Button>
+<<<<<<< HEAD
 
+=======
+            
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
             <Button
               variant="ghost"
               size="sm"
@@ -525,16 +636,25 @@ ${userProfile.name}`
           <div className="flex items-center justify-between">
             {steps.map((step, index) => (
               <div key={step} className="flex items-center">
+<<<<<<< HEAD
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${index < currentStep ? 'bg-green-600 text-white' :
                   index === currentStep ? 'bg-amber-600 text-white' :
                     'bg-gray-300 text-gray-600'
                   }`}>
+=======
+                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                  index < currentStep ? 'bg-green-600 text-white' :
+                  index === currentStep ? 'bg-amber-600 text-white' :
+                  'bg-gray-300 text-gray-600'
+                }`}>
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                   {index < currentStep ? (
                     <CheckCircle2 className="h-4 w-4" />
                   ) : (
                     index + 1
                   )}
                 </div>
+<<<<<<< HEAD
                 <span className={`ml-2 text-sm ${index === currentStep ? 'font-semibold text-gray-900' : 'text-gray-600'
                   }`}>
                   {step}
@@ -542,6 +662,17 @@ ${userProfile.name}`
                 {index < steps.length - 1 && (
                   <div className={`ml-4 w-12 h-0.5 ${index < currentStep ? 'bg-green-600' : 'bg-gray-300'
                     }`} />
+=======
+                <span className={`ml-2 text-sm ${
+                  index === currentStep ? 'font-semibold text-gray-900' : 'text-gray-600'
+                }`}>
+                  {step}
+                </span>
+                {index < steps.length - 1 && (
+                  <div className={`ml-4 w-12 h-0.5 ${
+                    index < currentStep ? 'bg-green-600' : 'bg-gray-300'
+                  }`} />
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                 )}
               </div>
             ))}
@@ -575,7 +706,11 @@ ${userProfile.name}`
                       </div>
                       <p className="text-gray-700">Profile Match</p>
                       <div className="w-full bg-gray-200 rounded-full h-3 mt-3">
+<<<<<<< HEAD
                         <div
+=======
+                        <div 
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                           className="bg-green-600 h-3 rounded-full transition-all duration-1000"
                           style={{ width: `${aiAnalysis.matchPercentage}%` }}
                         />
@@ -636,7 +771,11 @@ ${userProfile.name}`
               ) : null}
 
               <div className="flex justify-end">
+<<<<<<< HEAD
                 <Button
+=======
+                <Button 
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                   onClick={() => setCurrentStep(1)}
                   disabled={!aiAnalysis}
                   className="bg-amber-600 hover:bg-amber-700"
@@ -701,7 +840,11 @@ ${userProfile.name}`
                 <Button variant="outline" onClick={() => setCurrentStep(0)}>
                   Back
                 </Button>
+<<<<<<< HEAD
                 <Button
+=======
+                <Button 
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                   onClick={() => setCurrentStep(2)}
                   className="bg-amber-600 hover:bg-amber-700"
                 >
@@ -765,7 +908,11 @@ ${userProfile.name}`
                 <Button variant="outline" onClick={() => setCurrentStep(1)}>
                   Back
                 </Button>
+<<<<<<< HEAD
                 <Button
+=======
+                <Button 
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                   onClick={() => setCurrentStep(3)}
                   className="bg-amber-600 hover:bg-amber-700"
                 >
@@ -785,9 +932,16 @@ ${userProfile.name}`
 
               <div className="grid gap-4">
                 {/* Direct Application */}
+<<<<<<< HEAD
                 <Card
                   className={`p-6 cursor-pointer border-2 transition-all ${applicationData.platform === 'direct' ? 'border-amber-600 bg-amber-50' : 'border-gray-200 hover:border-gray-300'
                     }`}
+=======
+                <Card 
+                  className={`p-6 cursor-pointer border-2 transition-all ${
+                    applicationData.platform === 'direct' ? 'border-amber-600 bg-amber-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                   onClick={() => setApplicationData(prev => ({ ...prev, platform: 'direct' }))}
                 >
                   <div className="flex items-center gap-4">
@@ -803,9 +957,16 @@ ${userProfile.name}`
                 </Card>
 
                 {/* LinkedIn Easy Apply */}
+<<<<<<< HEAD
                 <Card
                   className={`p-6 cursor-pointer border-2 transition-all ${applicationData.platform === 'linkedin' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
                     }`}
+=======
+                <Card 
+                  className={`p-6 cursor-pointer border-2 transition-all ${
+                    applicationData.platform === 'linkedin' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                   onClick={() => setApplicationData(prev => ({ ...prev, platform: 'linkedin' }))}
                 >
                   <div className="flex items-center gap-4">
@@ -821,9 +982,16 @@ ${userProfile.name}`
                 </Card>
 
                 {/* Email Application */}
+<<<<<<< HEAD
                 <Card
                   className={`p-6 cursor-pointer border-2 transition-all ${applicationData.platform === 'email' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
                     }`}
+=======
+                <Card 
+                  className={`p-6 cursor-pointer border-2 transition-all ${
+                    applicationData.platform === 'email' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                   onClick={() => setApplicationData(prev => ({ ...prev, platform: 'email' }))}
                 >
                   <div className="flex items-center gap-4">
@@ -843,7 +1011,11 @@ ${userProfile.name}`
                 <Button variant="outline" onClick={() => setCurrentStep(2)}>
                   Back
                 </Button>
+<<<<<<< HEAD
                 <Button
+=======
+                <Button 
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                   onClick={() => setCurrentStep(4)}
                   className="bg-amber-600 hover:bg-amber-700"
                 >
@@ -890,7 +1062,11 @@ ${userProfile.name}`
                   <Shield className="h-5 w-5 text-blue-600" />
                   Privacy & Data Usage
                 </h4>
+<<<<<<< HEAD
 
+=======
+                
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                 <div className="space-y-3">
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
@@ -934,7 +1110,11 @@ ${userProfile.name}`
                     <div className="flex-1">
                       <p className="font-medium text-amber-800">{statusMessage}</p>
                       <div className="w-full bg-amber-200 rounded-full h-2 mt-2">
+<<<<<<< HEAD
                         <div
+=======
+                        <div 
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                           className="bg-amber-600 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${submitProgress}%` }}
                         />
@@ -950,16 +1130,26 @@ ${userProfile.name}`
                     <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-3" />
                     <h4 className="font-semibold text-green-800 mb-2">Application Submitted Successfully!</h4>
                     <p className="text-green-700 text-sm mb-4">{statusMessage}</p>
+<<<<<<< HEAD
 
+=======
+                    
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                     {/* Achievement Notifications */}
                     {achievements.length > 0 && (
                       <div className="space-y-2">
                         {achievements.map(achievement => (
                           <Badge key={achievement} className="bg-yellow-100 text-yellow-800 border-yellow-300">
                             <Award className="h-3 w-3 mr-1" />
+<<<<<<< HEAD
                             {achievement === 'first_application' ? 'First Application!' :
                               achievement === 'application_streak' ? 'Application Streak!' :
                                 achievement === 'resume_optimizer' ? 'AI Optimizer!' : 'Achievement Unlocked!'}
+=======
+                            {achievement === 'first_application' ? 'First Application!' : 
+                             achievement === 'application_streak' ? 'Application Streak!' :
+                             achievement === 'resume_optimizer' ? 'AI Optimizer!' : 'Achievement Unlocked!'}
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                           </Badge>
                         ))}
                       </div>
@@ -982,7 +1172,11 @@ ${userProfile.name}`
                 <Button variant="outline" onClick={() => setCurrentStep(3)} disabled={isSubmitting}>
                   Back
                 </Button>
+<<<<<<< HEAD
                 <Button
+=======
+                <Button 
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                   onClick={handleSubmit}
                   disabled={!applicationData.privacyConsent || isSubmitting}
                   className="bg-green-600 hover:bg-green-700"
@@ -1020,8 +1214,13 @@ ${userProfile.name}`
               </div>
               <div className="flex items-center gap-2">
                 <Languages className="h-4 w-4 text-gray-500" />
+<<<<<<< HEAD
                 <select
                   value={currentLanguage}
+=======
+                <select 
+                  value={currentLanguage} 
+>>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                   onChange={(e) => setCurrentLanguage(e.target.value)}
                   className="bg-transparent text-sm"
                 >
