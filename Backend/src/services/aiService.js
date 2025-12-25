@@ -10,24 +10,19 @@ class AIService {
 
     /**
      * Analyze user profile against job requirements
-     * @param {Object} userProfile - User profile data
-     * @param {Object} job - Job details
-     * @returns {Promise<Object>} AI analysis results
+     * @param {any} userProfile - User profile data
+     * @param {any} job - Job details
+     * @returns {Promise<any>} AI analysis results
      */
     async analyzeProfileMatch(userProfile, job) {
         try {
             if (!this.apiKey) {
-                logger.warn('⚠️  OpenAI API key not configured, using fallback analysis');
-                console.log('⚠️  FALLBACK MODE: No API key found');
-                return this.getFallbackAnalysis(userProfile, job);
+                throw new Error('OpenAI API key is missing. Please check your .env file.');
             }
 
-            logger.info('✅ OpenAI API key found, calling GPT API for profile analysis');
-            console.log('✅ REAL GPT MODE: Making API call to OpenAI');
-
+            logger.info('✅ Calling REAL GPT for profile analysis');
             const prompt = this.buildProfileAnalysisPrompt(userProfile, job);
 
-            console.log('📤 Sending request to OpenAI API...');
             const response = await axios.post(
                 this.apiUrl,
                 {
@@ -56,30 +51,29 @@ class AIService {
 
             const analysis = JSON.parse(response.data.choices[0].message.content);
             logger.info('✅ AI profile analysis completed successfully');
-            console.log('✅ GPT API Response received:', analysis);
-
             return analysis;
         } catch (error) {
-            logger.error('❌ AI profile analysis failed:', error.message);
-            console.error('❌ GPT API Error:', error.response?.data || error.message);
+            const err = error;
+            const openAiError = err.response?.data?.error;
 
-            // Fallback to rule-based analysis if API fails
-            console.log('⚠️  Falling back to rule-based analysis');
-            return this.getFallbackAnalysis(userProfile, job);
+            if (openAiError) {
+                logger.error(`❌ OpenAI API Error: ${openAiError.message}`);
+                // Throw the REAL error so the user knows exactly what is wrong (e.g., Quota Exceeded)
+                throw new Error(`AI Service Error: ${openAiError.message}`);
+            }
+
+            logger.error(`❌ AI Analysis failed: ${err.message}`);
+            throw err;
         }
     }
 
     /**
      * Generate optimized resume content
-     * @param {Object} userProfile - User profile data
-     * @param {Object} job - Job details
-     * @returns {Promise<Object>} Optimized resume suggestions
      */
     async optimizeResume(userProfile, job) {
         try {
             if (!this.apiKey) {
-                logger.warn('OpenAI API key not configured, using fallback optimization');
-                return this.getFallbackOptimization(userProfile, job);
+                throw new Error('OpenAI API key is missing');
             }
 
             const prompt = this.buildResumeOptimizationPrompt(userProfile, job);
@@ -110,29 +104,20 @@ class AIService {
                 }
             );
 
-            const optimization = JSON.parse(response.data.choices[0].message.content);
-            logger.info('AI resume optimization completed successfully');
-
-            return optimization;
+            return JSON.parse(response.data.choices[0].message.content);
         } catch (error) {
-            logger.error('AI resume optimization failed:', error.message);
-
-            // Fallback to rule-based optimization if API fails
-            return this.getFallbackOptimization(userProfile, job);
+            const err = error;
+            throw new Error(`Resume Optimization Error: ${err.response?.data?.error?.message || err.message}`);
         }
     }
 
     /**
      * Generate personalized cover letter
-     * @param {Object} userProfile - User profile data
-     * @param {Object} job - Job details
-     * @returns {Promise<string>} Generated cover letter
      */
     async generateCoverLetter(userProfile, job) {
         try {
             if (!this.apiKey) {
-                logger.warn('OpenAI API key not configured, using fallback cover letter');
-                return this.getFallbackCoverLetter(userProfile, job);
+                throw new Error('OpenAI API key is missing');
             }
 
             const prompt = this.buildCoverLetterPrompt(userProfile, job);
@@ -162,15 +147,10 @@ class AIService {
                 }
             );
 
-            const coverLetter = response.data.choices[0].message.content.trim();
-            logger.info('AI cover letter generated successfully');
-
-            return coverLetter;
+            return response.data.choices[0].message.content.trim();
         } catch (error) {
-            logger.error('AI cover letter generation failed:', error.message);
-
-            // Fallback to template-based cover letter if API fails
-            return this.getFallbackCoverLetter(userProfile, job);
+            const err = error;
+            throw new Error(`Cover Letter Error: ${err.response?.data?.error?.message || err.message}`);
         }
     }
 
@@ -258,83 +238,6 @@ Write a concise, professional cover letter (250-300 words) that:
 4. Closes with a call to action
 
 Use a professional but warm tone. Do not include placeholder text or brackets.`;
-    }
-
-    /**
-     * Fallback analysis when API is unavailable
-     */
-    getFallbackAnalysis(userProfile, job) {
-        const userSkills = new Set(userProfile.skills?.map(s => s.toLowerCase()) || []);
-        const jobSkills = new Set(job.skills?.map(s => s.toLowerCase()) || []);
-
-        // Calculate match based on skill overlap
-        const matchingSkills = [...userSkills].filter(skill => jobSkills.has(skill));
-        const matchPercentage = Math.min(95, Math.max(60,
-            Math.round((matchingSkills.length / Math.max(jobSkills.size, 1)) * 100)
-        ));
-
-        const missingSkills = [...jobSkills].filter(skill => !userSkills.has(skill)).slice(0, 3);
-
-        return {
-            matchPercentage,
-            strengths: [
-                `Strong ${userProfile.skills?.[0] || 'technical'} skills`,
-                'Relevant experience in the field',
-                'Good cultural fit based on profile'
-            ],
-            improvements: [
-                missingSkills.length > 0 ? `Consider adding ${missingSkills[0]} to your skillset` : 'Highlight leadership experience more prominently',
-                'Add specific metrics to quantify achievements',
-                'Tailor your summary to this specific role'
-            ],
-            suggestedSkills: missingSkills.length > 0 ? missingSkills : ['Python', 'Communication', 'Project Management'],
-            detailedAnalysis: `Your profile shows a ${matchPercentage}% match with this position. You have strong foundational skills, and with some targeted improvements, you would be an excellent candidate.`
-        };
-    }
-
-    /**
-     * Fallback optimization when API is unavailable
-     */
-    getFallbackOptimization(userProfile, job) {
-        const jobKeywords = [...new Set([
-            ...job.skills || [],
-            ...job.requirements?.flatMap(r => r.split(' ').filter(w => w.length > 4)) || []
-        ])].slice(0, 10);
-
-        return {
-            optimizedSummary: `${userProfile.summary || 'Experienced professional'} with expertise in ${job.skills?.slice(0, 3).join(', ')}. Proven track record in delivering results and contributing to team success.`,
-            keywordSuggestions: jobKeywords,
-            experienceImprovements: [
-                'Add specific metrics and numbers to quantify achievements',
-                'Use action verbs to start each bullet point',
-                'Align experience descriptions with job requirements'
-            ],
-            skillsToHighlight: job.skills?.slice(0, 5) || [],
-            formattingTips: [
-                'Use consistent formatting throughout',
-                'Keep bullet points concise (1-2 lines)',
-                'Ensure proper use of white space for readability'
-            ],
-            atsScore: 75
-        };
-    }
-
-    /**
-     * Fallback cover letter when API is unavailable
-     */
-    getFallbackCoverLetter(userProfile, job) {
-        return `Dear ${job.company} Hiring Team,
-
-I am excited to apply for the ${job.title} position at ${job.company}. With my background in ${userProfile.skills?.slice(0, 3).join(', ') || 'relevant technologies'}, I am confident I can contribute effectively to your team.
-
-My experience includes ${userProfile.experience?.[0] || 'relevant industry experience'}, which aligns well with your requirements for ${job.requirements?.[0] || 'this role'}. I am particularly drawn to ${job.company} because of your reputation for innovation and commitment to excellence.
-
-I have developed strong skills in ${userProfile.skills?.slice(0, 2).join(' and ') || 'key areas'}, which I believe would be valuable assets to your organization. I am eager to bring my expertise and passion to contribute to your team's success.
-
-I would welcome the opportunity to discuss how my skills and experience align with your needs. Thank you for considering my application.
-
-Best regards,
-${userProfile.name || 'Applicant'}`;
     }
 }
 

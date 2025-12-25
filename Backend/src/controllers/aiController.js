@@ -3,7 +3,92 @@ const { sendSuccess, sendError } = require('../utils/response');
 const aiService = require('../services/aiService');
 const Job = require('../models/Job');
 const User = require('../models/User');
+const JobSeeker = require('../models/JobSeeker');
+const Resume = require('../models/Resume');
 const logger = require('../utils/logger');
+
+/**
+ * Merges profile data from multiple sources (provided, User, JobSeeker, Resume)
+ */
+const getComprehensiveProfile = async (userId, providedProfile) => {
+    console.log('🔄 Gathering comprehensive profile for user:', userId);
+
+    // Start with provided profile or basic User info
+    const user = await User.findById(userId);
+    let profile = {
+        name: providedProfile?.name || (user ? `${user.firstName} ${user.lastName}` : 'Anonymous'),
+        email: providedProfile?.email || user?.email || '',
+        skills: providedProfile?.skills || [],
+        experience: providedProfile?.experience || [],
+        education: providedProfile?.education || [],
+        summary: providedProfile?.summary || user?.bio || ''
+    };
+
+    // 1. Enrich from JobSeeker collection
+    const jobSeeker = await JobSeeker.findOne({ user: userId });
+    if (jobSeeker) {
+        console.log('✅ Found JobSeeker records');
+        // Merge skills
+        if (jobSeeker.skills?.length > 0) {
+            profile.skills = [...new Set([...profile.skills, ...jobSeeker.skills])];
+        }
+        // Merge summary/headline
+        if (jobSeeker.headline && (!profile.summary || profile.summary.length < jobSeeker.headline.length)) {
+            profile.summary = jobSeeker.headline;
+        }
+        // Merge experience
+        if (jobSeeker.experience && !profile.experience.includes(jobSeeker.experience)) {
+            profile.experience.push(jobSeeker.experience);
+        }
+    }
+
+    // 2. Enrich from all user Resumes (prioritizing primary)
+    const resumes = await Resume.find({ user: userId }).sort({ isPrimary: -1, createdAt: -1 });
+
+    if (resumes.length > 0) {
+        console.log(`✅ Found ${resumes.length} resume(s)`);
+        resumes.forEach(resume => {
+            if (resume.parsedData) {
+                const { parsedData } = resume;
+
+                // Merge experience
+                if (parsedData.experience && Array.isArray(parsedData.experience)) {
+                    const formattedExp = parsedData.experience.map(exp =>
+                        `${exp.role || 'Professional'} at ${exp.company || 'Unknown'} (${exp.startDate || ''} - ${exp.endDate || 'Present'}): ${exp.description || ''}`
+                    );
+                    profile.experience = [...new Set([...profile.experience, ...formattedExp])];
+                }
+
+                // Merge skills from parsed resume
+                if (parsedData.skills && Array.isArray(parsedData.skills)) {
+                    parsedData.skills.forEach(skillCategory => {
+                        if (skillCategory.items && Array.isArray(skillCategory.items)) {
+                            profile.skills = [...new Set([...profile.skills, ...skillCategory.items])];
+                        }
+                    });
+                }
+
+                // Legacy skills
+                if (parsedData.skills_legacy && Array.isArray(parsedData.skills_legacy)) {
+                    profile.skills = [...new Set([...profile.skills, ...parsedData.skills_legacy])];
+                }
+
+                // Merge summary
+                if (parsedData.summary && (!profile.summary || profile.summary.length < parsedData.summary.length)) {
+                    profile.summary = parsedData.summary;
+                }
+            }
+        });
+    }
+
+    console.log('📊 Final Profile Context:', {
+        skillsCount: profile.skills.length,
+        experienceLines: profile.experience.length,
+        summaryLength: profile.summary?.length || 0
+    });
+
+    return profile;
+};
 
 // @desc Analyze profile match with job
 // @route POST /api/v1/ai/analyze-profile
@@ -21,23 +106,8 @@ exports.analyzeProfile = asyncHandler(async (req, res, next) => {
         return sendError(res, 404, 'Job not found');
     }
 
-    // Use provided profile or fetch from user
-    let profile = userProfile;
-    if (!profile) {
-        const user = await User.findById(req.user._id);
-        profile = {
-            name: `${user.firstName} ${user.lastName}`,
-            email: user.email,
-            skills: user.skills || [],
-            experience: user.experience?.map(exp =>
-                `${exp.title} at ${exp.company} (${exp.duration || 'N/A'})`
-            ) || [],
-            education: user.education?.map(edu =>
-                `${edu.degree} in ${edu.field} from ${edu.institution}`
-            ) || [],
-            summary: user.summary || user.bio || ''
-        };
-    }
+    // Get comprehensive profile data
+    const profile = await getComprehensiveProfile(req.user._id, userProfile);
 
     try {
         // Perform AI analysis
@@ -54,7 +124,7 @@ exports.analyzeProfile = asyncHandler(async (req, res, next) => {
         return sendSuccess(res, 200, 'Profile analysis completed', analysis);
     } catch (error) {
         logger.error('Profile analysis error:', error);
-        return sendError(res, 500, 'Failed to analyze profile');
+        return sendError(res, 500, error.message || 'Failed to analyze profile');
     }
 });
 
@@ -74,23 +144,8 @@ exports.optimizeResume = asyncHandler(async (req, res, next) => {
         return sendError(res, 404, 'Job not found');
     }
 
-    // Use provided profile or fetch from user
-    let profile = userProfile;
-    if (!profile) {
-        const user = await User.findById(req.user._id);
-        profile = {
-            name: `${user.firstName} ${user.lastName}`,
-            email: user.email,
-            skills: user.skills || [],
-            experience: user.experience?.map(exp =>
-                `${exp.title} at ${exp.company} (${exp.duration || 'N/A'})`
-            ) || [],
-            education: user.education?.map(edu =>
-                `${edu.degree} in ${edu.field} from ${edu.institution}`
-            ) || [],
-            summary: user.summary || user.bio || ''
-        };
-    }
+    // Get comprehensive profile data
+    const profile = await getComprehensiveProfile(req.user._id, userProfile);
 
     try {
         // Perform AI optimization
@@ -107,7 +162,7 @@ exports.optimizeResume = asyncHandler(async (req, res, next) => {
         return sendSuccess(res, 200, 'Resume optimization completed', optimization);
     } catch (error) {
         logger.error('Resume optimization error:', error);
-        return sendError(res, 500, 'Failed to optimize resume');
+        return sendError(res, 500, error.message || 'Failed to optimize resume');
     }
 });
 
@@ -127,23 +182,8 @@ exports.generateCoverLetter = asyncHandler(async (req, res, next) => {
         return sendError(res, 404, 'Job not found');
     }
 
-    // Use provided profile or fetch from user
-    let profile = userProfile;
-    if (!profile) {
-        const user = await User.findById(req.user._id);
-        profile = {
-            name: `${user.firstName} ${user.lastName}`,
-            email: user.email,
-            skills: user.skills || [],
-            experience: user.experience?.map(exp =>
-                `${exp.title} at ${exp.company} (${exp.duration || 'N/A'})`
-            ) || [],
-            education: user.education?.map(edu =>
-                `${edu.degree} in ${edu.field} from ${edu.institution}`
-            ) || [],
-            summary: user.summary || user.bio || ''
-        };
-    }
+    // Get comprehensive profile data
+    const profile = await getComprehensiveProfile(req.user._id, userProfile);
 
     try {
         // Generate cover letter
@@ -160,7 +200,7 @@ exports.generateCoverLetter = asyncHandler(async (req, res, next) => {
         return sendSuccess(res, 200, 'Cover letter generated', { coverLetter });
     } catch (error) {
         logger.error('Cover letter generation error:', error);
-        return sendError(res, 500, 'Failed to generate cover letter');
+        return sendError(res, 500, error.message || 'Failed to generate cover letter');
     }
 });
 
@@ -180,23 +220,8 @@ exports.smartApply = asyncHandler(async (req, res, next) => {
         return sendError(res, 404, 'Job not found');
     }
 
-    // Use provided profile or fetch from user
-    let profile = userProfile;
-    if (!profile) {
-        const user = await User.findById(req.user._id);
-        profile = {
-            name: `${user.firstName} ${user.lastName}`,
-            email: user.email,
-            skills: user.skills || [],
-            experience: user.experience?.map(exp =>
-                `${exp.title} at ${exp.company} (${exp.duration || 'N/A'})`
-            ) || [],
-            education: user.education?.map(edu =>
-                `${edu.degree} in ${edu.field} from ${edu.institution}`
-            ) || [],
-            summary: user.summary || user.bio || ''
-        };
-    }
+    // Get comprehensive profile data
+    const profile = await getComprehensiveProfile(req.user._id, userProfile);
 
     const jobData = {
         title: job.title,
@@ -223,6 +248,6 @@ exports.smartApply = asyncHandler(async (req, res, next) => {
         });
     } catch (error) {
         logger.error('Smart apply error:', error);
-        return sendError(res, 500, 'Failed to complete smart apply analysis');
+        return sendError(res, 500, error.message || 'Failed to complete smart apply analysis');
     }
 });

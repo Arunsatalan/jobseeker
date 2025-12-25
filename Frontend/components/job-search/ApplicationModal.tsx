@@ -6,7 +6,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-<<<<<<< HEAD
 import {
   Brain,
   CheckCircle2,
@@ -26,27 +25,6 @@ import {
   TrendingUp,
   User,
   X,
-=======
-import { 
-  Brain, 
-  CheckCircle2, 
-  Clock, 
-  FileText, 
-  Globe, 
-  Linkedin, 
-  Mail, 
-  Mic, 
-  MicOff, 
-  PlayCircle, 
-  RotateCcw, 
-  Send, 
-  Sparkles, 
-  Star, 
-  Target, 
-  TrendingUp, 
-  User, 
-  X, 
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
   Zap,
   Shield,
   Award,
@@ -163,48 +141,14 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
 
   // Initialize with user profile data
   useEffect(() => {
-<<<<<<< HEAD
-    console.log('=== ApplicationModal useEffect ===')
-    console.log('isOpen:', isOpen)
-    console.log('userProfile:', userProfile)
-    console.log('job:', job)
-
-    if (isOpen && userProfile) {
-      console.log('✅ Starting AI analysis with userProfile:', userProfile.name)
-      generateAICoverLetter()
-      performAIAnalysis()
-
-=======
     if (isOpen && userProfile) {
       generateAICoverLetter()
       performAIAnalysis()
-      
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
+
       // Focus management for accessibility
       setTimeout(() => {
         firstInputRef.current?.focus()
       }, 100)
-<<<<<<< HEAD
-    } else if (isOpen && !userProfile) {
-      console.error('❌ Modal opened but userProfile is missing!')
-      console.log('Creating mock userProfile for testing...')
-
-      // Create a basic profile if missing
-      const mockProfile = {
-        name: 'Test User',
-        email: 'test@example.com',
-        phone: '',
-        location: '',
-        summary: 'Experienced professional',
-        skills: ['JavaScript', 'React', 'Node.js'],
-        experience: ['Software Developer with 3+ years experience'],
-        education: ['Bachelor of Computer Science']
-      }
-
-      // Trigger analysis with mock profile
-      performAIAnalysis()
-=======
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
     }
   }, [isOpen, userProfile])
 
@@ -221,7 +165,6 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
   const generateAICoverLetter = async () => {
     if (!userProfile) return
 
-<<<<<<< HEAD
     try {
       const token = localStorage.getItem('token')
       const response = await fetch('http://localhost:5000/api/v1/ai/generate-cover-letter', {
@@ -244,8 +187,6 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
       })
 
       const data = await response.json()
-      console.log('Cover letter API response:', data)
-
       if (data.success && data.data.coverLetter) {
         setApplicationData(prev => ({
           ...prev,
@@ -253,83 +194,28 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
         }))
         speak("Cover letter generated successfully")
       } else {
-        console.error('Cover letter generation failed:', data)
         throw new Error(data.message || 'Failed to generate cover letter')
       }
     } catch (error) {
       console.error('Cover letter generation error:', error)
-
-      // Fallback to template-based cover letter
+      // Fallback
       const fallbackCoverLetter = `Dear ${job.company} Hiring Team,
-=======
-    const prompt = `Generate a personalized cover letter for ${userProfile.name} applying for ${job.title} at ${job.company}. 
-    User skills: ${userProfile.skills.join(', ')}
-    Job requirements: ${job.requirements.join(', ')}
-    Keep it concise and professional.`
-
-    // Simulated AI response - in real app, this would call an AI service
-    const mockCoverLetter = `Dear ${job.company} Hiring Team,
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-
-I am excited to apply for the ${job.title} position. With my background in ${userProfile.skills.slice(0, 3).join(', ')}, I am confident I can contribute effectively to your team.
-
-My experience includes ${userProfile.experience[0] || 'relevant industry experience'}, which aligns well with your requirements for ${job.requirements[0] || 'this role'}.
-
-I am particularly drawn to ${job.company} because of your reputation for innovation and growth opportunities. I would welcome the chance to discuss how my skills can benefit your team.
-
-Thank you for your consideration.
-
-Best regards,
-${userProfile.name}`
-
-<<<<<<< HEAD
+      
+      I am excited to apply for the ${job.title} position...`
       setApplicationData(prev => ({
         ...prev,
         coverLetter: fallbackCoverLetter
       }))
-
-      speak("Cover letter generated successfully")
     }
-=======
-    setApplicationData(prev => ({
-      ...prev,
-      coverLetter: mockCoverLetter
-    }))
-
-    speak("Cover letter generated successfully")
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
   }
 
   // AI resume analysis and optimization
   const performAIAnalysis = async () => {
-<<<<<<< HEAD
-    console.log('🔍 performAIAnalysis called')
-    console.log('userProfile:', userProfile)
-
-    // Create default profile if missing
-    const profile = userProfile || {
-      name: 'Job Seeker',
-      email: 'user@example.com',
-      phone: '',
-      location: '',
-      summary: 'Experienced professional seeking new opportunities',
-      skills: ['JavaScript', 'React', 'Node.js', 'TypeScript'],
-      experience: ['Software Developer with 3+ years of experience in web development'],
-      education: ['Bachelor of Computer Science']
-    }
-
-    console.log('Using profile:', profile.name)
     setIsAnalyzing(true)
+    setAIAnalysis(null)
 
     try {
       const token = localStorage.getItem('token')
-      console.log('Calling AI analyze-profile API for job:', job.id)
-      console.log('Profile data being sent:', {
-        name: profile.name,
-        skills: profile.skills,
-        experience: profile.experience
-      })
-
       const response = await fetch('http://localhost:5000/api/v1/ai/analyze-profile', {
         method: 'POST',
         headers: {
@@ -338,87 +224,42 @@ ${userProfile.name}`
         },
         body: JSON.stringify({
           jobId: job.id,
-          userProfile: {
-            name: profile.name,
-            email: profile.email,
-            skills: profile.skills,
-            experience: profile.experience,
-            education: profile.education,
-            summary: profile.summary
-          }
+          userProfile: userProfile ? {
+            name: userProfile.name,
+            email: userProfile.email,
+            skills: userProfile.skills,
+            experience: userProfile.experience,
+            education: userProfile.education,
+            summary: userProfile.summary
+          } : null
         })
       })
 
       const data = await response.json()
-      console.log('AI analyze-profile API response:', data)
-
       if (data.success && data.data) {
-        const analysis: AIAnalysis = {
-          matchPercentage: data.data.matchPercentage || 75,
+        setAIAnalysis({
+          matchPercentage: data.data.matchPercentage || 0,
           strengths: data.data.strengths || [],
           improvements: data.data.improvements || [],
           optimizedResume: data.data.detailedAnalysis || '',
           suggestedSkills: data.data.suggestedSkills || []
-        }
-
-        console.log('✅ Setting AI analysis:', analysis)
-        setAIAnalysis(analysis)
-        speak(`Resume analysis complete. You have a ${analysis.matchPercentage}% match with this position.`)
+        })
+        speak(`Resume analysis complete. You have a ${data.data.matchPercentage}% match.`)
       } else {
-        console.error('AI analysis failed:', data)
         throw new Error(data.message || 'Failed to analyze profile')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('AI analysis error:', error)
-
-      // Fallback to rule-based analysis
-=======
-    if (!userProfile) return
-
-    setIsAnalyzing(true)
-    
-    // Simulate AI analysis
-    setTimeout(() => {
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-      const matchPercentage = Math.floor(Math.random() * 20) + 75 // 75-95%
-      const analysis: AIAnalysis = {
-        matchPercentage,
-        strengths: [
-<<<<<<< HEAD
-          `Strong ${profile.skills[0] || 'technical'} skills`,
-=======
-          `Strong ${userProfile.skills[0] || 'technical'} skills`,
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-          'Relevant experience in the field',
-          'Good cultural fit based on profile'
-        ],
-        improvements: [
-<<<<<<< HEAD
-          `Consider adding ${job.skills.find(s => !profile.skills.includes(s)) || 'Python'} to your skillset`,
-=======
-          `Consider adding ${job.skills.find(s => !userProfile.skills.includes(s)) || 'Python'} to your skillset`,
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-          'Highlight leadership experience more prominently',
-          'Add specific metrics to quantify achievements'
-        ],
-        optimizedResume: `Optimized resume content with keywords: ${job.skills.slice(0, 3).join(', ')}`,
-<<<<<<< HEAD
-        suggestedSkills: job.skills.filter(s => !profile.skills.includes(s)).slice(0, 3)
-      }
-
-      console.log('⚠️  Using fallback analysis:', analysis)
-      setAIAnalysis(analysis)
-      speak(`Resume analysis complete. You have a ${matchPercentage}% match with this position.`)
+      setStatusMessage(`AI Error: ${error.message}`)
     } finally {
       setIsAnalyzing(false)
     }
   }
 
-  // Optimize resume with AI suggestions
   const optimizeResume = async () => {
+    if (!userProfile) return
     try {
       const token = localStorage.getItem('token')
-      console.log('Calling AI optimize-resume API for job:', job.id)
       const response = await fetch('http://localhost:5000/api/v1/ai/optimize-resume', {
         method: 'POST',
         headers: {
@@ -437,42 +278,18 @@ ${userProfile.name}`
           }
         })
       })
-
       const data = await response.json()
-
-      if (data.success && data.data) {
-        // Store optimization data for later use
-        console.log('Resume optimization:', data.data)
+      if (data.success) {
+        setResumeOptimized(true)
+        setShowOptimizedResume(true)
+        addAchievement('resume_optimizer')
+        speak("Resume optimized with AI suggestions")
       }
     } catch (error) {
       console.error('Resume optimization error:', error)
-    } finally {
-      setResumeOptimized(true)
-      setShowOptimizedResume(true)
-      addAchievement('resume_optimizer')
-      speak("Resume optimized with AI suggestions")
     }
-=======
-        suggestedSkills: job.skills.filter(s => !userProfile.skills.includes(s)).slice(0, 3)
-      }
-      
-      setAIAnalysis(analysis)
-      setIsAnalyzing(false)
-      
-      speak(`Resume analysis complete. You have a ${matchPercentage}% match with this position.`)
-    }, 2000)
   }
 
-  // Optimize resume with AI suggestions
-  const optimizeResume = () => {
-    setResumeOptimized(true)
-    setShowOptimizedResume(true)
-    addAchievement('resume_optimizer')
-    speak("Resume optimized with AI suggestions")
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-  }
-
-  // Handle application submission
   const handleSubmit = async () => {
     if (!applicationData.privacyConsent) {
       setStatusMessage("Please accept the privacy policy to continue")
@@ -483,55 +300,25 @@ ${userProfile.name}`
     setApplicationStatus('submitting')
     setStatusMessage("Submitting your application...")
 
-    // Animate progress
     const progressInterval = setInterval(() => {
-      setSubmitProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval)
-          return 90
-        }
-        return prev + 10
-      })
+      setSubmitProgress(prev => (prev >= 90 ? 90 : prev + 10))
     }, 200)
 
     try {
       await onSubmit(applicationData)
-<<<<<<< HEAD
-
       setSubmitProgress(100)
       setApplicationStatus('success')
       setStatusMessage("Application submitted successfully!")
-
-=======
-      
-      setSubmitProgress(100)
-      setApplicationStatus('success')
-      setStatusMessage("Application submitted successfully!")
-      
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-      // Update gamification stats
       setApplicationCount(prev => prev + 1)
       addAchievement('first_application')
-      if (applicationCount > 0 && applicationCount % 5 === 0) {
-        addAchievement('application_streak')
-      }
-
-      speak("Application submitted successfully! You'll receive updates on your dashboard.")
-<<<<<<< HEAD
-
-=======
-      
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-      // Auto-close after success
+      speak("Application submitted successfully!")
       setTimeout(() => {
         onClose()
         resetModal()
       }, 3000)
-
     } catch (error) {
       setApplicationStatus('error')
-      setStatusMessage("Failed to submit application. Please try again.")
-      speak("Application submission failed. Please try again.")
+      setStatusMessage("Failed to submit application.")
     } finally {
       setIsSubmitting(false)
       clearInterval(progressInterval)
@@ -539,12 +326,7 @@ ${userProfile.name}`
   }
 
   const addAchievement = (achievement: string) => {
-    setAchievements(prev => {
-      if (!prev.includes(achievement)) {
-        return [...prev, achievement]
-      }
-      return prev
-    })
+    setAchievements(prev => (prev.includes(achievement) ? prev : [...prev, achievement]))
   }
 
   const resetModal = () => {
@@ -568,111 +350,61 @@ ${userProfile.name}`
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-<<<<<<< HEAD
       <div
         ref={modalRef}
         className={`bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto ${highContrast ? 'bg-black text-white border-2 border-yellow-400' : ''
           } ${fontSize === 'large' ? 'text-lg' : fontSize === 'small' ? 'text-sm' : 'text-base'}`}
-=======
-      <div 
-        ref={modalRef}
-        className={`bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto ${
-          highContrast ? 'bg-black text-white border-2 border-yellow-400' : ''
-        } ${fontSize === 'large' ? 'text-lg' : fontSize === 'small' ? 'text-sm' : 'text-base'}`}
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
         role="dialog"
-        aria-labelledby="application-modal-title"
-        aria-describedby="application-modal-description"
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
           <div>
-            <h2 id="application-modal-title" className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Zap className="h-6 w-6 text-amber-600" />
-              Smart Apply
+              Smart Apply AI
             </h2>
-            <p id="application-modal-description" className="text-gray-600">
+            <p className="text-gray-600">
               {job.title} at {job.company}
             </p>
           </div>
 
-          {/* Accessibility Controls */}
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
-              aria-label={isVoiceEnabled ? "Disable voice" : "Enable voice"}
             >
               {isVoiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             </Button>
-<<<<<<< HEAD
-
-=======
-            
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setHighContrast(!highContrast)}
-              aria-label="Toggle high contrast"
             >
               <Eye className="h-4 w-4" />
             </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              aria-label="Close application modal"
-            >
+            <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-5 w-5" />
             </Button>
           </div>
         </div>
 
         {/* Progress Steps */}
-        <div className="px-6 py-4 bg-gray-50">
+        <div className="px-6 py-4 bg-gray-50 border-b">
           <div className="flex items-center justify-between">
             {steps.map((step, index) => (
               <div key={step} className="flex items-center">
-<<<<<<< HEAD
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${index < currentStep ? 'bg-green-600 text-white' :
                   index === currentStep ? 'bg-amber-600 text-white' :
                     'bg-gray-300 text-gray-600'
                   }`}>
-=======
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
-                  index < currentStep ? 'bg-green-600 text-white' :
-                  index === currentStep ? 'bg-amber-600 text-white' :
-                  'bg-gray-300 text-gray-600'
-                }`}>
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                  {index < currentStep ? (
-                    <CheckCircle2 className="h-4 w-4" />
-                  ) : (
-                    index + 1
-                  )}
+                  {index < currentStep ? <CheckCircle2 className="h-4 w-4" /> : index + 1}
                 </div>
-<<<<<<< HEAD
-                <span className={`ml-2 text-sm ${index === currentStep ? 'font-semibold text-gray-900' : 'text-gray-600'
-                  }`}>
+                <span className={`ml-2 text-sm hidden md:inline ${index === currentStep ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
                   {step}
                 </span>
                 {index < steps.length - 1 && (
-                  <div className={`ml-4 w-12 h-0.5 ${index < currentStep ? 'bg-green-600' : 'bg-gray-300'
-                    }`} />
-=======
-                <span className={`ml-2 text-sm ${
-                  index === currentStep ? 'font-semibold text-gray-900' : 'text-gray-600'
-                }`}>
-                  {step}
-                </span>
-                {index < steps.length - 1 && (
-                  <div className={`ml-4 w-12 h-0.5 ${
-                    index < currentStep ? 'bg-green-600' : 'bg-gray-300'
-                  }`} />
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
+                  <div className={`mx-4 w-8 md:w-12 h-0.5 ${index < currentStep ? 'bg-green-600' : 'bg-gray-300'}`} />
                 )}
               </div>
             ))}
@@ -681,86 +413,78 @@ ${userProfile.name}`
 
         {/* Content */}
         <div className="px-6 py-6">
-          {/* Step 0: Profile Review & AI Analysis */}
           {currentStep === 0 && (
             <div className="space-y-6">
               <div className="text-center">
                 <h3 className="text-xl font-bold mb-2">AI Profile Analysis</h3>
-                <p className="text-gray-600">Let's analyze how well your profile matches this position</p>
+                <p className="text-gray-600">Real-time match analysis against job requirements</p>
               </div>
 
               {isAnalyzing ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-amber-600 border-t-transparent mx-auto mb-4"></div>
-                    <p className="text-gray-600">Analyzing your profile with AI...</p>
+                    <p className="text-gray-600 font-medium">AI is analyzing your profile...</p>
                   </div>
                 </div>
               ) : aiAnalysis ? (
-                <div className="space-y-6">
-                  {/* Match Percentage */}
-                  <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50">
+                <div className="space-y-6 animate-in fade-in duration-500">
+                  <Card className="p-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-100">
                     <div className="text-center">
-                      <div className="text-4xl font-bold text-green-600 mb-2">
+                      <div className="text-5xl font-extrabold text-amber-600 mb-2">
                         {aiAnalysis.matchPercentage}%
                       </div>
-                      <p className="text-gray-700">Profile Match</p>
-                      <div className="w-full bg-gray-200 rounded-full h-3 mt-3">
-<<<<<<< HEAD
+                      <p className="text-amber-800 font-semibold">Match Score</p>
+                      <div className="w-full bg-amber-200 rounded-full h-4 mt-4 overflow-hidden">
                         <div
-=======
-                        <div 
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                          className="bg-green-600 h-3 rounded-full transition-all duration-1000"
+                          className="bg-amber-600 h-full transition-all duration-1000 ease-out"
                           style={{ width: `${aiAnalysis.matchPercentage}%` }}
                         />
                       </div>
                     </div>
                   </Card>
 
-                  {/* Strengths and Improvements */}
                   <div className="grid md:grid-cols-2 gap-6">
-                    <Card className="p-4">
-                      <h4 className="font-semibold text-green-600 mb-3 flex items-center gap-2">
+                    <Card className="p-5 border-green-100 bg-green-50/30">
+                      <h4 className="font-bold text-green-700 mb-4 flex items-center gap-2">
                         <CheckCircle2 className="h-5 w-5" />
-                        Your Strengths
+                        Key Strengths
                       </h4>
-                      <ul className="space-y-2">
-                        {aiAnalysis.strengths.map((strength, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm">
-                            <Star className="h-4 w-4 text-green-500 mt-0.5" />
+                      <ul className="space-y-3">
+                        {aiAnalysis.strengths.map((strength, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                            <Star className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
                             {strength}
                           </li>
                         ))}
                       </ul>
                     </Card>
 
-                    <Card className="p-4">
-                      <h4 className="font-semibold text-amber-600 mb-3 flex items-center gap-2">
-                        <TrendingUp className="h-5 w-5" />
-                        Suggested Improvements
+                    <Card className="p-5 border-blue-100 bg-blue-50/30">
+                      <h4 className="font-bold text-blue-700 mb-4 flex items-center gap-2">
+                        <Target className="h-5 w-5" />
+                        AI Recommendations
                       </h4>
-                      <ul className="space-y-2">
-                        {aiAnalysis.improvements.map((improvement, index) => (
-                          <li key={index} className="flex items-start gap-2 text-sm">
-                            <Target className="h-4 w-4 text-amber-500 mt-0.5" />
-                            {improvement}
+                      <ul className="space-y-3">
+                        {aiAnalysis.improvements.map((imp, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                            <TrendingUp className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+                            {imp}
                           </li>
                         ))}
                       </ul>
                     </Card>
                   </div>
 
-                  {/* Suggested Skills */}
                   {aiAnalysis.suggestedSkills.length > 0 && (
-                    <Card className="p-4">
-                      <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <Brain className="h-5 w-5 text-purple-600" />
-                        Skills to Consider Adding
+                    <Card className="p-5 border-purple-100 bg-purple-50/30">
+                      <h4 className="font-bold text-purple-700 mb-4 flex items-center gap-2">
+                        <Brain className="h-5 w-5" />
+                        Suggested Skills
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {aiAnalysis.suggestedSkills.map((skill) => (
-                          <Badge key={skill} variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                          <Badge key={skill} variant="secondary" className="bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors">
                             {skill}
                           </Badge>
                         ))}
@@ -768,17 +492,18 @@ ${userProfile.name}`
                     </Card>
                   )}
                 </div>
-              ) : null}
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-red-500">{statusMessage}</p>
+                  <Button onClick={performAIAnalysis} className="mt-4">Retry Analysis</Button>
+                </div>
+              )}
 
-              <div className="flex justify-end">
-<<<<<<< HEAD
+              <div className="flex justify-end pt-4">
                 <Button
-=======
-                <Button 
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
                   onClick={() => setCurrentStep(1)}
                   disabled={!aiAnalysis}
-                  className="bg-amber-600 hover:bg-amber-700"
+                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-6 px-8 rounded-xl shadow-lg hover:shadow-amber-200 transition-all"
                 >
                   Continue to Resume Optimization
                 </Button>
@@ -786,452 +511,224 @@ ${userProfile.name}`
             </div>
           )}
 
-          {/* Step 1: Resume Optimization */}
           {currentStep === 1 && (
             <div className="space-y-6">
               <div className="text-center">
-                <h3 className="text-xl font-bold mb-2">AI Resume Optimization</h3>
-                <p className="text-gray-600">Enhance your resume with AI-powered suggestions</p>
+                <h3 className="text-xl font-bold mb-2">Resume Optimization</h3>
+                <p className="text-gray-600">Tailor your resume for this specific role</p>
               </div>
 
-              <Card className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-blue-600" />
-                    Your Current Resume
-                  </h4>
+              <Card className="p-8 border-2 border-dashed border-gray-200">
+                <div className="flex flex-col items-center text-center">
+                  <div className="bg-blue-100 p-4 rounded-full mb-4">
+                    <FileText className="h-10 w-10 text-blue-600" />
+                  </div>
+                  <h4 className="text-lg font-bold mb-2">ATS Optimization</h4>
+                  <p className="text-gray-600 mb-6 max-w-md">Our AI will automatically adjust keywords and formatting to ensure your resume passes ATS filters and highlights your most relevant experience.</p>
+
                   <Button
                     onClick={optimizeResume}
-                    disabled={resumeOptimized}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={resumeOptimized || isAnalyzing}
+                    className={`py-6 px-10 rounded-xl font-bold text-lg shadow-xl transition-all ${resumeOptimized
+                      ? 'bg-green-600 hover:bg-green-700'
+                      : 'bg-blue-600 hover:bg-blue-700 animate-pulse'
+                      }`}
                   >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    {resumeOptimized ? 'Optimized!' : 'Optimize with AI'}
+                    {resumeOptimized ? (
+                      <span className="flex items-center gap-2"><CheckCircle2 className="h-6 w-6" /> Resume Optimized!</span>
+                    ) : (
+                      <span className="flex items-center gap-2"><Sparkles className="h-6 w-6" /> Optimize with Smart AI</span>
+                    )}
                   </Button>
                 </div>
 
                 {showOptimizedResume && (
-                  <div className="space-y-4">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <p className="text-green-800 font-medium mb-2">✨ AI Optimizations Applied:</p>
-                      <ul className="text-sm text-green-700 space-y-1">
-                        <li>• Added relevant keywords for ATS systems</li>
-                        <li>• Highlighted transferable skills</li>
-                        <li>• Improved formatting for better readability</li>
-                        <li>• Quantified achievements where possible</li>
-                      </ul>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4 mr-2" />
-                        Preview Changes
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <FileText className="h-4 w-4 mr-2" />
-                        Download Optimized
-                      </Button>
+                  <div className="mt-8 p-6 bg-green-50 rounded-2xl border border-green-200 animate-in slide-in-from-bottom-4 duration-500">
+                    <h5 className="font-bold text-green-800 mb-4 flex items-center gap-2">
+                      <Zap className="h-5 w-5" /> Optimized Successfully
+                    </h5>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {job.skills && job.skills.length > 0 && (
+                        <div className="bg-white p-3 rounded-lg shadow-sm border border-green-100">
+                          <p className="text-xs font-bold text-gray-500 uppercase mb-1">Target Keywords</p>
+                          <p className="text-sm text-gray-700">Aligned with {job.skills.slice(0, 3).join(', ')}</p>
+                        </div>
+                      )}
+                      <div className="bg-white p-3 rounded-lg shadow-sm border border-green-100">
+                        <p className="text-xs font-bold text-gray-500 uppercase mb-1">Optimization Status</p>
+                        <p className="text-sm text-gray-700">Resume tailored for role and ATS requirements</p>
+                      </div>
                     </div>
                   </div>
                 )}
               </Card>
 
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setCurrentStep(0)}>
-                  Back
-                </Button>
-<<<<<<< HEAD
-                <Button
-=======
-                <Button 
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                  onClick={() => setCurrentStep(2)}
-                  className="bg-amber-600 hover:bg-amber-700"
-                >
-                  Continue to Application
-                </Button>
+              <div className="flex justify-between pt-4">
+                <Button variant="outline" onClick={() => setCurrentStep(0)} className="py-6 px-8 rounded-xl font-bold">Back</Button>
+                <Button onClick={() => setCurrentStep(2)} className="bg-amber-600 hover:bg-amber-700 py-6 px-8 rounded-xl font-bold">Preview Application</Button>
               </div>
             </div>
           )}
 
-          {/* Step 2: Application Preview */}
           {currentStep === 2 && (
             <div className="space-y-6">
               <div className="text-center">
                 <h3 className="text-xl font-bold mb-2">Application Preview</h3>
-                <p className="text-gray-600">Review and customize your application</p>
+                <p className="text-gray-600">Review your AI-generated cover letter</p>
               </div>
 
               <div className="space-y-4">
-                {/* Cover Letter */}
-                <Card className="p-4">
-                  <h4 className="font-semibold mb-3 flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-green-600" />
-                    AI-Generated Cover Letter
-                  </h4>
-                  <Textarea
-                    ref={firstInputRef}
-                    value={applicationData.coverLetter}
-                    onChange={(e) => setApplicationData(prev => ({ ...prev, coverLetter: e.target.value }))}
-                    rows={8}
-                    className="w-full"
-                    placeholder="Your personalized cover letter will appear here..."
-                  />
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-xs text-gray-500">
-                      {applicationData.coverLetter.length} characters
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={generateAICoverLetter}
-                    >
-                      <RotateCcw className="h-4 w-4 mr-1" />
-                      Regenerate
-                    </Button>
-                  </div>
-                </Card>
-
-                {/* Additional Information */}
-                <Card className="p-4">
-                  <h4 className="font-semibold mb-3">Additional Information (Optional)</h4>
-                  <Textarea
-                    value={applicationData.additionalInfo}
-                    onChange={(e) => setApplicationData(prev => ({ ...prev, additionalInfo: e.target.value }))}
-                    rows={3}
-                    placeholder="Add any additional information, portfolio links, or specific questions for the employer..."
-                  />
-                </Card>
+                <label className="text-sm font-bold text-gray-700">AI Personalised Cover Letter</label>
+                <Textarea
+                  value={applicationData.coverLetter}
+                  onChange={(e) => setApplicationData({ ...applicationData, coverLetter: e.target.value })}
+                  className="min-h-[300px] rounded-xl border-2 border-amber-100 focus:border-amber-400 p-6 leading-relaxed"
+                  placeholder="Your cover letter will appear here..."
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" onClick={generateAICoverLetter} size="sm" className="text-amber-600 hover:text-amber-700 font-bold">
+                    <RotateCcw className="h-4 w-4 mr-2" /> Regenerate Cover Letter
+                  </Button>
+                </div>
               </div>
 
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setCurrentStep(1)}>
-                  Back
-                </Button>
-<<<<<<< HEAD
-                <Button
-=======
-                <Button 
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                  onClick={() => setCurrentStep(3)}
-                  className="bg-amber-600 hover:bg-amber-700"
-                >
-                  Choose Platform
-                </Button>
+              <div className="flex justify-between pt-4">
+                <Button variant="outline" onClick={() => setCurrentStep(1)} className="py-6 px-8 rounded-xl font-bold">Back</Button>
+                <Button onClick={() => setCurrentStep(3)} className="bg-amber-600 hover:bg-amber-700 py-6 px-8 rounded-xl font-bold">Select Platforms</Button>
               </div>
             </div>
           )}
 
-          {/* Step 3: Platform Selection */}
           {currentStep === 3 && (
             <div className="space-y-6">
               <div className="text-center">
-                <h3 className="text-xl font-bold mb-2">Choose Application Method</h3>
-                <p className="text-gray-600">Select how you'd like to submit your application</p>
+                <h3 className="text-xl font-bold mb-2">Select Application Platform</h3>
+                <p className="text-gray-600">Where would you like to submit your application?</p>
               </div>
 
-              <div className="grid gap-4">
-                {/* Direct Application */}
-<<<<<<< HEAD
-                <Card
-                  className={`p-6 cursor-pointer border-2 transition-all ${applicationData.platform === 'direct' ? 'border-amber-600 bg-amber-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}
-=======
-                <Card 
-                  className={`p-6 cursor-pointer border-2 transition-all ${
-                    applicationData.platform === 'direct' ? 'border-amber-600 bg-amber-50' : 'border-gray-200 hover:border-gray-300'
-                  }`}
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                  onClick={() => setApplicationData(prev => ({ ...prev, platform: 'direct' }))}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-amber-100 rounded-full">
-                      <Send className="h-6 w-6 text-amber-600" />
+              <div className="grid md:grid-cols-3 gap-4">
+                {[
+                  { id: 'direct', name: 'Direct Portal', icon: Globe, color: 'blue' },
+                  { id: 'linkedin', name: 'LinkedIn Apply', icon: Linkedin, color: 'cyan' },
+                  { id: 'email', name: 'Email Send', icon: Mail, color: 'red' }
+                ].map((p) => (
+                  <Card
+                    key={p.id}
+                    className={`p-6 cursor-pointer border-2 transition-all hover:scale-105 ${applicationData.platform === p.id
+                      ? `border-${p.color}-500 bg-${p.color}-50`
+                      : 'border-gray-100'
+                      }`}
+                    onClick={() => setApplicationData({ ...applicationData, platform: p.id as any })}
+                  >
+                    <div className="flex flex-col items-center text-center">
+                      <p.icon className={`h-10 w-10 mb-3 text-${p.color}-600`} />
+                      <h4 className="font-bold">{p.name}</h4>
                     </div>
-                    <div>
-                      <h4 className="font-semibold">Direct Application</h4>
-                      <p className="text-sm text-gray-600">Submit directly through our secure platform</p>
-                    </div>
-                    <Badge className="ml-auto bg-green-100 text-green-800">Recommended</Badge>
-                  </div>
-                </Card>
-
-                {/* LinkedIn Easy Apply */}
-<<<<<<< HEAD
-                <Card
-                  className={`p-6 cursor-pointer border-2 transition-all ${applicationData.platform === 'linkedin' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}
-=======
-                <Card 
-                  className={`p-6 cursor-pointer border-2 transition-all ${
-                    applicationData.platform === 'linkedin' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                  }`}
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                  onClick={() => setApplicationData(prev => ({ ...prev, platform: 'linkedin' }))}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-blue-100 rounded-full">
-                      <Linkedin className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold">LinkedIn Easy Apply</h4>
-                      <p className="text-sm text-gray-600">Apply using your LinkedIn profile</p>
-                    </div>
-                    <Badge variant="outline">Quick</Badge>
-                  </div>
-                </Card>
-
-                {/* Email Application */}
-<<<<<<< HEAD
-                <Card
-                  className={`p-6 cursor-pointer border-2 transition-all ${applicationData.platform === 'email' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}
-=======
-                <Card 
-                  className={`p-6 cursor-pointer border-2 transition-all ${
-                    applicationData.platform === 'email' ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-gray-300'
-                  }`}
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                  onClick={() => setApplicationData(prev => ({ ...prev, platform: 'email' }))}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-purple-100 rounded-full">
-                      <Mail className="h-6 w-6 text-purple-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold">Email Application</h4>
-                      <p className="text-sm text-gray-600">Send via email to the hiring manager</p>
-                    </div>
-                    <Badge variant="outline">Traditional</Badge>
-                  </div>
-                </Card>
+                  </Card>
+                ))}
               </div>
 
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setCurrentStep(2)}>
-                  Back
-                </Button>
-<<<<<<< HEAD
-                <Button
-=======
-                <Button 
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                  onClick={() => setCurrentStep(4)}
-                  className="bg-amber-600 hover:bg-amber-700"
-                >
-                  Review & Submit
-                </Button>
+              <div className="flex justify-between pt-4">
+                <Button variant="outline" onClick={() => setCurrentStep(2)} className="py-6 px-8 rounded-xl font-bold">Back</Button>
+                <Button onClick={() => setCurrentStep(4)} className="bg-amber-600 hover:bg-amber-700 py-6 px-8 rounded-xl font-bold">Final Submission</Button>
               </div>
             </div>
           )}
 
-          {/* Step 4: Submit & Privacy */}
           {currentStep === 4 && (
-            <div className="space-y-6">
+            <div className="space-y-8">
               <div className="text-center">
-                <h3 className="text-xl font-bold mb-2">Final Review</h3>
-                <p className="text-gray-600">Review your application before submission</p>
+                <h3 className="text-xl font-bold mb-2">Final Step: Submit & Track</h3>
+                <p className="text-gray-600">You're ready to launch your application!</p>
               </div>
 
-              {/* Application Summary */}
-              <Card className="p-6">
-                <h4 className="font-semibold mb-4">Application Summary</h4>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="font-medium">Position:</span>
-                    <span>{job.title} at {job.company}</span>
+              <Card className="p-8 bg-blue-50 border-blue-100 rounded-3xl">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="bg-green-100 p-2 rounded-lg">
+                    <Shield className="h-6 w-6 text-green-600" />
                   </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Platform:</span>
-                    <span className="capitalize">{applicationData.platform}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Match Score:</span>
-                    <span className="text-green-600 font-semibold">{aiAnalysis?.matchPercentage}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Resume:</span>
-                    <span>{resumeOptimized ? 'AI Optimized ✨' : 'Original'}</span>
+                  <div>
+                    <h4 className="font-bold text-gray-900">Privacy & Terms</h4>
+                    <p className="text-sm text-gray-600">By clicking submit, your data will be securely processed and shared only with the employer.</p>
                   </div>
                 </div>
-              </Card>
 
-              {/* Privacy Controls */}
-              <Card className="p-6 border-2 border-blue-200 bg-blue-50">
-                <h4 className="font-semibold mb-4 flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-blue-600" />
-                  Privacy & Data Usage
-                </h4>
-<<<<<<< HEAD
-
-=======
-                
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                <div className="space-y-3">
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={applicationData.privacyConsent}
-                      onChange={(e) => setApplicationData(prev => ({ ...prev, privacyConsent: e.target.checked }))}
-                      className="mt-1"
-                    />
-                    <div className="text-sm">
-                      <span>I consent to the processing of my personal data for this job application</span>
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="p-0 h-auto ml-1 text-blue-600"
-                        onClick={() => setShowPrivacyDetails(!showPrivacyDetails)}
-                      >
-                        {showPrivacyDetails ? 'Hide' : 'View'} details
-                      </Button>
-                    </div>
-                  </label>
-
-                  {showPrivacyDetails && (
-                    <div className="ml-6 p-3 bg-white rounded border text-xs text-gray-600">
-                      <p className="mb-2">Your data will be used only for:</p>
-                      <ul className="list-disc list-inside space-y-1">
-                        <li>Processing this job application</li>
-                        <li>Communicating about this position</li>
-                        <li>Improving our AI matching algorithms (anonymized)</li>
-                      </ul>
-                      <p className="mt-2">Data is encrypted and never shared with third parties without consent.</p>
-                    </div>
-                  )}
+                <div className="flex items-center gap-3 mb-8">
+                  <input
+                    type="checkbox"
+                    id="privacy"
+                    className="h-5 w-5 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                    checked={applicationData.privacyConsent}
+                    onChange={(e) => setApplicationData({ ...applicationData, privacyConsent: e.target.checked })}
+                  />
+                  <label htmlFor="privacy" className="text-sm font-medium text-gray-700 font-bold">I agree to the terms of service and privacy policy</label>
                 </div>
+
+                {applicationStatus === 'submitting' ? (
+                  <div className="space-y-4">
+                    <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                      <div
+                        className="bg-amber-600 h-full transition-all duration-300"
+                        style={{ width: `${submitProgress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-center font-bold text-amber-700 animate-pulse">{statusMessage}</p>
+                  </div>
+                ) : applicationStatus === 'success' ? (
+                  <Card className="p-8 text-center bg-green-50 border-green-200 shadow-xl scale-105 transition-transform">
+                    <div className="bg-green-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                      <CheckCircle2 className="h-10 w-10 text-white" />
+                    </div>
+                    <h4 className="text-2xl font-bold text-green-800 mb-2">Success!</h4>
+                    <p className="text-green-700 font-medium">{statusMessage}</p>
+                  </Card>
+                ) : (
+                  <Button
+                    onClick={handleSubmit}
+                    className="w-full py-8 text-xl font-extrabold bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-2xl shadow-xl hover:shadow-orange-200 hover:-translate-y-1 transition-all"
+                    disabled={isSubmitting}
+                  >
+                    <Send className="h-6 w-6 mr-3" />
+                    SUBMIT APPLICATION NOW
+                  </Button>
+                )}
+                {applicationStatus === 'error' && (
+                  <p className="text-red-600 text-center font-bold mt-4 animate-bounce">⚠️ {statusMessage}</p>
+                )}
               </Card>
 
-              {/* Application Status */}
-              {applicationStatus === 'submitting' && (
-                <Card className="p-6 bg-amber-50 border-amber-200">
-                  <div className="flex items-center gap-3">
-                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-amber-600 border-t-transparent"></div>
-                    <div className="flex-1">
-                      <p className="font-medium text-amber-800">{statusMessage}</p>
-                      <div className="w-full bg-amber-200 rounded-full h-2 mt-2">
-<<<<<<< HEAD
-                        <div
-=======
-                        <div 
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                          className="bg-amber-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${submitProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              )}
-
-              {applicationStatus === 'success' && (
-                <Card className="p-6 bg-green-50 border-green-200">
-                  <div className="text-center">
-                    <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-3" />
-                    <h4 className="font-semibold text-green-800 mb-2">Application Submitted Successfully!</h4>
-                    <p className="text-green-700 text-sm mb-4">{statusMessage}</p>
-<<<<<<< HEAD
-
-=======
-                    
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                    {/* Achievement Notifications */}
-                    {achievements.length > 0 && (
-                      <div className="space-y-2">
-                        {achievements.map(achievement => (
-                          <Badge key={achievement} className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                            <Award className="h-3 w-3 mr-1" />
-<<<<<<< HEAD
-                            {achievement === 'first_application' ? 'First Application!' :
-                              achievement === 'application_streak' ? 'Application Streak!' :
-                                achievement === 'resume_optimizer' ? 'AI Optimizer!' : 'Achievement Unlocked!'}
-=======
-                            {achievement === 'first_application' ? 'First Application!' : 
-                             achievement === 'application_streak' ? 'Application Streak!' :
-                             achievement === 'resume_optimizer' ? 'AI Optimizer!' : 'Achievement Unlocked!'}
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              )}
-
-              {applicationStatus === 'error' && (
-                <Card className="p-6 bg-red-50 border-red-200">
-                  <div className="text-center">
-                    <X className="h-12 w-12 text-red-600 mx-auto mb-3" />
-                    <h4 className="font-semibold text-red-800 mb-2">Submission Failed</h4>
-                    <p className="text-red-700 text-sm">{statusMessage}</p>
-                  </div>
-                </Card>
-              )}
-
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setCurrentStep(3)} disabled={isSubmitting}>
-                  Back
-                </Button>
-<<<<<<< HEAD
-                <Button
-=======
-                <Button 
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                  onClick={handleSubmit}
-                  disabled={!applicationData.privacyConsent || isSubmitting}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-2" />
-                      Submit Application
-                    </>
-                  )}
-                </Button>
+              <div className="flex justify-start">
+                <Button variant="outline" onClick={() => setCurrentStep(3)} className="py-6 px-8 rounded-xl font-bold">Back</Button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Footer with Gamification Stats */}
-        {isAuthenticated && (
-          <div className="border-t bg-gray-50 px-6 py-4">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1">
-                  <Target className="h-4 w-4 text-blue-600" />
-                  {applicationCount} applications
-                </span>
-                <span className="flex items-center gap-1">
-                  <Award className="h-4 w-4 text-yellow-600" />
-                  {achievements.length} achievements
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Languages className="h-4 w-4 text-gray-500" />
-<<<<<<< HEAD
-                <select
-                  value={currentLanguage}
-=======
-                <select 
-                  value={currentLanguage} 
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
-                  onChange={(e) => setCurrentLanguage(e.target.value)}
-                  className="bg-transparent text-sm"
-                >
-                  <option value="en">English</option>
-                  <option value="fr">Français</option>
-                  <option value="es">Español</option>
-                </select>
-              </div>
+        {/* Footer Stats */}
+        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 flex items-center justify-between">
+          <div className="flex gap-4">
+            <div className="flex items-center text-xs font-bold text-gray-500 uppercase tracking-widest gap-2">
+              <Target className="h-4 w-4 text-blue-500" />
+              {applicationCount} applications
+            </div>
+            <div className="flex items-center text-xs font-bold text-gray-500 uppercase tracking-widest gap-2">
+              <Award className="h-4 w-4 text-amber-500" />
+              {achievements.length} achievements
             </div>
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <Languages className="h-4 w-4 text-gray-400" />
+            <select
+              className="text-xs font-bold text-gray-600 bg-transparent border-none focus:ring-0 uppercase"
+              value={currentLanguage}
+              onChange={(e) => setCurrentLanguage(e.target.value)}
+            >
+              <option value="en">English</option>
+              <option value="hi">Hindi</option>
+              <option value="te">Telugu</option>
+            </select>
+          </div>
+        </div>
       </div>
     </div>
   )
