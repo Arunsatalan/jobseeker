@@ -11,9 +11,9 @@ const logger = require('../utils/logger');
  * Merges profile data from multiple sources (provided, User, JobSeeker, Resume)
  */
 const getComprehensiveProfile = async (userId, providedProfile) => {
-    console.log('🔄 Gathering comprehensive profile for user:', userId);
+    logger.info(`🔍 Deep fetching all records for user: ${userId} to provide REAL data analysis`);
 
-    // Start with provided profile or basic User info
+    // Start with basic User info
     const user = await User.findById(userId);
     let profile = {
         name: providedProfile?.name || (user ? `${user.firstName} ${user.lastName}` : 'Anonymous'),
@@ -21,37 +21,42 @@ const getComprehensiveProfile = async (userId, providedProfile) => {
         skills: providedProfile?.skills || [],
         experience: providedProfile?.experience || [],
         education: providedProfile?.education || [],
-        summary: providedProfile?.summary || user?.bio || ''
+        summary: providedProfile?.summary || user?.bio || '',
+        projects: [],
+        certifications: [],
+        languages: []
     };
 
     // 1. Enrich from JobSeeker collection
     const jobSeeker = await JobSeeker.findOne({ user: userId });
     if (jobSeeker) {
-        console.log('✅ Found JobSeeker records');
-        // Merge skills
+        logger.info('✅ Including JobSeeker collection data');
         if (jobSeeker.skills?.length > 0) {
             profile.skills = [...new Set([...profile.skills, ...jobSeeker.skills])];
         }
-        // Merge summary/headline
         if (jobSeeker.headline && (!profile.summary || profile.summary.length < jobSeeker.headline.length)) {
             profile.summary = jobSeeker.headline;
         }
-        // Merge experience
         if (jobSeeker.experience && !profile.experience.includes(jobSeeker.experience)) {
             profile.experience.push(jobSeeker.experience);
         }
     }
 
-    // 2. Enrich from all user Resumes (prioritizing primary)
+    // 2. Enrich from ALL resumes (merging all unique data points)
     const resumes = await Resume.find({ user: userId }).sort({ isPrimary: -1, createdAt: -1 });
 
     if (resumes.length > 0) {
-        console.log(`✅ Found ${resumes.length} resume(s)`);
+        logger.info(`✅ Aggregating data from ${resumes.length} resume(s)`);
         resumes.forEach(resume => {
             if (resume.parsedData) {
                 const { parsedData } = resume;
 
-                // Merge experience
+                // Merge Summary
+                if (parsedData.summary && (!profile.summary || profile.summary.length < parsedData.summary.length)) {
+                    profile.summary = parsedData.summary;
+                }
+
+                // Merge Experience
                 if (parsedData.experience && Array.isArray(parsedData.experience)) {
                     const formattedExp = parsedData.experience.map(exp =>
                         `${exp.role || 'Professional'} at ${exp.company || 'Unknown'} (${exp.startDate || ''} - ${exp.endDate || 'Present'}): ${exp.description || ''}`
@@ -59,34 +64,52 @@ const getComprehensiveProfile = async (userId, providedProfile) => {
                     profile.experience = [...new Set([...profile.experience, ...formattedExp])];
                 }
 
-                // Merge skills from parsed resume
-                if (parsedData.skills && Array.isArray(parsedData.skills)) {
-                    parsedData.skills.forEach(skillCategory => {
-                        if (skillCategory.items && Array.isArray(skillCategory.items)) {
-                            profile.skills = [...new Set([...profile.skills, ...skillCategory.items])];
-                        }
-                    });
+                // Merge Education
+                if (parsedData.education && Array.isArray(parsedData.education)) {
+                    const formattedEdu = parsedData.education.map(edu =>
+                        `${edu.degree || 'Degree'} in ${edu.field || 'Field'} from ${edu.school || 'Unknown School'} (${edu.graduationDate || ''})`
+                    );
+                    profile.education = [...new Set([...profile.education, ...formattedEdu])];
                 }
 
-                // Legacy skills
-                if (parsedData.skills_legacy && Array.isArray(parsedData.skills_legacy)) {
+                // Merge Skills
+                if (parsedData.skills && Array.isArray(parsedData.skills)) {
+                    parsedData.skills.forEach(cat => {
+                        if (cat.items) profile.skills = [...new Set([...profile.skills, ...cat.items])];
+                    });
+                }
+                if (parsedData.skills_legacy) {
                     profile.skills = [...new Set([...profile.skills, ...parsedData.skills_legacy])];
                 }
 
-                // Merge summary
-                if (parsedData.summary && (!profile.summary || profile.summary.length < parsedData.summary.length)) {
-                    profile.summary = parsedData.summary;
+                // Merge Projects
+                if (parsedData.projects && Array.isArray(parsedData.projects)) {
+                    const formattedProj = parsedData.projects.map(p =>
+                        `${p.name}: ${p.description || ''} (Tech: ${p.technologies || ''})`
+                    );
+                    profile.projects = [...new Set([...profile.projects, ...formattedProj])];
+                }
+
+                // Merge Certifications
+                if (parsedData.certifications && Array.isArray(parsedData.certifications)) {
+                    const formattedCert = parsedData.certifications.map(c =>
+                        `${c.title} by ${c.issuer || 'N/A'} (${c.date || ''})`
+                    );
+                    profile.certifications = [...new Set([...profile.certifications, ...formattedCert])];
+                }
+
+                // Merge Languages
+                if (parsedData.languages && Array.isArray(parsedData.languages)) {
+                    const formattedLang = parsedData.languages.map(l =>
+                        `${l.language} (${l.proficiency || 'N/A'})`
+                    );
+                    profile.languages = [...new Set([...profile.languages, ...formattedLang])];
                 }
             }
         });
     }
 
-    console.log('📊 Final Profile Context:', {
-        skillsCount: profile.skills.length,
-        experienceLines: profile.experience.length,
-        summaryLength: profile.summary?.length || 0
-    });
-
+    logger.info(`📊 Data gathering complete. Sent to Grok: ${profile.skills.length} skills, ${profile.experience.length} exp, ${profile.projects.length} projects.`);
     return profile;
 };
 
@@ -100,8 +123,8 @@ exports.analyzeProfile = asyncHandler(async (req, res, next) => {
         return sendError(res, 400, 'Job ID is required');
     }
 
-    // Fetch job details
-    const job = await Job.findById(jobId);
+    // Fetch job details with populated company
+    const job = await Job.findById(jobId).populate('company');
     if (!job) {
         return sendError(res, 404, 'Job not found');
     }
@@ -113,7 +136,8 @@ exports.analyzeProfile = asyncHandler(async (req, res, next) => {
         // Perform AI analysis
         const analysis = await aiService.analyzeProfileMatch(profile, {
             title: job.title,
-            company: job.company,
+            company: job.company?.name || 'N/A',
+            industry: job.industry,
             skills: job.skills,
             requirements: job.requirements,
             description: job.description
@@ -138,8 +162,8 @@ exports.optimizeResume = asyncHandler(async (req, res, next) => {
         return sendError(res, 400, 'Job ID is required');
     }
 
-    // Fetch job details
-    const job = await Job.findById(jobId);
+    // Fetch job details with populated company
+    const job = await Job.findById(jobId).populate('company');
     if (!job) {
         return sendError(res, 404, 'Job not found');
     }
@@ -151,7 +175,8 @@ exports.optimizeResume = asyncHandler(async (req, res, next) => {
         // Perform AI optimization
         const optimization = await aiService.optimizeResume(profile, {
             title: job.title,
-            company: job.company,
+            company: job.company?.name || 'N/A',
+            industry: job.industry,
             skills: job.skills,
             requirements: job.requirements,
             description: job.description
@@ -176,8 +201,8 @@ exports.generateCoverLetter = asyncHandler(async (req, res, next) => {
         return sendError(res, 400, 'Job ID is required');
     }
 
-    // Fetch job details
-    const job = await Job.findById(jobId);
+    // Fetch job details with populated company
+    const job = await Job.findById(jobId).populate('company');
     if (!job) {
         return sendError(res, 404, 'Job not found');
     }
@@ -189,7 +214,8 @@ exports.generateCoverLetter = asyncHandler(async (req, res, next) => {
         // Generate cover letter
         const coverLetter = await aiService.generateCoverLetter(profile, {
             title: job.title,
-            company: job.company,
+            company: job.company?.name || 'N/A',
+            industry: job.industry,
             skills: job.skills,
             requirements: job.requirements,
             description: job.description
@@ -214,8 +240,8 @@ exports.smartApply = asyncHandler(async (req, res, next) => {
         return sendError(res, 400, 'Job ID is required');
     }
 
-    // Fetch job details
-    const job = await Job.findById(jobId);
+    // Fetch job details with populated company
+    const job = await Job.findById(jobId).populate('company');
     if (!job) {
         return sendError(res, 404, 'Job not found');
     }
@@ -225,7 +251,8 @@ exports.smartApply = asyncHandler(async (req, res, next) => {
 
     const jobData = {
         title: job.title,
-        company: job.company,
+        company: job.company?.name || 'N/A',
+        industry: job.industry,
         skills: job.skills,
         requirements: job.requirements,
         description: job.description
