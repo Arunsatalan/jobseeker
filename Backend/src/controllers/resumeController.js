@@ -4,6 +4,10 @@ const { sendSuccess, sendError, sendPaginated } = require('../utils/response');
 const helpers = require('../utils/helpers');
 const resumeParserService = require('../services/resumeParserService');
 const logger = require('../utils/logger');
+const fs = require('fs');
+const path = require('path');
+const { exec } = require('child_process');
+const cloudinary = require('cloudinary').v2;
 
 // @desc Upload resume
 // @route POST /api/v1/resumes/upload
