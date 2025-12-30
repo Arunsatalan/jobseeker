@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import axios from 'axios'
-import { 
-  useScrollIntoView, 
-  useBodyScrollLock, 
+import {
+  useScrollIntoView,
+  useBodyScrollLock,
   useFocusTrap,
   useScrollPositionMemory,
-  useJobListKeyboardNav 
+  useJobListKeyboardNav
 } from '@/hooks/useScrollBehavior'
 import { useAuth } from '@/contexts/AuthContext'
 import SignIn from '@/components/signin'
@@ -24,14 +24,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Search, 
-  MapPin, 
-  Clock, 
-  Building2, 
-  DollarSign, 
-  X, 
-  Eye, 
+import {
+  Search,
+  MapPin,
+  Clock,
+  Building2,
+  DollarSign,
+  X,
+  Eye,
   LogIn,
   Heart,
   Share2,
@@ -153,13 +153,13 @@ const convertApiJobToJob = (apiJob: ApiJob): Job => {
   console.log('Skills:', apiJob.skills)
   console.log('Custom sections:', apiJob.customSections)
   console.log('Tags:', apiJob.tags)
-  
+
   // Calculate days since posted
   const createdDate = new Date(apiJob.createdAt)
   const now = new Date()
   const diffTime = Math.abs(now.getTime() - createdDate.getTime())
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  
+
   let postedTimeText = ''
   if (diffDays === 0) {
     postedTimeText = 'today'
@@ -168,13 +168,13 @@ const convertApiJobToJob = (apiJob: ApiJob): Job => {
   } else {
     postedTimeText = `${diffDays} days ago`
   }
-  
+
   // Create badges based on job properties
   const badges: string[] = []
   if (apiJob.remote) badges.push('Remote')
   if (apiJob.experience === 'entry') badges.push('Entry-level')
   if (diffDays <= 3) badges.push('New')
-  
+
   console.log('=== CONVERSION DEBUG ===')
   console.log('API Job ID:', apiJob._id)
   console.log('API Job Title:', apiJob.title)
@@ -183,7 +183,7 @@ const convertApiJobToJob = (apiJob: ApiJob): Job => {
   console.log('API Tags:', apiJob.tags, 'Type:', typeof apiJob.tags, 'Is Array:', Array.isArray(apiJob.tags))
   console.log('API Requirements:', apiJob.requirements, 'Type:', typeof apiJob.requirements, 'Is Array:', Array.isArray(apiJob.requirements))
   console.log('======================')
-  
+
   const converted: Job = {
     id: apiJob._id,
     title: apiJob.title || '',
@@ -198,15 +198,14 @@ const convertApiJobToJob = (apiJob: ApiJob): Job => {
     postedTime: postedTimeText,
     expiryDate: apiJob.expiresAt ? new Date(apiJob.expiresAt).toLocaleDateString() : undefined,
     jobType: apiJob.employmentType ? apiJob.employmentType.charAt(0).toUpperCase() + apiJob.employmentType.slice(1) : 'Full-time',
-    salary: (apiJob.salaryMin && apiJob.salaryMax) ? `$${apiJob.salaryMin.toLocaleString()} - $${apiJob.salaryMax.toLocaleString()}${
-      apiJob.salaryPeriod ? (
-        apiJob.salaryPeriod === 'yearly' ? '/year' :
+    salary: (apiJob.salaryMin && apiJob.salaryMax) ? `$${apiJob.salaryMin.toLocaleString()} - $${apiJob.salaryMax.toLocaleString()}${apiJob.salaryPeriod ? (
+      apiJob.salaryPeriod === 'yearly' ? '/year' :
         apiJob.salaryPeriod === 'hourly' ? '/hour' :
-        apiJob.salaryPeriod === 'monthly' ? '/month' :
-        apiJob.salaryPeriod === 'weekly' ? '/week' :
-        `/${apiJob.salaryPeriod}`
-      ) : ''
-    }` : undefined,
+          apiJob.salaryPeriod === 'monthly' ? '/month' :
+            apiJob.salaryPeriod === 'weekly' ? '/week' :
+              `/${apiJob.salaryPeriod}`
+    ) : ''
+      }` : undefined,
     description: apiJob.description || '',
     fullDescription: apiJob.description || '',
     requirements: Array.isArray(apiJob.requirements) ? apiJob.requirements : [],
@@ -223,7 +222,7 @@ const convertApiJobToJob = (apiJob: ApiJob): Job => {
     applicationInstructions: 'Click Apply Now to submit your application.',
     isBookmarked: false
   }
-  
+
   console.log('=== CONVERTED JOB ===')
   console.log('Converted Job ID:', converted.id)
   console.log('Converted Skills:', converted.skills, 'Length:', converted.skills.length)
@@ -231,7 +230,7 @@ const convertApiJobToJob = (apiJob: ApiJob): Job => {
   console.log('Converted Benefits:', converted.benefits, 'Length:', converted.benefits.length)
   console.log('Converted Requirements:', converted.requirements, 'Length:', converted.requirements.length)
   console.log('=====================')
-  
+
   return converted
 }
 
@@ -329,7 +328,7 @@ export default function AdvancedJobSearch() {
   const { saveScrollPosition, restoreScrollPosition } = useScrollPositionMemory('jobListScroll')
   const detailScrollRef = useScrollIntoView(!!selectedJobId, 50)
   const { ref: modalRef } = useFocusTrap(false) // Focus trap for future modal implementation
-  
+
   // Lock body scroll when needed (future: for mobile modal)
   useBodyScrollLock(false)
 
@@ -341,11 +340,11 @@ export default function AdvancedJobSearch() {
       const response = await axios.get('/api/v1/jobs', {
         params: { page: 1, limit: 50 }
       })
-      
+
       console.log('API Response:', response.data)
-      
+
       let jobs: Job[] = []
-      
+
       if (Array.isArray(response.data)) {
         jobs = response.data.map(convertApiJobToJob)
       } else if (response.data.jobs && Array.isArray(response.data.jobs)) {
@@ -356,13 +355,13 @@ export default function AdvancedJobSearch() {
         console.log('Unexpected API response format:', response.data)
         jobs = []
       }
-      
+
       console.log('Converted jobs:', jobs)
-      
+
       setAllJobs(jobs)
       setFilteredJobs(jobs)
       setTotalResults(jobs.length)
-      
+
       if (jobs.length > 0 && !selectedJobId) {
         setSelectedJobId(jobs[0].id)
       }
@@ -387,8 +386,8 @@ export default function AdvancedJobSearch() {
   }, [fetchAllJobs])
 
   // Get selected job
-  const selectedJob = selectedJobId 
-    ? allJobs.find(job => job.id === selectedJobId) 
+  const selectedJob = selectedJobId
+    ? allJobs.find(job => job.id === selectedJobId)
     : filteredJobs[0] || null
 
   // Update selected job on page load
@@ -446,11 +445,76 @@ export default function AdvancedJobSearch() {
     }
   }, [showCompanyProfileModal, selectedJob])
 
+  // Fetch User Profile for Application Modal
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!isAuthenticated || !token) {
+        setUserProfile(null);
+        return;
+      }
+
+      try {
+        // Fetch detailed profile
+        console.log('Fetching user profile for application...');
+
+        // Parallel fetch for efficiency
+        const [userResponse, profileResponse] = await Promise.all([
+          axios.get('/api/v1/users/me', { headers: { Authorization: `Bearer ${token}` } }).catch(e => ({ data: { data: {} } })),
+          axios.get('/api/v1/user-profiles/me', { headers: { Authorization: `Bearer ${token}` } }).catch(e => ({ data: { data: {} } }))
+        ]);
+
+        const userData = userResponse.data?.data || {};
+        const profileData = profileResponse.data?.data || {};
+
+        console.log('User Data:', userData);
+        console.log('Profile Data:', profileData);
+
+        // Construct a comprehensive profile object matching requirements
+        const constructedProfile = {
+          name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || profileData.name || 'Candidate',
+          email: userData.email || profileData.email || '',
+          phone: userData.phone || profileData.phone || '',
+          location: profileData.location || (profileData.city ? `${profileData.city}, ${profileData.province}` : '') || '',
+          summary: profileData.summary || profileData.bio || '',
+
+          // Map skills handling both string arrays and object arrays
+          skills: Array.isArray(profileData.skills)
+            ? profileData.skills.map((s: any) => typeof s === 'string' ? s : s.name || s.skill || '')
+            : [],
+
+          // Map experience handling both formats
+          experience: Array.isArray(profileData.experience)
+            ? profileData.experience.map((exp: any) => {
+              if (typeof exp === 'string') return exp;
+              return `${exp.position || exp.role} at ${exp.company}`;
+            })
+            : [],
+
+          // Map education
+          education: Array.isArray(profileData.education)
+            ? profileData.education.map((edu: any) => {
+              if (typeof edu === 'string') return edu;
+              return `${edu.degree} from ${edu.institution || edu.school}`;
+            })
+            : []
+        };
+
+        console.log('Constructed Profile for Application:', constructedProfile);
+        setUserProfile(constructedProfile);
+
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [isAuthenticated, token]);
+
   // Initialize from URL params and fetch jobs
   useEffect(() => {
     const job = searchParams.get('job') || ''
     const location = searchParams.get('location') || ''
-    
+
     setJobQuery(job)
     setLocationQuery(location)
 
@@ -494,7 +558,7 @@ export default function AdvancedJobSearch() {
         const match = job.postedTime.match(/(\d+)/)
         if (!match) return true
         const days = parseInt(match[1])
-        
+
         switch (filterState.datePosted) {
           case '7':
             return days <= 7
@@ -547,39 +611,39 @@ export default function AdvancedJobSearch() {
     if (!searchQuery.trim()) return jobs
 
     const query = searchQuery.toLowerCase().trim()
-    
+
     return jobs.filter(job => {
       // Search in job title
       if (job.title.toLowerCase().includes(query)) return true
-      
+
       // Search in company name
       if (job.company.toLowerCase().includes(query)) return true
-      
+
       // Search in skills array (e.g., "java", "react", "python")
       if (job.skills.some(skill => skill.toLowerCase().includes(query))) return true
-      
+
       // Search in requirements
       if (job.requirements.some(req => req.toLowerCase().includes(query))) return true
-      
+
       // Search in job description
       if (job.description.toLowerCase().includes(query)) return true
-      
+
       // Search in benefits
       if (job.benefits.some(benefit => benefit.toLowerCase().includes(query))) return true
-      
+
       // Search in custom sections content
-      if (job.customSections.some(section => 
-        section.title.toLowerCase().includes(query) || 
+      if (job.customSections.some(section =>
+        section.title.toLowerCase().includes(query) ||
         section.content.toLowerCase().includes(query)
       )) return true
-      
+
       // Search in category and industry
       if (job.category?.toLowerCase().includes(query)) return true
       if (job.industry?.toLowerCase().includes(query)) return true
-      
+
       // Search in employment type
       if (job.employmentType.toLowerCase().includes(query)) return true
-      
+
       return false
     })
   }, [])
@@ -591,7 +655,7 @@ export default function AdvancedJobSearch() {
     try {
       let jobs: Job[] = []
       let useClientSideSearch = false
-      
+
       if (jobQ.trim() || locationQ.trim()) {
         console.log('Searching with params:', { keyword: jobQ.trim(), location: locationQ.trim() })
         // Call search API
@@ -603,9 +667,9 @@ export default function AdvancedJobSearch() {
             limit: 50
           }
         })
-        
+
         console.log('Search API Response:', response.data)
-        
+
         if (Array.isArray(response.data)) {
           jobs = response.data.map(convertApiJobToJob)
         } else if (response.data.jobs && Array.isArray(response.data.jobs)) {
@@ -613,7 +677,7 @@ export default function AdvancedJobSearch() {
         } else if (response.data.data && Array.isArray(response.data.data)) {
           jobs = response.data.data.map(convertApiJobToJob)
         }
-        
+
         // If API search returns no results but we have a search query, 
         // fall back to fetching all jobs and use client-side search
         if (jobs.length === 0 && jobQ.trim()) {
@@ -621,7 +685,7 @@ export default function AdvancedJobSearch() {
           const allJobsResponse = await axios.get('/api/v1/jobs', {
             params: { page: 1, limit: 50 }
           })
-          
+
           let allJobsData: Job[] = []
           if (Array.isArray(allJobsResponse.data)) {
             allJobsData = allJobsResponse.data.map(convertApiJobToJob)
@@ -630,7 +694,7 @@ export default function AdvancedJobSearch() {
           } else if (allJobsResponse.data.data && Array.isArray(allJobsResponse.data.data)) {
             allJobsData = allJobsResponse.data.data.map(convertApiJobToJob)
           }
-          
+
           setAllJobs(allJobsData)
           jobs = allJobsData
           useClientSideSearch = true
@@ -645,7 +709,7 @@ export default function AdvancedJobSearch() {
 
       // Apply enhanced search and filters
       let searchAndFilteredResults: Job[]
-      
+
       if (useClientSideSearch && jobQ.trim()) {
         // Use client-side search on all jobs
         searchAndFilteredResults = applyFilters(enhancedJobSearch(jobs, jobQ), filters)
@@ -657,7 +721,7 @@ export default function AdvancedJobSearch() {
         // No search query, just apply filters
         searchAndFilteredResults = applyFilters(jobs, filters)
       }
-      
+
       setFilteredJobs(searchAndFilteredResults)
       setTotalResults(searchAndFilteredResults.length)
       setSelectedJobId(searchAndFilteredResults.length > 0 ? searchAndFilteredResults[0].id : null)
@@ -684,10 +748,10 @@ export default function AdvancedJobSearch() {
     setFilters(newFilters)
 
     // Apply both search and filters
-    const searchAndFiltered = jobQuery.trim() ? 
-      applyFilters(enhancedJobSearch(allJobs, jobQuery), newFilters) : 
+    const searchAndFiltered = jobQuery.trim() ?
+      applyFilters(enhancedJobSearch(allJobs, jobQuery), newFilters) :
       applyFilters(allJobs, newFilters)
-    
+
     console.log('Filtered results:', searchAndFiltered.length)
     setFilteredJobs(searchAndFiltered)
 
@@ -739,7 +803,7 @@ export default function AdvancedJobSearch() {
   const handleJobSelect = useCallback((jobId: string) => {
     // Save current scroll position before switching jobs
     saveScrollPosition()
-    
+
     // Update selected job
     setSelectedJobId(jobId)
 
@@ -767,7 +831,7 @@ export default function AdvancedJobSearch() {
 
   const handleApply = (job: Job) => {
     lightTap() // Haptic feedback
-    
+
     if (isAuthenticated) {
       // User is already signed in, open advanced application modal
       setSelectedJobForApplication(job)
@@ -783,12 +847,18 @@ export default function AdvancedJobSearch() {
 
   const handleApplicationSubmit = async (applicationData: any) => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
+      const token = localStorage.getItem('token');
+      // Real API call to submit application with resume and cover letter
+      const response = await axios.post(`/api/v1/applications/${selectedJobForApplication?.id}`, {
+        resume: applicationData.resumeId, // From optimized resume or default
+        coverLetter: applicationData.coverLetter
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
       // Add to user applications
       const newApplication = {
-        id: Date.now().toString(),
+        id: response.data.data._id || Date.now().toString(),
         jobTitle: selectedJobForApplication?.title,
         company: selectedJobForApplication?.company,
         location: selectedJobForApplication?.location,
@@ -801,9 +871,9 @@ export default function AdvancedJobSearch() {
           'Follow up in 3-5 business days for best results'
         ]
       }
-      
+
       setUserApplications(prev => [newApplication, ...prev])
-      
+
       // Update stats and achievements
       setUserStats(prev => ({
         ...prev,
@@ -811,22 +881,23 @@ export default function AdvancedJobSearch() {
         applicationsThisWeek: prev.applicationsThisWeek + 1,
         xp: prev.xp + 100
       }))
-      
+
       // Success feedback
       success()
       announceToScreenReader(`Application submitted successfully for ${selectedJobForApplication?.title}`)
       speak('Application submitted successfully! You earned 100 XP.')
-      
-    } catch (error) {
-      console.error(error);
-      throw error
+
+    } catch (err) {
+      console.error(err);
+      error() // Haptic error feedback
+      throw err
     }
   }
 
   const handleClaimReward = (achievementId: string) => {
-    setAchievements(prev => 
-      prev.map(achievement => 
-        achievement.id === achievementId 
+    setAchievements(prev =>
+      prev.map(achievement =>
+        achievement.id === achievementId
           ? { ...achievement, claimed: true }
           : achievement
       )
@@ -942,7 +1013,7 @@ export default function AdvancedJobSearch() {
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[calc(100vh-200px)]">
-          
+
           {/* ========== LEFT PANEL: JOB LIST ========== */}
           <div className={`${selectedJobId ? 'hidden lg:flex' : 'flex'} lg:col-span-1 flex-col`}>
             {/* ===== JOB COUNT (LEFT) ===== */}
@@ -979,7 +1050,7 @@ export default function AdvancedJobSearch() {
                   )}
                 </button>
               )}
-              
+
               {/* Gamification Button */}
               {isAuthenticated && (
                 <button
@@ -997,7 +1068,7 @@ export default function AdvancedJobSearch() {
                   </span>
                 </button>
               )}
-              
+
               {/* Saved Jobs Button */}
               <button
                 onClick={() => {
@@ -1036,9 +1107,8 @@ export default function AdvancedJobSearch() {
                   </span>
                 )}
                 <ChevronDown
-                  className={`h-5 w-5 transition-transform duration-300 ${
-                    showFilters ? 'rotate-180' : 'rotate-0'
-                  }`}
+                  className={`h-5 w-5 transition-transform duration-300 ${showFilters ? 'rotate-180' : 'rotate-0'
+                    }`}
                 />
               </button>
             </div>
@@ -1076,7 +1146,7 @@ export default function AdvancedJobSearch() {
                       )}
 
                       {/* Filter Panel Content */}
-                      <FilterPanel 
+                      <FilterPanel
                         filters={filters}
                         onFilterChange={handleFilterChange}
                         jobTypes={JOB_TYPES}
@@ -1257,7 +1327,7 @@ export default function AdvancedJobSearch() {
           </div>
 
           {/* ========== RIGHT PANEL: JOB DETAIL ========== */}
-          <div 
+          <div
             ref={detailPanelRef}
             className={`${selectedJobId ? 'flex col-span-1' : 'hidden lg:flex'} lg:col-span-2 flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden`}
           >
@@ -1277,7 +1347,7 @@ export default function AdvancedJobSearch() {
                     Back to Jobs
                   </Button>
                 </div>
-                
+
                 {/* Detail Header */}
                 <div className="bg-linear-to-r from-slate-50 to-amber-50 border-b border-gray-200 px-6 py-6">
                   <div className="flex items-start justify-between mb-4">
@@ -1481,8 +1551,8 @@ export default function AdvancedJobSearch() {
 
       {/* Sign In Modal */}
       {showSignInModal && (
-        <SignIn 
-          onClose={() => setShowSignInModal(false)} 
+        <SignIn
+          onClose={() => setShowSignInModal(false)}
           onSwitchToSignUp={() => {
             setShowSignInModal(false)
             setShowSignUpModal(true)
@@ -1492,8 +1562,8 @@ export default function AdvancedJobSearch() {
 
       {/* Sign Up Modal */}
       {showSignUpModal && (
-        <SignUp 
-          onClose={() => setShowSignUpModal(false)} 
+        <SignUp
+          onClose={() => setShowSignUpModal(false)}
           onSwitchToSignIn={() => {
             setShowSignUpModal(false)
             setShowSignInModal(true)
@@ -1651,11 +1721,10 @@ function JobCardItem({ job, isSelected, isBookmarked, onClick, onBookmark }: Job
     <Card
       ref={cardRef}
       onClick={onClick}
-      className={`p-4 cursor-pointer transition-all duration-200 border-2 ${
-        isSelected
-          ? 'border-slate-700 bg-slate-50 shadow-md'
-          : 'border-transparent hover:border-gray-300 hover:shadow-md'
-      }`}
+      className={`p-4 cursor-pointer transition-all duration-200 border-2 ${isSelected
+        ? 'border-slate-700 bg-slate-50 shadow-md'
+        : 'border-transparent hover:border-gray-300 hover:shadow-md'
+        }`}
     >
       <CardContent className="p-0 space-y-3">
         {/* Title & Badges */}
@@ -1685,11 +1754,10 @@ function JobCardItem({ job, isSelected, isBookmarked, onClick, onBookmark }: Job
             className="p-1 shrink-0"
           >
             <BookmarkIcon
-              className={`h-5 w-5 ${
-                isBookmarked
-                  ? 'fill-yellow-500 text-yellow-500'
-                  : 'text-gray-400 hover:text-yellow-500'
-              }`}
+              className={`h-5 w-5 ${isBookmarked
+                ? 'fill-yellow-500 text-yellow-500'
+                : 'text-gray-400 hover:text-yellow-500'
+                }`}
             />
           </Button>
         </div>
@@ -1813,11 +1881,10 @@ function FilterPanel({ filters, onFilterChange, jobTypes }: FilterPanelProps) {
             <button
               key={option.value}
               onClick={() => handleDateChange(option.value)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                filters.datePosted === option.value
-                  ? 'bg-slate-100 text-slate-700 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${filters.datePosted === option.value
+                ? 'bg-slate-100 text-slate-700 font-semibold'
+                : 'text-gray-700 hover:bg-gray-100'
+                }`}
             >
               {option.label}
             </button>

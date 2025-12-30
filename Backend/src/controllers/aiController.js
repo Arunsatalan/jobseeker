@@ -182,9 +182,40 @@ exports.optimizeResume = asyncHandler(async (req, res, next) => {
             description: job.description
         });
 
-        logger.info(`Resume optimization completed for user ${req.user._id} and job ${jobId}`);
+        // Save as new Resume
+        const savedResume = await Resume.create({
+            user: req.user._id,
+            title: `${job.title} - AI Optimized`,
+            role: job.title,
+            isPrimary: false,
+            parsedData: {
+                name: optimization.personalInfo?.name || profile.name,
+                email: optimization.personalInfo?.email || profile.email,
+                phone: optimization.personalInfo?.phone || profile.phone,
+                location: optimization.personalInfo?.location || profile.location,
+                linkedin: optimization.personalInfo?.linkedin || profile.linkedin,
+                github: optimization.personalInfo?.github || profile.github,
+                summary: optimization.summary || profile.summary,
+                experience: optimization.experience || [],
+                education: optimization.education || [],
+                skills: optimization.skills || [],
+                projects: optimization.projects || [],
+                certifications: optimization.certifications || [],
+                languages: optimization.languages || [],
+                references: [],
+                optimizationMetadata: optimization.optimizationMetadata || {}
+            }
+        });
 
-        return sendSuccess(res, 200, 'Resume optimization completed', optimization);
+        logger.info(`Resume optimization completed and saved: ${savedResume._id}`);
+
+        return sendSuccess(res, 200, 'Resume optimization completed', {
+            optimizedResumeId: savedResume._id,
+            changes: optimization.optimizationMetadata?.changesSummary || [],
+            addedKeywords: optimization.optimizationMetadata?.addedKeywords || [],
+            matchScore: optimization.optimizationMetadata?.matchScore || 0,
+            optimizationData: optimization
+        });
     } catch (error) {
         logger.error('Resume optimization error:', error);
         return sendError(res, 500, error.message || 'Failed to optimize resume');

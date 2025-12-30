@@ -108,6 +108,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [resumeOptimized, setResumeOptimized] = useState(false)
   const [showOptimizedResume, setShowOptimizedResume] = useState(false)
+  const [optimizedResumeId, setOptimizedResumeId] = useState<string | null>(null)
 
   // Application progress state
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -163,7 +164,10 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
 
   // AI-powered cover letter generation
   const generateAICoverLetter = async () => {
-    if (!userProfile) return
+    if (!userProfile) {
+      console.warn("User profile missing for cover letter generation");
+      return;
+    }
 
     try {
       const token = localStorage.getItem('token')
@@ -256,8 +260,18 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
     }
   }
 
+  const [isOptimizing, setIsOptimizing] = useState(false);
+
   const optimizeResume = async () => {
-    if (!userProfile) return
+    if (!userProfile) {
+      setStatusMessage("User profile data is missing. Please check your profile.");
+      speak("User profile data is missing.");
+      return;
+    }
+
+    setIsOptimizing(true);
+    setStatusMessage("");
+
     try {
       const token = localStorage.getItem('token')
       const response = await fetch('http://localhost:5000/api/v1/ai/optimize-resume', {
@@ -282,11 +296,17 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
       if (data.success) {
         setResumeOptimized(true)
         setShowOptimizedResume(true)
+        setOptimizedResumeId(data.data.optimizedResumeId)
         addAchievement('resume_optimizer')
         speak("Resume optimized with AI suggestions")
+      } else {
+        setStatusMessage("Failed to optimize resume. Please try again.");
       }
     } catch (error) {
       console.error('Resume optimization error:', error)
+      setStatusMessage("An error occurred during optimization.");
+    } finally {
+      setIsOptimizing(false);
     }
   }
 
@@ -305,7 +325,11 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
     }, 200)
 
     try {
-      await onSubmit(applicationData)
+      const submissionData = {
+        ...applicationData,
+        resumeId: optimizedResumeId // Include the AI optimized resume ID
+      };
+      await onSubmit(submissionData)
       setSubmitProgress(100)
       setApplicationStatus('success')
       setStatusMessage("Application submitted successfully!")
@@ -528,13 +552,18 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
 
                   <Button
                     onClick={optimizeResume}
-                    disabled={resumeOptimized || isAnalyzing}
+                    disabled={resumeOptimized || isOptimizing}
                     className={`py-6 px-10 rounded-xl font-bold text-lg shadow-xl transition-all ${resumeOptimized
                       ? 'bg-green-600 hover:bg-green-700'
                       : 'bg-blue-600 hover:bg-blue-700 animate-pulse'
                       }`}
                   >
-                    {resumeOptimized ? (
+                    {isOptimizing ? (
+                      <span className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                        Optimizing...
+                      </span>
+                    ) : resumeOptimized ? (
                       <span className="flex items-center gap-2"><CheckCircle2 className="h-6 w-6" /> Resume Optimized!</span>
                     ) : (
                       <span className="flex items-center gap-2"><Sparkles className="h-6 w-6" /> Optimize with Smart AI</span>
@@ -558,6 +587,16 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
                         <p className="text-xs font-bold text-gray-500 uppercase mb-1">Optimization Status</p>
                         <p className="text-sm text-gray-700">Resume tailored for role and ATS requirements</p>
                       </div>
+                    </div>
+
+                    <div className="mt-6 flex justify-center">
+                      <Button
+                        onClick={() => window.open(`/profile?resumeId=${optimizedResumeId}&aiMode=true`, '_blank')}
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg gap-2"
+                      >
+                        <Sparkles className="h-5 w-5" />
+                        View & Edit Optimized Resume
+                      </Button>
                     </div>
                   </div>
                 )}

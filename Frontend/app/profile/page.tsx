@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useSearchParams } from 'next/navigation';
 import { ProtectedLayout } from "@/components/ProtectedLayout";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -27,13 +28,29 @@ import {
 export default function ProfilePage() {
   const { user, logout, isLoading } = useAuth()
   const [profileVisible, setProfileVisible] = useState(true);
-  const [userResumes, setUserResumes] = useState([]);
+  const [userResumes, setUserResumes] = useState<any[]>([]);
   const [activeSection, setActiveSection] = useState("user-info");
   const [editingResumeId, setEditingResumeId] = useState<string | null>(null);
   const [showPreviewByDefault, setShowPreviewByDefault] = useState(false);
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
   const [previewResumeId, setPreviewResumeId] = useState<string | null>(null);
   const [previewResumeData, setPreviewResumeData] = useState<any>(null);
+
+  const [aiMode, setAiMode] = useState(false);
+  const searchParams = useSearchParams();
+
+  // Check URL parameters for deep linking (e.g., from AI optimization)
+  useEffect(() => {
+    const resumeIdParam = searchParams.get('resumeId');
+    const aiModeParam = searchParams.get('aiMode');
+
+    if (resumeIdParam) {
+      setEditingResumeId(resumeIdParam);
+      if (aiModeParam === 'true') {
+        setAiMode(true);
+      }
+    }
+  }, [searchParams]);
 
   // Check if user needs to complete profile
   useEffect(() => {
@@ -46,7 +63,7 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchUserResumes = async () => {
       if (!user) return;
-      
+
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
@@ -114,13 +131,13 @@ export default function ProfilePage() {
 
   const handleResumeBuilderSave = async (data: any) => {
     console.log("Resume saved:", data);
-    
+
     try {
       const token = localStorage.getItem('token');
-      
+
       let response;
       let result;
-      
+
       if (editingResumeId && editingResumeId !== "new-resume") {
         // Update existing resume
         response = await fetch(`/api/v1/resumes/${editingResumeId}`, {
@@ -129,7 +146,7 @@ export default function ProfilePage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             title: data.title,
             role: data.role,
             parsedData: {
@@ -150,6 +167,7 @@ export default function ProfilePage() {
               languages: data.languages || [],
               projects: data.projects || [],
               references: data.references || [],
+              optimizationMetadata: data.optimizationMetadata || {}
             }
           })
         });
@@ -172,7 +190,7 @@ export default function ProfilePage() {
       result = await response.json();
       console.log('Resume saved to database:', result);
       alert('Resume saved successfully!');
-      
+
       // Update resume in list
       if (editingResumeId === "new-resume") {
         const newResume = {
@@ -191,8 +209,8 @@ export default function ProfilePage() {
         setUserResumes((prev) => [newResume, ...prev]);
       } else if (editingResumeId) {
         // Update existing resume in the list
-        setUserResumes((prev) => prev.map(r => 
-          r._id === editingResumeId 
+        setUserResumes((prev) => prev.map(r =>
+          r._id === editingResumeId
             ? { ...r, title: data.title, filename: data.title || data.name, role: data.role }
             : r
         ));
@@ -201,7 +219,7 @@ export default function ProfilePage() {
       console.error('Error saving resume:', error);
       alert('Failed to save resume. Please try again.');
     }
-    
+
     setEditingResumeId(null);
   };
 
@@ -217,7 +235,7 @@ export default function ProfilePage() {
           <div className="text-gray-500">Loading user data...</div>
         </div>
       ) : (
-        <ProfilePageContent 
+        <ProfilePageContent
           user={user}
           userResumes={userResumes}
           setUserResumes={setUserResumes}
@@ -236,6 +254,8 @@ export default function ProfilePage() {
           onResumeDelete={handleResumeDelete}
           onResumeBuilderSave={handleResumeBuilderSave}
           logout={logout}
+          aiMode={aiMode}
+          setAiMode={setAiMode}
         />
       )}
     </ProtectedLayout>
@@ -261,6 +281,8 @@ function ProfilePageContent({
   onResumeDelete,
   onResumeBuilderSave,
   logout,
+  aiMode,
+  setAiMode,
 }: any) {
   const [profileVisible, setProfileVisible] = useState(true);
 
@@ -284,7 +306,7 @@ function ProfilePageContent({
     if (resume && resume._id) {
       console.log("Preview resume:", resume._id);
       setPreviewResumeId(resume._id);
-      
+
       // Load resume data for preview
       try {
         const token = localStorage.getItem('token');
@@ -458,9 +480,11 @@ function ProfilePageContent({
               <div className="mb-8">
                 <ResumeBuilder
                   resumeId={editingResumeId}
+                  isAIMode={aiMode}
                   onSave={onResumeBuilderSave}
                   onBack={() => {
                     setEditingResumeId(null);
+                    setAiMode(false);
                     setShowPreviewByDefault(false);
                   }}
                   defaultShowPreview={showPreviewByDefault}
@@ -604,227 +628,227 @@ function ProfilePageContent({
 
       {/* Profile Completion Modal */}
       <Dialog open={needsProfileCompletion} onOpenChange={setNeedsProfileCompletion}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Complete Your Profile</DialogTitle>
-          <DialogDescription>
-            To get the most out of our platform, please complete your profile information.
-            This will help employers find you and improve your job search experience.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setNeedsProfileCompletion(false)}
-          >
-            Skip for Now
-          </Button>
-          <Button
-            onClick={() => {
-              setNeedsProfileCompletion(false);
-              setActiveSection("user-info");
-            }}
-          >
-            Complete Profile
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Complete Your Profile</DialogTitle>
+            <DialogDescription>
+              To get the most out of our platform, please complete your profile information.
+              This will help employers find you and improve your job search experience.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setNeedsProfileCompletion(false)}
+            >
+              Skip for Now
+            </Button>
+            <Button
+              onClick={() => {
+                setNeedsProfileCompletion(false);
+                setActiveSection("user-info");
+              }}
+            >
+              Complete Profile
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-    {/* Resume Preview Modal */}
-    <Dialog open={!!previewResumeId} onOpenChange={(open) => {
-      if (!open) {
-        setPreviewResumeId(null);
-        setPreviewResumeData(null);
-      }
-    }}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Resume Preview</DialogTitle>
-          <DialogDescription>Professional PDF Format</DialogDescription>
-        </DialogHeader>
-        
-        {previewResumeData && (
-          <div className="space-y-4">
-            {/* Preview Panel - PDF Style */}
-            <div className="bg-white p-8 border-2 border-gray-300 rounded-lg font-serif text-sm leading-relaxed max-h-[600px] overflow-y-auto">
-              {/* Header */}
-              <div className="mb-6 border-b-2 border-gray-400 pb-4">
-                <h1 className="text-2xl font-bold text-center text-gray-900">
-                  {previewResumeData.parsedData?.name || "Your Name"}
-                </h1>
-                {previewResumeData.role && (
-                  <p className="text-lg text-blue-600 font-medium text-center mt-1">
-                    {previewResumeData.role}
-                  </p>
-                )}
-                <div className="text-center text-xs text-gray-700 space-y-1 mt-2">
-                  {previewResumeData.parsedData?.email && (
-                    <p>{previewResumeData.parsedData.email}</p>
+      {/* Resume Preview Modal */}
+      <Dialog open={!!previewResumeId} onOpenChange={(open) => {
+        if (!open) {
+          setPreviewResumeId(null);
+          setPreviewResumeData(null);
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Resume Preview</DialogTitle>
+            <DialogDescription>Professional PDF Format</DialogDescription>
+          </DialogHeader>
+
+          {previewResumeData && (
+            <div className="space-y-4">
+              {/* Preview Panel - PDF Style */}
+              <div className="bg-white p-8 border-2 border-gray-300 rounded-lg font-serif text-sm leading-relaxed max-h-[600px] overflow-y-auto">
+                {/* Header */}
+                <div className="mb-6 border-b-2 border-gray-400 pb-4">
+                  <h1 className="text-2xl font-bold text-center text-gray-900">
+                    {previewResumeData.parsedData?.name || "Your Name"}
+                  </h1>
+                  {previewResumeData.role && (
+                    <p className="text-lg text-blue-600 font-medium text-center mt-1">
+                      {previewResumeData.role}
+                    </p>
                   )}
-                  {previewResumeData.parsedData?.phone && (
-                    <p>{previewResumeData.parsedData.phone}</p>
-                  )}
-                  {previewResumeData.parsedData?.location && (
-                    <p>{previewResumeData.parsedData.location}</p>
-                  )}
-                  <div className="space-x-4 text-xs">
-                    {previewResumeData.parsedData?.linkedin && (
-                      <span>{previewResumeData.parsedData.linkedin}</span>
+                  <div className="text-center text-xs text-gray-700 space-y-1 mt-2">
+                    {previewResumeData.parsedData?.email && (
+                      <p>{previewResumeData.parsedData.email}</p>
                     )}
-                    {previewResumeData.parsedData?.github && (
-                      <span>{previewResumeData.parsedData.github}</span>
+                    {previewResumeData.parsedData?.phone && (
+                      <p>{previewResumeData.parsedData.phone}</p>
                     )}
+                    {previewResumeData.parsedData?.location && (
+                      <p>{previewResumeData.parsedData.location}</p>
+                    )}
+                    <div className="space-x-4 text-xs">
+                      {previewResumeData.parsedData?.linkedin && (
+                        <span>{previewResumeData.parsedData.linkedin}</span>
+                      )}
+                      {previewResumeData.parsedData?.github && (
+                        <span>{previewResumeData.parsedData.github}</span>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {/* Professional Summary */}
+                {previewResumeData.parsedData?.summary && (
+                  <div className="mb-4">
+                    <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
+                      PROFESSIONAL SUMMARY
+                    </h2>
+                    <p className="text-xs text-gray-800 leading-relaxed">
+                      {previewResumeData.parsedData.summary}
+                    </p>
+                  </div>
+                )}
+
+                {/* Experience */}
+                {previewResumeData.parsedData?.experience && previewResumeData.parsedData.experience.length > 0 && (
+                  <div className="mb-4">
+                    <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
+                      EXPERIENCE
+                    </h2>
+                    <div className="space-y-3">
+                      {previewResumeData.parsedData.experience.map((exp: any, idx: number) => (
+                        <div key={idx} className="text-xs">
+                          <div className="flex justify-between">
+                            <span className="font-bold text-gray-900">{exp.title}</span>
+                            <span className="text-gray-700">{exp.duration}</span>
+                          </div>
+                          <div className="text-gray-800">{exp.company}</div>
+                          {exp.description && (
+                            <p className="text-gray-700 mt-1">{exp.description}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Education */}
+                {previewResumeData.parsedData?.education && previewResumeData.parsedData.education.length > 0 && (
+                  <div className="mb-4">
+                    <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
+                      EDUCATION
+                    </h2>
+                    <div className="space-y-2">
+                      {previewResumeData.parsedData.education.map((edu: any, idx: number) => (
+                        <div key={idx} className="text-xs">
+                          <div className="flex justify-between">
+                            <span className="font-bold text-gray-900">{edu.degree}</span>
+                            <span className="text-gray-700">{edu.year}</span>
+                          </div>
+                          <div className="text-gray-800">{edu.school}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Skills */}
+                {previewResumeData.parsedData?.skills && previewResumeData.parsedData.skills.length > 0 && (
+                  <div className="mb-4">
+                    <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
+                      SKILLS
+                    </h2>
+                    <div className="space-y-2">
+                      {/* Technical Skills */}
+                      {(() => {
+                        const technicalSkills = previewResumeData.parsedData.skills.find((skillGroup: any) =>
+                          skillGroup.category === "Technical"
+                        );
+                        return technicalSkills?.items && technicalSkills.items.length > 0 ? (
+                          <div>
+                            <h3 className="text-xs font-semibold text-gray-700 mb-1">Technical Skills</h3>
+                            <p className="text-xs text-gray-800">
+                              {technicalSkills.items.filter((item: any) => item && item.trim && item.trim().length > 0).join(" • ")}
+                            </p>
+                          </div>
+                        ) : null;
+                      })()}
+
+                      {/* Soft Skills */}
+                      {(() => {
+                        const softSkills = previewResumeData.parsedData.skills.find((skillGroup: any) =>
+                          skillGroup.category === "Soft Skills"
+                        );
+                        return softSkills?.items && softSkills.items.length > 0 ? (
+                          <div>
+                            <h3 className="text-xs font-semibold text-gray-700 mb-1">Soft Skills</h3>
+                            <p className="text-xs text-gray-800">
+                              {softSkills.items.filter((item: any) => item && item.trim && item.trim().length > 0).join(" • ")}
+                            </p>
+                          </div>
+                        ) : null;
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* Certifications */}
+                {previewResumeData.parsedData?.certifications && previewResumeData.parsedData.certifications.length > 0 && (
+                  <div className="mb-4">
+                    <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
+                      CERTIFICATIONS
+                    </h2>
+                    <div className="space-y-2">
+                      {previewResumeData.parsedData.certifications.map((cert: any, idx: number) => (
+                        <div key={idx} className="text-xs">
+                          <p className="font-bold">{cert.title}</p>
+                          <p className="text-gray-700">{cert.issuer}{cert.date && ` • ${cert.date}`}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Languages */}
+                {previewResumeData.parsedData?.languages && previewResumeData.parsedData.languages.length > 0 && (
+                  <div>
+                    <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
+                      LANGUAGES
+                    </h2>
+                    <p className="text-xs text-gray-800">
+                      {previewResumeData.parsedData.languages.map((lang: any) => `${lang.language} (${lang.proficiency})`).join(" • ")}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Professional Summary */}
-              {previewResumeData.parsedData?.summary && (
-                <div className="mb-4">
-                  <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
-                    PROFESSIONAL SUMMARY
-                  </h2>
-                  <p className="text-xs text-gray-800 leading-relaxed">
-                    {previewResumeData.parsedData.summary}
-                  </p>
-                </div>
-              )}
-
-              {/* Experience */}
-              {previewResumeData.parsedData?.experience && previewResumeData.parsedData.experience.length > 0 && (
-                <div className="mb-4">
-                  <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
-                    EXPERIENCE
-                  </h2>
-                  <div className="space-y-3">
-                    {previewResumeData.parsedData.experience.map((exp: any, idx: number) => (
-                      <div key={idx} className="text-xs">
-                        <div className="flex justify-between">
-                          <span className="font-bold text-gray-900">{exp.title}</span>
-                          <span className="text-gray-700">{exp.duration}</span>
-                        </div>
-                        <div className="text-gray-800">{exp.company}</div>
-                        {exp.description && (
-                          <p className="text-gray-700 mt-1">{exp.description}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Education */}
-              {previewResumeData.parsedData?.education && previewResumeData.parsedData.education.length > 0 && (
-                <div className="mb-4">
-                  <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
-                    EDUCATION
-                  </h2>
-                  <div className="space-y-2">
-                    {previewResumeData.parsedData.education.map((edu: any, idx: number) => (
-                      <div key={idx} className="text-xs">
-                        <div className="flex justify-between">
-                          <span className="font-bold text-gray-900">{edu.degree}</span>
-                          <span className="text-gray-700">{edu.year}</span>
-                        </div>
-                        <div className="text-gray-800">{edu.school}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Skills */}
-              {previewResumeData.parsedData?.skills && previewResumeData.parsedData.skills.length > 0 && (
-                <div className="mb-4">
-                  <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
-                    SKILLS
-                  </h2>
-                  <div className="space-y-2">
-                    {/* Technical Skills */}
-                    {(() => {
-                      const technicalSkills = previewResumeData.parsedData.skills.find((skillGroup: any) =>
-                        skillGroup.category === "Technical"
-                      );
-                      return technicalSkills?.items && technicalSkills.items.length > 0 ? (
-                        <div>
-                          <h3 className="text-xs font-semibold text-gray-700 mb-1">Technical Skills</h3>
-                          <p className="text-xs text-gray-800">
-                            {technicalSkills.items.filter((item: any) => item && item.trim && item.trim().length > 0).join(" • ")}
-                          </p>
-                        </div>
-                      ) : null;
-                    })()}
-
-                    {/* Soft Skills */}
-                    {(() => {
-                      const softSkills = previewResumeData.parsedData.skills.find((skillGroup: any) =>
-                        skillGroup.category === "Soft Skills"
-                      );
-                      return softSkills?.items && softSkills.items.length > 0 ? (
-                        <div>
-                          <h3 className="text-xs font-semibold text-gray-700 mb-1">Soft Skills</h3>
-                          <p className="text-xs text-gray-800">
-                            {softSkills.items.filter((item: any) => item && item.trim && item.trim().length > 0).join(" • ")}
-                          </p>
-                        </div>
-                      ) : null;
-                    })()}
-                  </div>
-                </div>
-              )}
-
-              {/* Certifications */}
-              {previewResumeData.parsedData?.certifications && previewResumeData.parsedData.certifications.length > 0 && (
-                <div className="mb-4">
-                  <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
-                    CERTIFICATIONS
-                  </h2>
-                  <div className="space-y-2">
-                    {previewResumeData.parsedData.certifications.map((cert: any, idx: number) => (
-                      <div key={idx} className="text-xs">
-                        <p className="font-bold">{cert.title}</p>
-                        <p className="text-gray-700">{cert.issuer}{cert.date && ` • ${cert.date}`}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Languages */}
-              {previewResumeData.parsedData?.languages && previewResumeData.parsedData.languages.length > 0 && (
-                <div>
-                  <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-300 pb-1">
-                    LANGUAGES
-                  </h2>
-                  <p className="text-xs text-gray-800">
-                    {previewResumeData.parsedData.languages.map((lang: any) => `${lang.language} (${lang.proficiency})`).join(" • ")}
-                  </p>
-                </div>
-              )}
+              {/* Action Buttons */}
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => {
+                  setPreviewResumeId(null);
+                  setPreviewResumeData(null);
+                }}>
+                  Close Preview
+                </Button>
+                <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => {
+                  // Download functionality
+                  const resumeName = previewResumeData.filename || "resume.pdf";
+                  // Call download API
+                  window.location.href = `/api/v1/resumes/${previewResumeId}/download`;
+                }}>
+                  Download PDF
+                </Button>
+              </div>
             </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => {
-                setPreviewResumeId(null);
-                setPreviewResumeData(null);
-              }}>
-                Close Preview
-              </Button>
-              <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => {
-                // Download functionality
-                const resumeName = previewResumeData.filename || "resume.pdf";
-                // Call download API
-                window.location.href = `/api/v1/resumes/${previewResumeId}/download`;
-              }}>
-                Download PDF
-              </Button>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

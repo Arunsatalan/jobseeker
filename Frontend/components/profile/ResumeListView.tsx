@@ -244,7 +244,7 @@ export function ResumeListView({
                       <Eye className="h-3 w-3 mr-1" />
                       Preview
                     </Button>
-                    <Button
+                    {/* <Button
                       size="sm"
                       variant="outline"
                       onClick={() => onDownload?.(resume.id)}
@@ -252,8 +252,8 @@ export function ResumeListView({
                     >
                       <Download className="h-3 w-3 mr-1" />
                       Download
-                    </Button>
-                    <Button
+                    </Button> */}
+                    {/* <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
@@ -264,7 +264,7 @@ export function ResumeListView({
                     >
                       <Sparkles className="h-3 w-3 mr-1" />
                       Optimize
-                    </Button>
+                    </Button> */}
                     <Button
                       size="sm"
                       variant="outline"

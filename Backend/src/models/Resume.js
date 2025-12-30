@@ -35,7 +35,7 @@ const resumeSchema = new mongoose.Schema(
       linkedin: String,
       github: String,
       summary: String,
-      
+
       // Detailed arrays
       experience: [{
         company: String,
@@ -86,11 +86,18 @@ const resumeSchema = new mongoose.Schema(
         phone: String,
         _id: false
       }],
-      
+
       // Legacy fields for backward compatibility
       skills_legacy: [String],
       experience_legacy: [String],
       education_legacy: [String],
+
+      // AI Optimization Metadata
+      optimizationMetadata: {
+        addedKeywords: [String],
+        matchScore: Number,
+        changesSummary: [String]
+      }
     },
     views: {
       type: Number,
