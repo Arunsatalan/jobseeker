@@ -11,7 +11,7 @@ const logger = require('../src/utils/logger');
 const seedDatabase = async () => {
   try {
     // Connect to MongoDB
-    await mongoose.connect(config.MONGODB_URI, {
+    await mongoose.connect('mongodb://localhost:27017/find_job', {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
@@ -146,7 +146,7 @@ const seedDatabase = async () => {
       {
         title: 'Senior Software Engineer',
         description: 'Looking for experienced software engineer',
-        company: 'Tech Corp',
+        company: companies[0]._id,
         employer: employers[0]._id,
         location: 'Toronto, ON',
         employmentType: 'full-time',
@@ -161,7 +161,7 @@ const seedDatabase = async () => {
       {
         title: 'Financial Analyst',
         description: 'Join our finance team',
-        company: 'Finance Plus',
+        company: companies[1]._id,
         employer: employers[1]._id,
         location: 'Vancouver, BC',
         employmentType: 'full-time',
@@ -176,7 +176,7 @@ const seedDatabase = async () => {
       {
         title: 'AI/ML Engineer',
         description: 'Build the future of job matching with AI',
-        company: 'vinasai',
+        company: companies[2]._id,
         employer: employers[0]._id,
         location: 'Remote',
         employmentType: 'full-time',

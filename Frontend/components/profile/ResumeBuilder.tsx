@@ -548,7 +548,7 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview, se
         <>
           {/* Role Selection Card (for new resumes) */}
           {(!resumeId || resumeId === "new-resume") && userPreferences?.desiredRoles?.length > 0 && (
-            <Card className="p-6 mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+            <Card className="p-6 mb-6 bg-linear-to-r from-blue-50 to-indigo-50 border-blue-200">
               <div className="text-center">
                 <h3 className="text-lg font-semibold text-blue-900 mb-2">
                   {currentRole ? `Selected Role: ${currentRole}` : 'Choose Your Target Role'}
@@ -661,7 +661,7 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview, se
 
           {isAIMode && optimizationMetadata && (
             <Card className="mb-6 border-green-200 bg-green-50 overflow-hidden">
-              <div className="p-4 bg-gradient-to-r from-green-100 to-emerald-50 border-b border-green-200">
+              <div className="p-4 bg-linear-to-r from-green-100 to-emerald-50 border-b border-green-200">
                 <h3 className="font-bold flex items-center gap-2 text-green-900">
                   <Sparkles className="h-5 w-5 text-green-600" />
                   AI Optimization Summary

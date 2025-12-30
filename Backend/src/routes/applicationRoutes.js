@@ -2,6 +2,9 @@ const router = require('express').Router();
 const { protect, authorize } = require('../middleware/auth');
 const applicationController = require('../controllers/applicationController');
 
+// Smart Apply route MUST come before generic /:jobId route
+router.post('/smart-apply/:jobId', protect, authorize('jobseeker'), applicationController.smartApplyForJob);
+
 // Protected routes
 router.post('/:jobId', protect, authorize('jobseeker'), applicationController.applyForJob);
 router.get('/', protect, applicationController.getApplications);

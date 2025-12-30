@@ -198,24 +198,92 @@ Write a compelling, personalized cover letter that makes the hiring manager want
         const matches = jobSkills.filter(skill => userSkills.includes(skill));
         const missing = jobSkills.filter(skill => !userSkills.includes(skill));
 
-        const matchPercentage = jobSkills.length > 0
+        let matchPercentage = jobSkills.length > 0
             ? Math.round((matches.length / jobSkills.length) * 100)
             : 50;
 
+        // Boost match if preferences align with job
+        let preferencesBoost = 0;
+        let preferencesStrengths = [];
+        let preferencesImprovements = [];
+
+        if (userProfile.preferences) {
+            const prefs = userProfile.preferences;
+            
+            // Check desired roles match
+            if (prefs.desiredRoles && prefs.desiredRoles.length > 0) {
+                const jobTitleLower = job.title.toLowerCase();
+                const roleMatch = prefs.desiredRoles.some(role => 
+                    jobTitleLower.includes(role.toLowerCase()) || role.toLowerCase().includes(jobTitleLower.split(' ')[0])
+                );
+                if (roleMatch) {
+                    preferencesBoost += 10;
+                    preferencesStrengths.push(`Job title matches your desired role: ${prefs.desiredRoles.join(', ')}`);
+                }
+            }
+
+            // Check location match
+            if (prefs.locations && prefs.locations.length > 0 && job.location) {
+                const locationMatch = prefs.locations.some(loc => 
+                    job.location.toLowerCase().includes(loc.toLowerCase())
+                );
+                if (locationMatch) {
+                    preferencesBoost += 5;
+                    preferencesStrengths.push(`Job location (${job.location}) matches your preferences: ${prefs.locations.join(', ')}`);
+                } else {
+                    preferencesImprovements.push(`Location mismatch: You prefer ${prefs.locations.join(', ')}, but job is in ${job.location}`);
+                }
+            }
+
+            // Check work type match
+            if (prefs.workType && prefs.workType.length > 0 && job.employmentType) {
+                const workTypeMatch = prefs.workType.some(type => 
+                    job.employmentType.toLowerCase().includes(type.toLowerCase()) || 
+                    type.toLowerCase().includes(job.employmentType.toLowerCase())
+                );
+                if (workTypeMatch) {
+                    preferencesBoost += 5;
+                    preferencesStrengths.push(`Work type (${job.employmentType}) matches your preferences`);
+                }
+            }
+
+            // Check experience level match
+            if (prefs.experienceLevel && job.experience) {
+                const levelMatch = job.experience.toLowerCase().includes(prefs.experienceLevel.toLowerCase()) ||
+                                 prefs.experienceLevel.toLowerCase().includes(job.experience.toLowerCase());
+                if (levelMatch) {
+                    preferencesBoost += 5;
+                    preferencesStrengths.push(`Experience level matches: ${prefs.experienceLevel}`);
+                }
+            }
+
+            // Check availability
+            if (prefs.availability === 'Immediately') {
+                preferencesStrengths.push('Available to start immediately');
+            }
+        }
+
+        matchPercentage = Math.min(100, matchPercentage + preferencesBoost);
+
         const strengths = [
-            `Strong alignment with core technologies like ${matches.slice(0, 2).join(', ') || 'essential skills'}`,
-            userProfile.experience?.length > 0 ? `Demonstrated professional experience (${userProfile.experience.length} roles found)` : 'Willingness to apply existing knowledge to this domain',
-            userProfile.projects?.length > 0 ? `Rich project portfolio with ${userProfile.projects.length} relevant entries` : 'Focused professional summary aligning with job title'
-        ];
+            matches.length > 0 ? `Strong alignment with core technologies like ${matches.slice(0, 2).join(', ')}` : null,
+            userProfile.experience?.length > 0 ? `Demonstrated professional experience (${userProfile.experience.length} roles found)` : null,
+            userProfile.projects?.length > 0 ? `Rich project portfolio with ${userProfile.projects.length} relevant entries` : null,
+            ...preferencesStrengths
+        ].filter(Boolean);
+
+        const improvements = [
+            missing.length > 0 ? `Focus on acquiring or highlighting ${missing.slice(0, 2).join(' and ')}` : null,
+            'Quantify results in your experience section',
+            ...preferencesImprovements
+        ].filter(Boolean);
 
         return {
             matchPercentage,
-            strengths: strengths.slice(0, 3),
-            improvements: missing.length > 0
-                ? [`Focus on acquiring or highlighting ${missing.slice(0, 2).join(' and ')}`, 'Quantify results in your experience section', 'Align project descriptions with industry keywords']
-                : ['Add more specific certifications', 'Highlight leadership roles', 'Include links to live demos'],
+            strengths: strengths.slice(0, 5),
+            improvements: improvements.slice(0, 5),
             suggestedSkills: missing.slice(0, 4),
-            detailedAnalysis: `Based on a deep scan of ${userProfile.name}'s profile and ${job.company}'s requirements, we found a ${matchPercentage}% technical overlap. The candidate shows strong proficiency in ${matches.join(', ') || 'base skills'}, but should address gaps in ${missing.slice(0, 2).join(', ') || 'niche areas'} to become a top-tier applicant.`
+            detailedAnalysis: `Based on a deep scan of ${userProfile.name}'s profile and ${job.company}'s requirements, we found a ${matchPercentage}% overall match. The candidate shows strong proficiency in ${matches.join(', ') || 'base skills'}, but should address gaps in ${missing.slice(0, 2).join(', ') || 'niche areas'} to become a top-tier applicant.${preferencesStrengths.length > 0 ? ` Career preferences align well with this opportunity.` : ''}`
         };
     }
 
@@ -348,6 +416,16 @@ ${userProfile.certifications?.join('\n') || 'N/A'}
 🌐 LANGUAGES:
 ${userProfile.languages?.join(', ') || 'N/A'}
 
+${userProfile.preferences ? `
+🎯 CAREER PREFERENCES:
+• Desired Roles: ${userProfile.preferences.desiredRoles?.join(', ') || 'Not specified'}
+• Preferred Locations: ${userProfile.preferences.locations?.join(', ') || 'Any location'}
+• Experience Level: ${userProfile.preferences.experienceLevel || 'Not specified'}
+• Work Types: ${userProfile.preferences.workType?.join(', ') || 'Any type'}
+• Salary Expectation: $${userProfile.preferences.salaryRange?.min?.toLocaleString() || '0'} - $${userProfile.preferences.salaryRange?.max?.toLocaleString() || '0'} ${userProfile.preferences.salaryRange?.period || 'yearly'}
+• Availability: ${userProfile.preferences.availability || 'Not specified'}
+` : ''}
+
 ═══════════════════════════════════════════════════
 🎯 TARGET JOB REQUIREMENTS
 ═══════════════════════════════════════════════════
@@ -374,22 +452,25 @@ ${job.salary || 'Not disclosed'}
 Perform a deep, evidence-based analysis:
 
 1. **Match Percentage (0-100)**: Calculate based on:
-   - Hard Skills Match: 40% weight (exact tech/tool matches)
-   - Experience Relevance: 30% weight (similar roles, industries, responsibilities)
-   - Education/Certs: 20% weight (degree relevance, certifications)
+   - Hard Skills Match: 35% weight (exact tech/tool matches)
+   - Experience Relevance: 25% weight (similar roles, industries, responsibilities)
+   - Education/Certs: 15% weight (degree relevance, certifications)
    - Career Trajectory: 10% weight (progression toward this role)
+   - Preferences Alignment: 15% weight (role match, location match, salary fit, work type compatibility)
 
 2. **Strengths (3-5 items)**: Identify SPECIFIC advantages citing:
    - Exact skill/experience matches from the data
    - Quantifiable achievements (if present in experience)
    - Unique qualifications or standout projects
    - Cultural/industry fit indicators
+   - Preferences alignment (if job matches desired roles, location, work type, salary expectations)
 
 3. **Improvements (3-5 items)**: Provide ACTIONABLE gaps:
    - Missing hard skills with priority ranking
    - Experience gaps (e.g., "No cloud deployment experience shown")
    - Resume presentation issues
    - Specific certifications that would help
+   - Preferences misalignment (if salary below expectations, location mismatch, etc.)
 
 4. **Suggested Skills (3-5 items)**: List SPECIFIC technologies/skills to acquire:
    - Technologies mentioned in job but missing from profile

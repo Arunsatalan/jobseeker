@@ -190,7 +190,7 @@ export function MatchedJobs({ userPreferences, onJobSelect }: MatchedJobsProps) 
                     <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
                       <div className="flex items-center gap-1">
                         <Building2 className="h-4 w-4" />
-                        {match.job.company}
+                        {typeof match.job.company === 'object' ? match.job.company?.name : match.job.company}
                       </div>
                       
                       <div className="flex items-center gap-1">

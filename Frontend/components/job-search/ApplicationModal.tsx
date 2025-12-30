@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { ResumeBuilder } from '@/components/profile/ResumeBuilder'
 import {
   Brain,
   CheckCircle2,
@@ -34,7 +35,8 @@ import {
   Languages,
   Accessibility,
   Volume2,
-  VolumeX
+  VolumeX,
+  ArrowLeft
 } from 'lucide-react'
 
 interface Job {
@@ -109,6 +111,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
   const [resumeOptimized, setResumeOptimized] = useState(false)
   const [showOptimizedResume, setShowOptimizedResume] = useState(false)
   const [optimizedResumeId, setOptimizedResumeId] = useState<string | null>(null)
+  const [showResumeBuilder, setShowResumeBuilder] = useState(false)
 
   // Application progress state
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -325,24 +328,57 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
     }, 200)
 
     try {
-      const submissionData = {
-        ...applicationData,
-        resumeId: optimizedResumeId // Include the AI optimized resume ID
-      };
-      await onSubmit(submissionData)
-      setSubmitProgress(100)
-      setApplicationStatus('success')
-      setStatusMessage("Application submitted successfully!")
-      setApplicationCount(prev => prev + 1)
-      addAchievement('first_application')
-      speak("Application submitted successfully!")
-      setTimeout(() => {
-        onClose()
-        resetModal()
-      }, 3000)
-    } catch (error) {
+      const token = localStorage.getItem('token')
+      
+      console.log('Submitting application with:', {
+        jobId: job.id,
+        coverLetterLength: applicationData.coverLetter.length,
+        resumeId: optimizedResumeId,
+        platform: applicationData.platform
+      })
+      
+      // Submit application with AI-optimized resume and cover letter
+      const response = await fetch(`http://localhost:5000/api/v1/applications/smart-apply/${job.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          resumeId: optimizedResumeId, // AI-optimized resume
+          optimizedResumeId: optimizedResumeId,
+          coverLetter: applicationData.coverLetter,
+          platform: applicationData.platform,
+          additionalInfo: applicationData.additionalInfo,
+          privacyConsent: applicationData.privacyConsent
+        })
+      })
+
+      const data = await response.json()
+      
+      console.log('Application response:', data)
+      
+      if (data.success) {
+        setSubmitProgress(100)
+        setApplicationStatus('success')
+        setStatusMessage(data.data.message || "Application submitted successfully!")
+        setApplicationCount(prev => prev + 1)
+        addAchievement('first_application')
+        speak("Application submitted successfully! You will be notified about the status.")
+        
+        setTimeout(() => {
+          onClose()
+          resetModal()
+        }, 3000)
+      } else {
+        throw new Error(data.message || 'Failed to submit application')
+      }
+    } catch (error: any) {
+      console.error('Application submission error:', error)
       setApplicationStatus('error')
-      setStatusMessage("Failed to submit application.")
+      const errorMessage = error.message || "Failed to submit application. Please try again."
+      setStatusMessage(errorMessage)
+      speak("Application submission failed. " + errorMessage)
     } finally {
       setIsSubmitting(false)
       clearInterval(progressInterval)
@@ -437,7 +473,24 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
 
         {/* Content */}
         <div className="px-6 py-6">
-          {currentStep === 0 && (
+          {showResumeBuilder ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 mb-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowResumeBuilder(false)}
+                  className="flex items-center gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to Application
+                </Button>
+                <h3 className="text-xl font-bold">Edit Optimized Resume</h3>
+              </div>
+              <ResumeBuilder resumeId={optimizedResumeId || undefined} aiMode={true} />
+            </div>
+          ) : (
+            <>
+              {currentStep === 0 && (
             <div className="space-y-6">
               <div className="text-center">
                 <h3 className="text-xl font-bold mb-2">AI Profile Analysis</h3>
@@ -453,7 +506,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
                 </div>
               ) : aiAnalysis ? (
                 <div className="space-y-6 animate-in fade-in duration-500">
-                  <Card className="p-6 bg-gradient-to-r from-amber-50 to-orange-50 border-amber-100">
+                  <Card className="p-6 bg-linear-to-r from-amber-50 to-orange-50 border-amber-100">
                     <div className="text-center">
                       <div className="text-5xl font-extrabold text-amber-600 mb-2">
                         {aiAnalysis.matchPercentage}%
@@ -482,6 +535,9 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
                           </li>
                         ))}
                       </ul>
+                      {aiAnalysis.strengths.length === 0 && (
+                        <p className="text-sm text-gray-500 italic">Complete your profile for personalized strengths</p>
+                      )}
                     </Card>
 
                     <Card className="p-5 border-blue-100 bg-blue-50/30">
@@ -497,6 +553,9 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
                           </li>
                         ))}
                       </ul>
+                      {aiAnalysis.improvements.length === 0 && (
+                        <p className="text-sm text-gray-500 italic">You're well-qualified! Keep applying.</p>
+                      )}
                     </Card>
                   </div>
 
@@ -524,13 +583,28 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
               )}
 
               <div className="flex justify-end pt-4">
-                <Button
-                  onClick={() => setCurrentStep(1)}
-                  disabled={!aiAnalysis}
-                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-6 px-8 rounded-xl shadow-lg hover:shadow-amber-200 transition-all"
-                >
-                  Continue to Resume Optimization
-                </Button>
+                {aiAnalysis && aiAnalysis.matchPercentage < 60 ? (
+                  <div className="text-center w-full">
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                      <p className="text-yellow-800 font-bold">⚠️ Match Score Below 60%</p>
+                      <p className="text-yellow-700 text-sm mt-2">Your profile match is below our recommended threshold. We suggest improving your profile first.</p>
+                    </div>
+                    <Button
+                      onClick={performAIAnalysis}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-6 px-8 rounded-xl"
+                    >
+                      Re-analyze Profile
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => setCurrentStep(1)}
+                    disabled={!aiAnalysis}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-6 px-8 rounded-xl shadow-lg hover:shadow-amber-200 transition-all"
+                  >
+                    Continue to Resume Optimization
+                  </Button>
+                )}
               </div>
             </div>
           )}
@@ -591,7 +665,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
 
                     <div className="mt-6 flex justify-center">
                       <Button
-                        onClick={() => window.open(`/profile?resumeId=${optimizedResumeId}&aiMode=true`, '_blank')}
+                        onClick={() => setShowResumeBuilder(true)}
                         className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg gap-2"
                       >
                         <Sparkles className="h-5 w-5" />
@@ -700,7 +774,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
                     checked={applicationData.privacyConsent}
                     onChange={(e) => setApplicationData({ ...applicationData, privacyConsent: e.target.checked })}
                   />
-                  <label htmlFor="privacy" className="text-sm font-medium text-gray-700 font-bold">I agree to the terms of service and privacy policy</label>
+                  <label htmlFor="privacy" className="text-sm font-bold text-gray-700">I agree to the terms of service and privacy policy</label>
                 </div>
 
                 {applicationStatus === 'submitting' ? (
@@ -724,7 +798,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
                 ) : (
                   <Button
                     onClick={handleSubmit}
-                    className="w-full py-8 text-xl font-extrabold bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-2xl shadow-xl hover:shadow-orange-200 hover:-translate-y-1 transition-all"
+                    className="w-full py-8 text-xl font-extrabold bg-linear-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-2xl shadow-xl hover:shadow-orange-200 hover:-translate-y-1 transition-all"
                     disabled={isSubmitting}
                   >
                     <Send className="h-6 w-6 mr-3" />
@@ -740,6 +814,8 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({
                 <Button variant="outline" onClick={() => setCurrentStep(3)} className="py-6 px-8 rounded-xl font-bold">Back</Button>
               </div>
             </div>
+          )}
+            </>
           )}
         </div>
 

@@ -4,6 +4,7 @@ const aiService = require('../services/aiService');
 const Job = require('../models/Job');
 const User = require('../models/User');
 const JobSeeker = require('../models/JobSeeker');
+const JobSeekerPreferences = require('../models/JobSeekerPreferences');
 const Resume = require('../models/Resume');
 const logger = require('../utils/logger');
 
@@ -40,9 +41,41 @@ const getComprehensiveProfile = async (userId, providedProfile) => {
         if (jobSeeker.experience && !profile.experience.includes(jobSeeker.experience)) {
             profile.experience.push(jobSeeker.experience);
         }
+    } else {
+        logger.warn(`⚠️ No JobSeeker record found for user: ${userId}`);
     }
 
-    // 2. Enrich from ALL resumes (merging all unique data points)
+    // 2. Enrich from JobSeekerPreferences collection
+    let jobSeekerPreferences = null;
+    if (jobSeeker) {
+        jobSeekerPreferences = await JobSeekerPreferences.findOne({ jobSeeker: jobSeeker._id });
+        if (jobSeekerPreferences) {
+            logger.info('✅ Including JobSeekerPreferences collection data');
+            logger.info(`   Desired Roles: ${jobSeekerPreferences.desiredRoles?.join(', ') || 'None'}`);
+            logger.info(`   Locations: ${jobSeekerPreferences.locations?.join(', ') || 'None'}`);
+            logger.info(`   Experience: ${jobSeekerPreferences.experienceLevel || 'None'}`);
+            logger.info(`   Salary: $${jobSeekerPreferences.salaryMin || 0} - $${jobSeekerPreferences.salaryMax || 0}`);
+            
+            profile.preferences = {
+                desiredRoles: jobSeekerPreferences.desiredRoles || [],
+                locations: jobSeekerPreferences.locations || [],
+                salaryRange: {
+                    min: jobSeekerPreferences.salaryMin,
+                    max: jobSeekerPreferences.salaryMax,
+                    period: jobSeekerPreferences.salaryPeriod
+                },
+                experienceLevel: jobSeekerPreferences.experienceLevel,
+                workType: jobSeekerPreferences.workType || [],
+                availability: jobSeekerPreferences.availability
+            };
+        } else {
+            logger.warn(`⚠️ No JobSeekerPreferences found for jobSeeker: ${jobSeeker._id}`);
+        }
+    } else {
+        logger.warn(`⚠️ Cannot fetch JobSeekerPreferences - no JobSeeker record exists`);
+    }
+
+    // 3. Enrich from ALL resumes (merging all unique data points)
     const resumes = await Resume.find({ user: userId }).sort({ isPrimary: -1, createdAt: -1 });
 
     if (resumes.length > 0) {
