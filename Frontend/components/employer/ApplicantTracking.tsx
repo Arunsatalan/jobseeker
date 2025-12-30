@@ -1,5 +1,4 @@
-"use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useApplications } from "@/hooks/useApplications";
 import {
   User,
   Mail,
@@ -22,6 +22,7 @@ import {
   Search,
   Filter,
   Download,
+  Loader2
 } from "lucide-react";
 
 interface Job {
@@ -32,17 +33,27 @@ interface Job {
 }
 
 interface Applicant {
-  id: string;
+  _id: string;
+  id: string; // Added for UI compatibility
+  job: Job | string;
+  applicant: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
   jobId: string;
   name: string;
   email: string;
-  appliedDate: string;
+  appliedAt: string;
+  appliedDate: string; // Added for UI compatibility
   resumeLink: string;
   status: "Applied" | "Shortlisted" | "Interviewing" | "Rejected" | "Hired";
   rating: number;
   notes: string;
   phone?: string;
   location?: string;
+  coverLetter?: string;
 }
 
 interface ApplicantTrackingProps {
@@ -50,101 +61,50 @@ interface ApplicantTrackingProps {
 }
 
 export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
-  const [selectedJobId, setSelectedJobId] = useState(jobs[0]?.id || "");
+  const [selectedJobId, setSelectedJobId] = useState(jobs[0]?.id || "all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
 
-  // Mock applicant data
-  const mockApplicants: Applicant[] = [
-    {
-      id: "1",
-      jobId: "1",
-      name: "Sarah Johnson",
-      email: "sarah.johnson@example.com",
-      phone: "+1 (555) 123-4567",
-      location: "San Francisco, CA",
-      appliedDate: "2025-12-10",
-      resumeLink: "/resume/sarah-johnson.pdf",
-      status: "Shortlisted",
-      rating: 4,
-      notes: "Strong technical background, excellent portfolio",
-    },
-    {
-      id: "2",
-      jobId: "1",
-      name: "Mike Chen",
-      email: "mike.chen@example.com",
-      phone: "+1 (555) 987-6543",
-      location: "Remote",
-      appliedDate: "2025-12-08",
-      resumeLink: "/resume/mike-chen.pdf",
-      status: "Interviewing",
-      rating: 5,
-      notes: "Perfect fit for senior role, great communication skills",
-    },
-    {
-      id: "3",
-      jobId: "2",
-      name: "Emily Rodriguez",
-      email: "emily.rodriguez@example.com",
-      appliedDate: "2025-12-12",
-      resumeLink: "/resume/emily-rodriguez.pdf",
-      status: "Applied",
-      rating: 3,
-      notes: "",
-    },
-  ];
+  const { applications, isLoading, setFilters, updateStatus } = useApplications({
+    jobId: selectedJobId === 'all' ? undefined : selectedJobId,
+    status: 'all' // We fetch all and filter client-side for tabs or could fetch per tab
+  });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Applied":
-        return "bg-blue-100 text-blue-700";
-      case "Shortlisted":
-        return "bg-yellow-100 text-yellow-700";
-      case "Interviewing":
-        return "bg-purple-100 text-purple-700";
-      case "Rejected":
-        return "bg-red-100 text-red-700";
-      case "Hired":
-        return "bg-green-100 text-green-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  };
+  // Effect to update filters when job selection changes
+  useEffect(() => {
+    setFilters({ jobId: selectedJobId === 'all' ? undefined : selectedJobId });
+  }, [selectedJobId, setFilters]);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "Applied":
-        return <Clock className="h-4 w-4" />;
-      case "Shortlisted":
-        return <Star className="h-4 w-4" />;
-      case "Interviewing":
-        return <Video className="h-4 w-4" />;
-      case "Rejected":
-        return <XCircle className="h-4 w-4" />;
-      case "Hired":
-        return <CheckCircle className="h-4 w-4" />;
-      default:
-        return <Clock className="h-4 w-4" />;
-    }
-  };
+  // Transform hook data to match component expectation if needed, or update component to key off _id
+  const transformedApplicants = applications.map(app => ({
+    ...app,
+    id: app._id, // Map _id to id for UI
+    name: app.applicant ? `${app.applicant.firstName} ${app.applicant.lastName}` : 'Unknown Candidate',
+    email: app.applicant?.email || 'No Email',
+    appliedDate: new Date(app.appliedAt).toLocaleDateString(),
+    jobId: typeof app.job === 'object' ? app.job._id : app.job
+  }));
 
-  const selectedJobApplicants = mockApplicants.filter(app => app.jobId === selectedJobId);
-  const filteredApplicants = selectedJobApplicants.filter(applicant => {
+  const filteredApplicants = transformedApplicants.filter(applicant => {
     const matchesSearch = applicant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         applicant.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || applicant.status.toLowerCase() === statusFilter;
-    return matchesSearch && matchesStatus;
+      applicant.email.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
   });
 
   const applicantsByStatus = {
-    all: selectedJobApplicants,
-    applied: selectedJobApplicants.filter(app => app.status === "Applied"),
-    shortlisted: selectedJobApplicants.filter(app => app.status === "Shortlisted"),
-    interviewing: selectedJobApplicants.filter(app => app.status === "Interviewing"),
-    rejected: selectedJobApplicants.filter(app => app.status === "Rejected"),
-    hired: selectedJobApplicants.filter(app => app.status === "Hired"),
+    all: filteredApplicants,
+    applied: filteredApplicants.filter(app => app.status === "Applied" || app.status === "applied"),
+    shortlisted: filteredApplicants.filter(app => app.status === "Shortlisted" || app.status === "shortlisted"),
+    interviewing: filteredApplicants.filter(app => app.status === "Interviewing" || app.status === "interviewing"),
+    rejected: filteredApplicants.filter(app => app.status === "Rejected" || app.status === "rejected"),
+    hired: filteredApplicants.filter(app => app.status === "Hired" || app.status === "hired"),
+  };
+
+  const handleStatusChange = async (applicantId: string, newStatus: string) => {
+    await updateStatus(applicantId, newStatus);
+    if (selectedApplicant && selectedApplicant.id === applicantId) {
+      setSelectedApplicant(prev => prev ? ({ ...prev, status: newStatus as any }) : null);
+    }
   };
 
   return (
@@ -173,6 +133,7 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
               onChange={(e) => setSelectedJobId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
+              <option value="all">All Jobs</option>
               {jobs.map((job) => (
                 <option key={job.id} value={job.id}>
                   {job.title} - {job.department} ({job.applicantsCount} applicants)
@@ -208,27 +169,33 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
           <TabsTrigger value="hired">Hired ({applicantsByStatus.hired.length})</TabsTrigger>
         </TabsList>
 
-        {Object.entries(applicantsByStatus).map(([status, applicants]) => (
-          <TabsContent key={status} value={status}>
-            <ApplicantList 
-              applicants={status === "all" ? filteredApplicants : applicants.filter(app => 
-                app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                app.email.toLowerCase().includes(searchTerm.toLowerCase())
-              )}
-              onSelectApplicant={setSelectedApplicant}
-            />
-          </TabsContent>
-        ))}
+        {isLoading ? (
+          <div className="flex justify-center p-12">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          </div>
+        ) : (
+          Object.entries(applicantsByStatus).map(([status, applicants]) => (
+            <TabsContent key={status} value={status}>
+              <ApplicantList
+                applicants={applicants}
+                onSelectApplicant={setSelectedApplicant}
+              />
+            </TabsContent>
+          ))
+        )}
       </Tabs>
 
       {/* Applicant Details Dialog */}
       {selectedApplicant && (
         <Dialog open={!!selectedApplicant} onOpenChange={() => setSelectedApplicant(null)}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Applicant Details</DialogTitle>
             </DialogHeader>
-            <ApplicantDetails applicant={selectedApplicant} />
+            <ApplicantDetails
+              applicant={selectedApplicant}
+              onStatusChange={(status) => handleStatusChange(selectedApplicant.id, status)}
+            />
           </DialogContent>
         </Dialog>
       )}
@@ -310,7 +277,7 @@ function ApplicantList({ applicants, onSelectApplicant }: { applicants: Applican
                       {applicant.status}
                     </Badge>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4" />
@@ -325,7 +292,7 @@ function ApplicantList({ applicants, onSelectApplicant }: { applicants: Applican
                       <span className="text-gray-500">({applicant.rating}/5)</span>
                     </div>
                   </div>
-                  
+
                   {applicant.notes && (
                     <p className="text-sm text-gray-600 mt-2 italic">"{applicant.notes}"</p>
                   )}
@@ -365,9 +332,10 @@ function ApplicantList({ applicants, onSelectApplicant }: { applicants: Applican
   );
 }
 
-function ApplicantDetails({ applicant }: { applicant: Applicant }) {
-  const [notes, setNotes] = useState(applicant.notes);
-  const [rating, setRating] = useState(applicant.rating);
+// Update the ApplicantDetails component signature and logic
+function ApplicantDetails({ applicant, onStatusChange }: { applicant: Applicant, onStatusChange: (status: string) => void }) {
+  const [notes, setNotes] = useState(applicant.notes || "");
+  const [rating, setRating] = useState(applicant.rating || 0);
 
   const renderStars = (currentRating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -395,8 +363,21 @@ function ApplicantDetails({ applicant }: { applicant: Applicant }) {
           <p className="text-gray-600">{applicant.email}</p>
           {applicant.phone && <p className="text-gray-600">{applicant.phone}</p>}
           {applicant.location && <p className="text-gray-600">{applicant.location}</p>}
+          <Badge className={`mt-2`}>{applicant.status}</Badge>
         </div>
       </div>
+
+      {/* Cover Letter */}
+      {applicant.coverLetter && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Cover Letter
+          </label>
+          <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-700 whitespace-pre-wrap max-h-40 overflow-y-auto">
+            {applicant.coverLetter}
+          </div>
+        </div>
+      )}
 
       {/* Rating */}
       <div>
@@ -424,7 +405,7 @@ function ApplicantDetails({ applicant }: { applicant: Applicant }) {
       {/* Actions */}
       <div className="flex justify-between">
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => window.open(applicant.resumeLink, '_blank')}>
             <FileText className="h-4 w-4 mr-2" />
             View Resume
           </Button>
@@ -434,13 +415,27 @@ function ApplicantDetails({ applicant }: { applicant: Applicant }) {
           </Button>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="text-red-600 hover:text-red-700">
+          <Button
+            variant="outline"
+            className="text-red-600 hover:text-red-700"
+            onClick={() => onStatusChange('Rejected')}
+          >
             <XCircle className="h-4 w-4 mr-2" />
             Reject
           </Button>
-          <Button className="bg-green-600 hover:bg-green-700">
+          <Button
+            className="bg-green-600 hover:bg-green-700"
+            onClick={() => onStatusChange('Shortlisted')}
+          >
             <CheckCircle className="h-4 w-4 mr-2" />
-            Move Forward
+            Shortlist
+          </Button>
+          <Button
+            className="bg-purple-600 hover:bg-purple-700"
+            onClick={() => onStatusChange('Interviewing')}
+          >
+            <Video className="h-4 w-4 mr-2" />
+            Interview
           </Button>
         </div>
       </div>

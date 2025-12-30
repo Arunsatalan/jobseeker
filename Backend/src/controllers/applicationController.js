@@ -248,10 +248,11 @@ exports.updateApplicationStatus = asyncHandler(async (req, res, next) => {
 // @route GET /api/v1/applications/employer/applications
 // @access Private/Employer
 exports.getEmployerApplications = asyncHandler(async (req, res, next) => {
-  const { page = 1, limit = 10, status } = req.query;
+  const { page = 1, limit = 10, status, jobId } = req.query;
 
   const query = { employer: req.user._id };
   if (status) query.status = status;
+  if (jobId && jobId !== 'all') query.job = jobId;
 
   const pagination = helpers.getPaginationData(page, limit, await Application.countDocuments(query));
 

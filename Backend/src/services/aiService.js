@@ -209,11 +209,11 @@ Write a compelling, personalized cover letter that makes the hiring manager want
 
         if (userProfile.preferences) {
             const prefs = userProfile.preferences;
-            
+
             // Check desired roles match
             if (prefs.desiredRoles && prefs.desiredRoles.length > 0) {
                 const jobTitleLower = job.title.toLowerCase();
-                const roleMatch = prefs.desiredRoles.some(role => 
+                const roleMatch = prefs.desiredRoles.some(role =>
                     jobTitleLower.includes(role.toLowerCase()) || role.toLowerCase().includes(jobTitleLower.split(' ')[0])
                 );
                 if (roleMatch) {
@@ -224,7 +224,7 @@ Write a compelling, personalized cover letter that makes the hiring manager want
 
             // Check location match
             if (prefs.locations && prefs.locations.length > 0 && job.location) {
-                const locationMatch = prefs.locations.some(loc => 
+                const locationMatch = prefs.locations.some(loc =>
                     job.location.toLowerCase().includes(loc.toLowerCase())
                 );
                 if (locationMatch) {
@@ -237,8 +237,8 @@ Write a compelling, personalized cover letter that makes the hiring manager want
 
             // Check work type match
             if (prefs.workType && prefs.workType.length > 0 && job.employmentType) {
-                const workTypeMatch = prefs.workType.some(type => 
-                    job.employmentType.toLowerCase().includes(type.toLowerCase()) || 
+                const workTypeMatch = prefs.workType.some(type =>
+                    job.employmentType.toLowerCase().includes(type.toLowerCase()) ||
                     type.toLowerCase().includes(job.employmentType.toLowerCase())
                 );
                 if (workTypeMatch) {
@@ -250,7 +250,7 @@ Write a compelling, personalized cover letter that makes the hiring manager want
             // Check experience level match
             if (prefs.experienceLevel && job.experience) {
                 const levelMatch = job.experience.toLowerCase().includes(prefs.experienceLevel.toLowerCase()) ||
-                                 prefs.experienceLevel.toLowerCase().includes(job.experience.toLowerCase());
+                    prefs.experienceLevel.toLowerCase().includes(job.experience.toLowerCase());
                 if (levelMatch) {
                     preferencesBoost += 5;
                     preferencesStrengths.push(`Experience level matches: ${prefs.experienceLevel}`);
@@ -287,6 +287,10 @@ Write a compelling, personalized cover letter that makes the hiring manager want
         };
     }
 
+    /**
+     * @param {any} userProfile
+     * @param {any} job
+     */
     generateLocalOptimization(userProfile, job) {
         // Parse experience string to structured if possible, or mock it
         let experiences = [];
