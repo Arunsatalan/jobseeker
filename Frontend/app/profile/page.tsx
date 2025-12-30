@@ -149,6 +149,7 @@ export default function ProfilePage() {
               certifications: data.certifications || [],
               languages: data.languages || [],
               projects: data.projects || [],
+              references: data.references || [],
             }
           })
         });

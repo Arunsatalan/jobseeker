@@ -169,6 +169,7 @@ exports.saveResumeData = asyncHandler(async (req, res, next) => {
         certifications: resumeData.certifications || [],
         languages: resumeData.languages || [],
         projects: resumeData.projects || [],
+        references: resumeData.references || [],
       },
     });
 

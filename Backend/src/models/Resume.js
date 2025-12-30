@@ -78,6 +78,14 @@ const resumeSchema = new mongoose.Schema(
         description: String,
         _id: false
       }],
+      references: [{
+        name: String,
+        position: String,
+        company: String,
+        email: String,
+        phone: String,
+        _id: false
+      }],
       
       // Legacy fields for backward compatibility
       skills_legacy: [String],

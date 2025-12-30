@@ -17,6 +17,7 @@ import {
   Sparkles,
   Copy,
   Download,
+  X,
 } from "lucide-react";
 
 interface ResumeBuilderProps {
@@ -45,6 +46,7 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview, se
     certifications: [],
     languages: [],
     projects: [],
+    references: [],
   });
 
   const [showPreview, setShowPreview] = useState(defaultShowPreview || false);
@@ -193,6 +195,7 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview, se
               githubUrl: project.githubUrl || project.repoUrl || '',
               description: project.description || '',
             })) || [],
+            references: [],
           });
         }
       }
@@ -296,6 +299,14 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview, se
               language: lang.language || '',
               proficiency: lang.proficiency || 'Intermediate',
             })) || [],
+            references: resume.parsedData.references?.map((ref, idx) => ({
+              id: idx.toString(),
+              name: ref.name || '',
+              position: ref.position || '',
+              company: ref.company || '',
+              email: ref.email || '',
+              phone: ref.phone || '',
+            })) || [],
             projects: resume.parsedData.projects?.map((proj, idx) => ({
               id: idx.toString(),
               name: proj.name || '',
@@ -358,6 +369,13 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview, se
     setIsGeneratingPDF(true);
     try {
       const token = localStorage.getItem('token');
+      
+      // Prepare skills with all categories, filtering out empty items
+      const skillsToSend = resumeData.skills.map(skillGroup => ({
+        category: skillGroup.category,
+        items: skillGroup.items.filter(item => item && item.trim && item.trim().length > 0)
+      }));
+
       const response = await fetch('/api/v1/cv/generate', {
         method: 'POST',
         headers: {
@@ -366,6 +384,7 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview, se
         },
         body: JSON.stringify({
           ...resumeData,
+          skills: skillsToSend,
           jobTitle: currentRole || "Professional"
         })
       });
@@ -466,6 +485,21 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview, se
     setResumeData({
       ...resumeData,
       languages: [...resumeData.languages, newLang]
+    });
+  };
+
+  const addReference = () => {
+    const newRef = {
+      id: (resumeData.references.length + 1).toString(),
+      name: "",
+      position: "",
+      company: "",
+      email: "",
+      phone: "",
+    };
+    setResumeData({
+      ...resumeData,
+      references: [...resumeData.references, newRef]
     });
   };
 
@@ -886,25 +920,117 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview, se
             {/* Skills Tab */}
             <TabsContent value="skills" className="space-y-4">
               <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Skills</h3>
-                {resumeData.skills.map((skillGroup, idx) => (
-                  <div key={skillGroup.id} className="mb-4">
-                    <Label className="font-semibold mb-2 block">{skillGroup.category}</Label>
-                    <Textarea
-                      value={skillGroup.items.join(", ")}
-                      onChange={(e) => {
-                        const updated = [...resumeData.skills];
-                        updated[idx] = {
-                          ...updated[idx],
-                          items: e.target.value.split(",").map((s) => s.trim()).filter(s => s.length > 0),
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Skills</h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const categoryName = prompt('Enter new skill category name:');
+                      if (categoryName && categoryName.trim()) {
+                        const newCategory = {
+                          id: Date.now().toString(),
+                          category: categoryName.trim(),
+                          items: [],
                         };
-                        setResumeData({ ...resumeData, skills: updated });
-                      }}
-                      placeholder={`Enter ${skillGroup.category.toLowerCase()} skills separated by commas`}
-                      rows={3}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      {skillGroup.items.length} skills • Separate with commas
+                        setResumeData({
+                          ...resumeData,
+                          skills: [...resumeData.skills, newCategory],
+                        });
+                      }
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Category
+                  </Button>
+                </div>
+                {resumeData.skills.map((skillGroup, idx) => (
+                  <div key={skillGroup.id} className="mb-6">
+                    <Label className="font-semibold mb-3 block text-base">{skillGroup.category}</Label>
+                    
+                    {/* Skill Input and Add Button */}
+                    <div className="flex gap-2 mb-3">
+                      <Input
+                        placeholder={`Add ${skillGroup.category.toLowerCase()} skill...`}
+                        className="flex-1"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const value = e.currentTarget.value.trim();
+                            if (value && !skillGroup.items.includes(value)) {
+                              const updated = [...resumeData.skills];
+                              updated[idx] = {
+                                ...updated[idx],
+                                items: [...updated[idx].items, value],
+                              };
+                              setResumeData({ ...resumeData, skills: updated });
+                              e.currentTarget.value = '';
+                            }
+                          }
+                        }}
+                        onBlur={(e) => {
+                          const value = e.currentTarget.value.trim();
+                          if (value && !skillGroup.items.includes(value)) {
+                            const updated = [...resumeData.skills];
+                            updated[idx] = {
+                              ...updated[idx],
+                              items: [...updated[idx].items, value],
+                            };
+                            setResumeData({ ...resumeData, skills: updated });
+                            e.currentTarget.value = '';
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                          const value = input.value.trim();
+                          if (value && !skillGroup.items.includes(value)) {
+                            const updated = [...resumeData.skills];
+                            updated[idx] = {
+                              ...updated[idx],
+                              items: [...updated[idx].items, value],
+                            };
+                            setResumeData({ ...resumeData, skills: updated });
+                            input.value = '';
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Skill Tags */}
+                    {skillGroup.items.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {skillGroup.items.map((skill, skillIdx) => (
+                          <div
+                            key={skillIdx}
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                          >
+                            <span>{skill}</span>
+                            <button
+                              onClick={() => {
+                                const updated = [...resumeData.skills];
+                                updated[idx] = {
+                                  ...updated[idx],
+                                  items: updated[idx].items.filter((_, i) => i !== skillIdx),
+                                };
+                                setResumeData({ ...resumeData, skills: updated });
+                              }}
+                              className="ml-1 hover:bg-blue-200 rounded-full p-0.5"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-500 mt-2">
+                      {skillGroup.items.length} skills • Click × to remove • Press Enter to add
                     </p>
                   </div>
                 ))}
@@ -991,6 +1117,69 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview, se
                     <Button size="sm" variant="outline" className="w-full" onClick={addLanguage}>
                       <Plus className="h-4 w-4 mr-1" />
                       Add Language
+                    </Button>
+                  </div>
+
+                  <div className="pt-4 border-t">
+                    <h4 className="font-medium mb-2">References</h4>
+                    {(resumeData.references || []).map((ref, idx) => (
+                      <div key={ref.id} className="mb-3 p-3 bg-gray-50 rounded">
+                        <Input
+                          value={ref.name}
+                          onChange={(e) => {
+                            const updated = [...resumeData.references];
+                            updated[idx] = { ...updated[idx], name: e.target.value };
+                            setResumeData({ ...resumeData, references: updated });
+                          }}
+                          placeholder="Reference Name"
+                          className="mb-2"
+                        />
+                        <div className="grid grid-cols-2 gap-2 mb-2">
+                          <Input
+                            value={ref.position}
+                            onChange={(e) => {
+                              const updated = [...resumeData.references];
+                              updated[idx] = { ...updated[idx], position: e.target.value };
+                              setResumeData({ ...resumeData, references: updated });
+                            }}
+                            placeholder="Position/Title"
+                          />
+                          <Input
+                            value={ref.company}
+                            onChange={(e) => {
+                              const updated = [...resumeData.references];
+                              updated[idx] = { ...updated[idx], company: e.target.value };
+                              setResumeData({ ...resumeData, references: updated });
+                            }}
+                            placeholder="Company"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            type="email"
+                            value={ref.email}
+                            onChange={(e) => {
+                              const updated = [...resumeData.references];
+                              updated[idx] = { ...updated[idx], email: e.target.value };
+                              setResumeData({ ...resumeData, references: updated });
+                            }}
+                            placeholder="Email Address"
+                          />
+                          <Input
+                            value={ref.phone}
+                            onChange={(e) => {
+                              const updated = [...resumeData.references];
+                              updated[idx] = { ...updated[idx], phone: e.target.value };
+                              setResumeData({ ...resumeData, references: updated });
+                            }}
+                            placeholder="Phone Number"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <Button size="sm" variant="outline" className="w-full" onClick={addReference}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Reference
                     </Button>
                   </div>
                 </div>
@@ -1095,6 +1284,30 @@ export function ResumeBuilder({ resumeId, onSave, onBack, defaultShowPreview, se
                           <span> ({lang.proficiency})</span>
                           <span className="ml-2">ˆ</span>
                         </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* References */}
+                {(resumeData.references || []).filter(ref => ref.name && ref.name.trim()).length > 0 && (
+                  <div className="mb-6">
+                    <h2 className="text-base font-bold text-gray-900 mb-3 uppercase tracking-wide">References</h2>
+                    <div className="space-y-3">
+                      {(resumeData.references || []).filter(ref => ref.name && ref.name.trim()).map((ref) => (
+                        <div key={ref.id} className="text-sm text-gray-700">
+                          <div className="font-bold">{ref.name}</div>
+                          <div className="text-gray-600">
+                            {ref.position && <span>{ref.position}</span>}
+                            {ref.position && ref.company && <span> at </span>}
+                            {ref.company && <span>{ref.company}</span>}
+                          </div>
+                          <div className="text-gray-600 mt-1">
+                            {ref.email && <span>{ref.email}</span>}
+                            {ref.email && ref.phone && <span> | </span>}
+                            {ref.phone && <span>{ref.phone}</span>}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
