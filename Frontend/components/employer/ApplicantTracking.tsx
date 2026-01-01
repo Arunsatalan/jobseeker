@@ -660,6 +660,8 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
   const [showInterviewProposal, setShowInterviewProposal] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
+  const [confirmedInterview, setConfirmedInterview] = useState<any | null>(null);
+  const [loadingInterview, setLoadingInterview] = useState(false);
   const [detailedRatings, setDetailedRatings] = useState({
     technical: applicant.rating || 0,
     cultural: 0,
@@ -726,6 +728,37 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
       deadlineDate
     };
   };
+
+  // Load confirmed interview for this applicant
+  useEffect(() => {
+    const loadConfirmedInterview = async () => {
+      setLoadingInterview(true);
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        const response = await fetch(
+          `${apiUrl}/api/v1/interviews/slots/${applicant._id || applicant.id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data && data.data.status === 'confirmed') {
+            setConfirmedInterview(data.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading interview:', error);
+      } finally {
+        setLoadingInterview(false);
+      }
+    };
+
+    loadConfirmedInterview();
+  }, [applicant._id, applicant.id, apiUrl]);
 
   // Save notes with debouncing
   useEffect(() => {
@@ -1082,6 +1115,54 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
           <Badge className={`mt-2`}>{applicant.status}</Badge>
         </div>
       </div>
+
+      {/* Confirmed Interview Section */}
+      {confirmedInterview && confirmedInterview.confirmedSlot && (
+        <Card className="p-5 bg-gradient-to-br from-amber-50 to-amber-100 border-2 border-amber-200">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-xl flex items-center justify-center shadow-lg" style={{ backgroundColor: '#02243b' }}>
+                <CheckCircle className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg">Confirmed Interview</h3>
+                <p className="text-sm text-slate-700">Candidate has selected this time slot</p>
+              </div>
+            </div>
+            <Badge className="text-white px-3 py-1" style={{ backgroundColor: '#02243b' }}>
+              Confirmed
+            </Badge>
+          </div>
+          <div className="space-y-3">
+            {confirmedInterview.confirmedSlot.startTime && (
+              <div className="flex items-center gap-2 text-sm">
+                <Calendar className="h-4 w-4" style={{ color: '#02243b' }} />
+                <span className="font-medium text-slate-700">
+                  {new Date(confirmedInterview.confirmedSlot.startTime).toLocaleString('en-US', {
+                    weekday: 'long',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </div>
+            )}
+            {confirmedInterview.confirmedSlot.meetingLink && (
+              <Button
+                size="sm"
+                className="text-white hover:opacity-90 w-full"
+                style={{ backgroundColor: '#02243b' }}
+                onClick={() => window.open(confirmedInterview.confirmedSlot.meetingLink, '_blank')}
+              >
+                <Video className="h-4 w-4 mr-2" />
+                Join Meeting
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Cover Letter */}
       {applicant.coverLetter && (

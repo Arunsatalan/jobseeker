@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, TrendingUp, BookmarkCheck, FileText, AlertTriangle, Calendar, Video, CheckCircle } from "lucide-react";
+import { AlertCircle, TrendingUp, BookmarkCheck, FileText, AlertTriangle, Calendar, Video, CheckCircle, Phone, MapPin, Building2, XCircle, Loader2, Clock } from "lucide-react";
 import { InterviewSlotVoting } from "../jobseeker/InterviewSlotVoting";
 import axios from "axios";
 
@@ -190,23 +190,28 @@ export function CareerProgress({
           </div>
         )}
 
-        {/* Confirmed Interviews */}
+        {/* Confirmed Interviews - Enhanced 2025 Design */}
         {confirmedInterviews.length > 0 && (
-          <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+          <div className="mb-6 p-5 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-2 border-green-200 rounded-xl shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <CheckCircle className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <p className="font-bold text-green-900 text-lg">
+                    Confirmed Interviews
+                  </p>
+                  <p className="text-sm text-green-700">
+                    {confirmedInterviews.length} scheduled interview{confirmedInterviews.length > 1 ? 's' : ''}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-green-900">
-                  Confirmed Interviews
-                </p>
-                <p className="text-sm text-green-700">
-                  {confirmedInterviews.length} confirmed interview{confirmedInterviews.length > 1 ? 's' : ''}
-                </p>
-              </div>
+              <Badge className="bg-green-600 text-white px-3 py-1">
+                {confirmedInterviews.length}
+              </Badge>
             </div>
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {confirmedInterviews.map((interview, idx) => {
                 const interviewTime = interview.confirmedSlot?.startTime 
                   ? new Date(interview.confirmedSlot.startTime) 
@@ -215,57 +220,143 @@ export function CareerProgress({
                 const hoursUntil = interviewTime 
                   ? Math.floor((interviewTime.getTime() - new Date().getTime()) / (1000 * 60 * 60))
                   : 0;
+                const daysUntil = interviewTime 
+                  ? Math.floor(hoursUntil / 24)
+                  : 0;
+                const meetingType = interview.confirmedSlot?.meetingType || interview.proposedSlots?.[interview.confirmedSlot?.slotIndex]?.meetingType || 'video';
 
                 return (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-white rounded border border-green-100">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{interview.job?.title}</p>
-                      {interviewTime && (
-                        <p className="text-xs text-gray-600">
-                          {interviewTime.toLocaleString('en-US', {
-                            weekday: 'short',
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                      )}
-                      {interview.confirmedSlot?.meetingLink && (
-                        <a
-                          href={interview.confirmedSlot.meetingLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:underline mt-1 inline-block"
-                        >
-                          Join Meeting →
-                        </a>
-                      )}
-                      {!canCancel && hoursUntil > 0 && (
-                        <p className="text-xs text-amber-600 mt-1">
-                          Cancellation deadline passed ({hoursUntil}h until interview)
-                        </p>
-                      )}
-                    </div>
-                    {canCancel && (
-                      <Button
-                        onClick={() => {
-                          const reason = prompt('Please provide a reason for cancellation (optional):');
-                          handleCancelInterview(interview._id, reason || undefined);
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 border-red-300 hover:bg-red-50"
-                        disabled={cancellingInterview === interview._id}
-                      >
-                        {cancellingInterview === interview._id ? (
-                          'Cancelling...'
+                  <div
+                    key={idx}
+                    className="group relative p-5 bg-white rounded-xl border-2 border-green-200 hover:border-green-400 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                  >
+                    {/* Time Badge */}
+                    {interviewTime && (
+                      <div className="absolute top-4 right-4">
+                        {hoursUntil > 24 ? (
+                          <Badge className="bg-blue-100 text-blue-700 border-0 font-semibold">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {daysUntil}d left
+                          </Badge>
+                        ) : hoursUntil > 0 ? (
+                          <Badge className="bg-amber-100 text-amber-700 border-0 font-semibold">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {hoursUntil}h left
+                          </Badge>
                         ) : (
-                          'Cancel'
+                          <Badge className="bg-red-100 text-red-700 border-0 font-semibold">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Past
+                          </Badge>
                         )}
-                      </Button>
+                      </div>
                     )}
+
+                    <div className="flex items-start gap-4">
+                      {/* Icon */}
+                      <div className={`h-12 w-12 rounded-xl flex items-center justify-center shadow-md flex-shrink-0 ${
+                        meetingType === 'video' 
+                          ? 'bg-gradient-to-br from-blue-500 to-purple-500'
+                          : meetingType === 'phone'
+                          ? 'bg-gradient-to-br from-green-500 to-teal-500'
+                          : 'bg-gradient-to-br from-orange-500 to-red-500'
+                      }`}>
+                        {meetingType === 'video' ? (
+                          <Video className="h-6 w-6 text-white" />
+                        ) : meetingType === 'phone' ? (
+                          <Phone className="h-6 w-6 text-white" />
+                        ) : (
+                          <MapPin className="h-6 w-6 text-white" />
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-gray-900 text-base mb-1 line-clamp-1">
+                          {interview.job?.title}
+                        </h3>
+                        {interview.job?.company && (
+                          <p className="text-xs text-gray-600 mb-2 flex items-center gap-1">
+                            <Building2 className="h-3 w-3" />
+                            {typeof interview.job.company === 'string' ? interview.job.company : interview.job.company.name}
+                          </p>
+                        )}
+                        
+                        {interviewTime && (
+                          <div className="space-y-1.5 mt-2">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Calendar className="h-4 w-4 text-green-600" />
+                              <span className="font-medium text-gray-700">
+                                {interviewTime.toLocaleString('en-US', {
+                                  weekday: 'long',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <span className="capitalize">{meetingType}</span>
+                              {interview.confirmedSlot?.location && (
+                                <>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    {interview.confirmedSlot.location}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-100">
+                          {interview.confirmedSlot?.meetingLink && (
+                            <Button
+                              size="sm"
+                              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white flex-1"
+                              onClick={() => window.open(interview.confirmedSlot.meetingLink, '_blank')}
+                            >
+                              <Video className="h-4 w-4 mr-2" />
+                              Join Meeting
+                            </Button>
+                          )}
+                          {canCancel && (
+                            <Button
+                              onClick={() => {
+                                const reason = prompt('Please provide a reason for cancellation (optional):');
+                                handleCancelInterview(interview._id, reason || undefined);
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 border-red-300 hover:bg-red-50"
+                              disabled={cancellingInterview === interview._id}
+                            >
+                              {cancellingInterview === interview._id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                  Cancelling...
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Cancel
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          {!canCancel && hoursUntil > 0 && (
+                            <p className="text-xs text-amber-600 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              Cancellation deadline passed
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
