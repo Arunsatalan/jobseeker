@@ -14,5 +14,7 @@ router.post('/smart-apply', aiController.smartApply);
 router.post('/start-interview', aiController.startInterview);
 router.post('/ask-question', aiController.askQuestion);
 router.post('/submit-answer', aiController.submitAnswer);
+// Support Message
+router.post('/generate-support-message', aiController.generateSupportMessage);
 
 module.exports = router;

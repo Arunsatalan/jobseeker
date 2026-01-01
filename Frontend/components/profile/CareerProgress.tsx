@@ -1,9 +1,32 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Briefcase,
+  MapPin,
+  Clock,
+  Calendar as CalendarIcon,
+  CheckCircle,
+  AlertCircle,
+  XCircle,
+  Video,
+  Loader2,
+  BrainCircuit,
+  MessageSquare,
+  Mic,
+  RefreshCw,
+  Building2
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, TrendingUp, BookmarkCheck, FileText, AlertTriangle, Calendar, Video, CheckCircle, Phone, MapPin, Building2, XCircle, Loader2, Clock, RefreshCw, BrainCircuit } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/components/ui/use-toast";
 import { InterviewSlotVoting } from "../jobseeker/InterviewSlotVoting";
 import { CalendarSyncButton } from "../jobseeker/CalendarSyncButton";
 import { SmartReminders } from "../jobseeker/SmartReminders";
@@ -29,7 +52,7 @@ export function CareerProgress({
   const [selectedInterview, setSelectedInterview] = useState<string | null>(null);
   const [showVotingDialog, setShowVotingDialog] = useState(false);
   const [cancellingInterview, setCancellingInterview] = useState<string | null>(null);
-  const [coachDialog, setCoachDialog] = useState<{ open: boolean, interview: any | null }>({ open: false, interview: null });
+  const [coachDialog, setCoachDialog] = useState<{ open: boolean, interview: any | null, mode?: 'voice' | 'chat' }>({ open: false, interview: null, mode: 'chat' });
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
@@ -195,7 +218,7 @@ export function CareerProgress({
                               setShowVotingDialog(true);
                             }}
                           >
-                            <Calendar className="h-3 w-3 mr-1" />
+                            <CalendarIcon className="h-3 w-3 mr-1" />
                             Vote Now
                           </Button>
                         </div>
@@ -232,7 +255,7 @@ export function CareerProgress({
                               <div className="space-y-2">
                                 <div className="space-y-1">
                                   <p className="text-sm text-gray-700">
-                                    <Calendar className="h-3 w-3 inline mr-1" />
+                                    <CalendarIcon className="h-3 w-3 inline mr-1" />
                                     {formatTimeInTimezone(confirmedSlot.startTime, confirmedSlot.timezone, {
                                       weekday: 'long',
                                       year: 'numeric',
@@ -263,7 +286,7 @@ export function CareerProgress({
                                   <CalendarSyncButton
                                     event={{
                                       title: `${jobTitle} Interview`,
-                                      description: `Interview with ${companyName}`,
+                                      description: `Interview with ${companyName} `,
                                       startTime: new Date(confirmedSlot.startTime),
                                       endTime: confirmedSlot.endTime ? new Date(confirmedSlot.endTime) : new Date(new Date(confirmedSlot.startTime).getTime() + 60 * 60 * 1000),
                                       location: confirmedSlot.location,
@@ -286,14 +309,28 @@ export function CareerProgress({
                                   )}
 
                                   {/* AI Interview Coach Button */}
-                                  <Button
-                                    size="sm"
-                                    className="bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200"
-                                    onClick={() => setCoachDialog({ open: true, interview })}
-                                  >
-                                    <BrainCircuit className="h-3 w-3 mr-1" />
-                                    AI Coach
-                                  </Button>
+                                  {/* AI Interview Coach Button */}
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        className="bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200"
+                                      >
+                                        <BrainCircuit className="h-3 w-3 mr-1" />
+                                        AI Coach
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => setCoachDialog({ open: true, interview, mode: 'chat' })}>
+                                        <MessageSquare className="mr-2 h-4 w-4" />
+                                        <span>Start Chat Session</span>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => setCoachDialog({ open: true, interview, mode: 'voice' })}>
+                                        <Mic className="mr-2 h-4 w-4" />
+                                        <span>Start Voice Session</span>
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
                                   {canCancelInterview(interview) && (
                                     <Button
                                       size="sm"
@@ -364,7 +401,7 @@ export function CareerProgress({
                 className="bg-purple-600 hover:bg-purple-700"
                 size="sm"
               >
-                <Calendar className="h-4 w-4 mr-2" />
+                <CalendarIcon className="h-4 w-4 mr-2" />
                 View Slots
               </Button>
             </div>
@@ -424,6 +461,7 @@ export function CareerProgress({
           companyName={typeof coachDialog.interview.job === 'object' ? coachDialog.interview.job.company : 'Company'}
           open={coachDialog.open}
           onOpenChange={(open) => setCoachDialog(prev => ({ ...prev, open }))}
+          initialMode={coachDialog.mode}
         />
       )}
     </>

@@ -495,3 +495,28 @@ exports.submitAnswer = asyncHandler(async (req, res, next) => {
         return sendError(res, 500, 'Failed to analyze answer');
     }
 });
+
+// @desc Generate support message
+// @route POST /api/v1/ai/generate-support-message
+// @access Private
+exports.generateSupportMessage = asyncHandler(async (req, res, next) => {
+    const { category, description, priority } = req.body;
+
+    // Get user details for context
+    const user = await User.findById(req.user._id);
+
+    try {
+        const messageDraft = await aiService.generateSupportMessage({
+            senderName: `${user.firstName} ${user.lastName}`,
+            companyName: user.company || 'N/A',
+            category,
+            description,
+            priority
+        });
+
+        return sendSuccess(res, 200, 'Support message generated', messageDraft);
+    } catch (error) {
+        logger.error('Support message generation error:', error);
+        return sendError(res, 500, error.message || 'Failed to generate support message');
+    }
+});

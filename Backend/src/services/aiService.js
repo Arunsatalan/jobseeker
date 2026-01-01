@@ -772,7 +772,7 @@ The message should be polite but direct, explaining the issue clearly to help th
 
 I see you have experience in ${userProfile.skills?.slice(0, 3).join(', ')}. 
 
-We'll conduct a mock interview to help you prepare. I'll ask you questions one by one, analyzing your answers and providing feedback.
+We'll conduct a mock interview to help you prepare. I'll ask questions one by one, listen to your answers, and provide feedback. feel free to speak naturally.
 
 Are you ready to begin?`
         };
@@ -826,7 +826,7 @@ Candidate: ${userProfile.name}.
             
 Provide feedback in JSON format:
 - rating: 1-10
-- feedback: specific constructive feedback
+- feedback: specific constructive feedback (keep it concise and fast to read)
 - improvement_suggestion: how to make the answer better
 - sample_better_answer: a concise example of a stronger answer
 `;
@@ -866,7 +866,8 @@ Experience: ${userProfile.experience?.[0] || 'N/A'}
 Your goal is to conduct a realistic, rigorous, but supportive mock interview.
 - Ask behavioral (STAR method), technical, and situational questions.
 - Adapt difficulty based on the candidate's responses.
-- Be professional but conversational.`;
+- Be conversational and concise. Avoid overly long questions. 
+- When generating questions, act like you are speaking them. Use natural language patterns.`;
     }
 
     generateLocalInterviewQuestion(history) {
