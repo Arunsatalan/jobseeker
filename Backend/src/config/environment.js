@@ -53,6 +53,16 @@ module.exports = {
   
   // Logging
   LOG_LEVEL: process.env.LOG_LEVEL || 'debug',
+  
+  // Google Calendar API
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/v1/calendar/oauth/callback',
+  GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+  
+  // OpenAI for AI matching
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
   LOG_FILE: process.env.LOG_FILE || './logs/app.log',
   
   // Rate Limiting

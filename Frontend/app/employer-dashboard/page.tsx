@@ -6,7 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { LogOut, Building2, Briefcase, Users, Calendar, MessageCircle, Settings, CreditCard } from "lucide-react";
+import { LogOut, Building2, Briefcase, Users, Calendar, MessageCircle, Settings, CreditCard, RefreshCw } from "lucide-react";
 import { EmployerSidebar } from "@/components/employer/EmployerSidebar";
 import { DashboardOverview } from "@/components/employer/DashboardOverview";
 import { JobManagement } from "@/components/employer/JobManagement";
@@ -56,6 +56,7 @@ export default function EmployerDashboard() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [isPostJobOpen, setIsPostJobOpen] = useState(false);
   const [isLoadingJobs, setIsLoadingJobs] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Action states
   const [viewingJob, setViewingJob] = useState<any | null>(null);
@@ -221,6 +222,29 @@ export default function EmployerDashboard() {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        fetchJobs(false),
+        fetchCompanyData()
+      ]);
+      toast({
+        title: "Refreshed",
+        description: "Dashboard data has been updated.",
+      });
+    } catch (error) {
+      console.error("Refresh error:", error);
+      toast({
+        title: "Refresh Failed",
+        description: "Failed to refresh dashboard data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <ProtectedLayout requiredRole="employer">
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50 flex">
@@ -252,9 +276,19 @@ export default function EmployerDashboard() {
                   </Badge>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleLogout}>
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -266,6 +300,15 @@ export default function EmployerDashboard() {
                 <p className="text-gray-600">Manage your job postings, applicants, and company profile</p>
               </div>
               <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="hover:bg-gray-50"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
                 <Button onClick={handlePostJob} style={{ backgroundColor: '#02243b' }} className="hover:opacity-80">
                   <Briefcase className="h-4 w-4 mr-2" />
                   Post New Job

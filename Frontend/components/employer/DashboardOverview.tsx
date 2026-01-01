@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,10 @@ import {
   Eye,
   Calendar,
   Building2,
+  Video,
+  Clock,
 } from "lucide-react";
+import axios from "axios";
 
 interface Company {
   name: string;
@@ -49,6 +53,60 @@ interface DashboardOverviewProps {
 }
 
 export function DashboardOverview({ company, stats, recentJobs, onPostJob }: DashboardOverviewProps) {
+  const [upcomingInterviews, setUpcomingInterviews] = useState<any[]>([]);
+  const [loadingInterviews, setLoadingInterviews] = useState(false);
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  useEffect(() => {
+    loadUpcomingInterviews();
+  }, []);
+
+  const loadUpcomingInterviews = async () => {
+    setLoadingInterviews(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await axios.get(`${apiUrl}/api/v1/interviews/employer/slots`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { status: 'confirmed' },
+      });
+
+      if (response.data && response.data.success) {
+        const interviews = response.data.data || [];
+        // Filter to show only upcoming interviews
+        const now = new Date();
+        const upcoming = interviews
+          .filter((interview: any) => {
+            if (!interview.confirmedSlot?.startTime) return false;
+            return new Date(interview.confirmedSlot.startTime) > now;
+          })
+          .sort((a: any, b: any) => {
+            const dateA = new Date(a.confirmedSlot?.startTime || 0);
+            const dateB = new Date(b.confirmedSlot?.startTime || 0);
+            return dateA.getTime() - dateB.getTime();
+          })
+          .slice(0, 5); // Show top 5 upcoming
+        setUpcomingInterviews(upcoming);
+      }
+    } catch (error) {
+      console.error('Failed to load interviews:', error);
+    } finally {
+      setLoadingInterviews(false);
+    }
+  };
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Open":
@@ -149,6 +207,55 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
           </div>
         </Card>
       </div>
+
+      {/* Upcoming Interviews */}
+      {upcomingInterviews.length > 0 && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-slate-900">Upcoming Interviews</h2>
+            <Badge variant="outline" className="bg-purple-50 text-purple-700">
+              {upcomingInterviews.length} scheduled
+            </Badge>
+          </div>
+          <div className="space-y-3">
+            {upcomingInterviews.map((interview: any, idx: number) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
+                    <Video className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">
+                      {interview.candidate?.firstName} {interview.candidate?.lastName}
+                    </p>
+                    <p className="text-sm text-slate-600">{interview.job?.title}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Clock className="h-3 w-3 text-slate-500" />
+                      <span className="text-xs text-slate-600">
+                        {interview.confirmedSlot?.startTime
+                          ? formatDateTime(interview.confirmedSlot.startTime)
+                          : 'Time TBD'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {interview.confirmedSlot?.meetingLink && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => window.open(interview.confirmedSlot.meetingLink, '_blank')}
+                  >
+                    Join Meeting
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Recent Jobs */}
       <Card className="p-6">

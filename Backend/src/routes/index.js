@@ -15,10 +15,8 @@ const notificationRoutes = require('./notificationRoutes');
 const companyRoutes = require('./companyRoutes');
 const jobSeekerPreferencesRoutes = require('./jobSeekerPreferencesRoutes');
 const cvRoutes = require('./cvRoutes');
-<<<<<<< HEAD
 const aiRoutes = require('./aiRoutes');
-=======
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
+const interviewRoutes = require('./interviewRoutes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -35,9 +33,7 @@ router.use('/admin', adminRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/companies', companyRoutes);
 router.use('/jobseeker', jobSeekerPreferencesRoutes);
-<<<<<<< HEAD
 router.use('/ai', aiRoutes);
-=======
->>>>>>> f6dd30d8f6a935ce50d253482960418c0d405776
+router.use('/interviews', interviewRoutes);
 
 module.exports = router;

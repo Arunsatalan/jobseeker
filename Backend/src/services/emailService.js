@@ -130,6 +130,40 @@ class EmailService {
       throw error;
     }
   }
+
+  async sendInterviewProposalEmail(email, jobTitle, slotCount, deadline) {
+    try {
+      const deadlineDate = new Date(deadline).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+
+      const mailOptions = {
+        from: config.EMAIL_FROM || config.SMTP_USER || config.EMAIL_USER,
+        to: email,
+        subject: `Interview Time Slots Available - ${jobTitle}`,
+        html: `
+          <h2>Interview Time Slots Available</h2>
+          <p>Great news! Interview time slots have been proposed for the position: <strong>${jobTitle}</strong></p>
+          <p><strong>${slotCount}</strong> time slot${slotCount > 1 ? 's' : ''} ${slotCount > 1 ? 'are' : 'is'} available for you to choose from.</p>
+          <p><strong>Voting Deadline:</strong> ${deadlineDate}</p>
+          <p>Please log in to your dashboard to view and vote for your preferred interview times.</p>
+          <p><a href="${config.CLIENT_URL}/dashboard/applications" style="background-color: #4F46E5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 15px;">View Interview Slots</a></p>
+          <p>Best of luck with your interview!</p>
+        `,
+      };
+
+      await transporter.sendMail(mailOptions);
+      logger.info(`Interview proposal email sent to ${email}`);
+    } catch (error) {
+      logger.error(`Failed to send interview proposal email: ${error.message}`);
+      throw error;
+    }
+  }
 }
 
 module.exports = new EmailService();

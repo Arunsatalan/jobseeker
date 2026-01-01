@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useApplications } from "@/hooks/useApplications";
+import { InterviewSlotProposal } from "./InterviewSlotProposal";
 import {
   User,
   Mail,
@@ -73,6 +74,8 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(null);
   const [selectedResume, setSelectedResume] = useState<any | null>(null);
   const [loadingResume, setLoadingResume] = useState(false);
+  const [showInterviewProposal, setShowInterviewProposal] = useState(false);
+  const [interviewApplicant, setInterviewApplicant] = useState<Applicant | null>(null);
 
   const { applications, isLoading, setFilters, updateStatus, refresh } = useApplications({
     jobId: selectedJobId === 'all' ? undefined : selectedJobId,
@@ -130,12 +133,14 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
     const normalizedStatus = newStatus.toLowerCase();
     const success = await updateStatus(applicantId, normalizedStatus);
     if (success) {
-      // Refresh the applications list
-      refresh();
       // Update selected applicant if it's the same one
       if (selectedApplicant && (selectedApplicant.id === applicantId || selectedApplicant._id === applicantId)) {
-        setSelectedApplicant(prev => prev ? ({ ...prev, status: newStatus as any }) : null);
+        setSelectedApplicant(prev => prev ? ({ ...prev, status: normalizedStatus as any }) : null);
       }
+      // Refresh the applications list to update all tabs with new statuses
+      setTimeout(() => {
+        refresh();
+      }, 300);
     }
   };
 
@@ -305,6 +310,10 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
                 applicants={applicants}
                 onSelectApplicant={setSelectedApplicant}
                 onStatusChange={handleStatusChange}
+                onScheduleInterview={(applicant) => {
+                  setInterviewApplicant(applicant);
+                  setShowInterviewProposal(true);
+                }}
               />
             </TabsContent>
           ))
@@ -344,11 +353,41 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
           onClose={() => setSelectedResume(null)}
         />
       )}
+
+      {/* Interview Slot Proposal Dialog */}
+      {showInterviewProposal && interviewApplicant && (
+        <InterviewSlotProposal
+          applicationId={interviewApplicant._id || interviewApplicant.id}
+          candidateName={interviewApplicant.name}
+          jobTitle={(() => {
+            if (typeof interviewApplicant.job === 'object' && interviewApplicant.job?.title) {
+              return interviewApplicant.job.title;
+            }
+            if (interviewApplicant.jobId) {
+              const job = jobs.find(j => j.id === interviewApplicant.jobId);
+              return job?.title || 'Position';
+            }
+            return 'Position';
+          })()}
+          open={showInterviewProposal}
+          onOpenChange={(open) => {
+            setShowInterviewProposal(open);
+            if (!open) {
+              setInterviewApplicant(null);
+            }
+          }}
+          onSuccess={() => {
+            setShowInterviewProposal(false);
+            setInterviewApplicant(null);
+            refresh();
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function ApplicantList({ applicants, onSelectApplicant, onStatusChange }: { applicants: Applicant[], onSelectApplicant: (applicant: Applicant) => void, onStatusChange?: (applicantId: string, status: string) => void }) {
+function ApplicantList({ applicants, onSelectApplicant, onStatusChange, onScheduleInterview }: { applicants: Applicant[], onSelectApplicant: (applicant: Applicant) => void, onStatusChange?: (applicantId: string, status: string) => void, onScheduleInterview?: (applicant: Applicant) => void }) {
   // Calculate remaining days for review deadline
   const getRemainingDays = (appliedAt: string) => {
     const appliedDate = new Date(appliedAt);
@@ -498,9 +537,17 @@ function ApplicantList({ applicants, onSelectApplicant, onStatusChange }: { appl
                 <FileText className="h-4 w-4 mr-1" />
                 Resume
               </Button>
-              <Button size="sm" variant="outline">
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => {
+                  if (onScheduleInterview) {
+                    onScheduleInterview(applicant);
+                  }
+                }}
+              >
                 <Video className="h-4 w-4 mr-1" />
-                Interview
+                Schedule Interview
               </Button>
               <Button size="sm" variant="outline">
                 <MessageCircle className="h-4 w-4 mr-1" />
@@ -508,7 +555,13 @@ function ApplicantList({ applicants, onSelectApplicant, onStatusChange }: { appl
               </Button>
               {(() => {
                 const statusLower = (applicant.status || "").toLowerCase();
-                const isFinalStatus = statusLower === "hired" || statusLower === "rejected" || statusLower === "accepted";
+                
+                // Don't show Next Stage for final statuses
+                const isFinalStatus = statusLower === "hired" || 
+                                     statusLower === "rejected" || 
+                                     statusLower === "accepted" ||
+                                     statusLower === "offered";
+                
                 if (isFinalStatus) return null;
                 
                 // For interviewing status, show dropdown with Reject/Hired options
@@ -552,27 +605,44 @@ function ApplicantList({ applicants, onSelectApplicant, onStatusChange }: { appl
                   );
                 }
                 
-                // For other statuses, show regular Next Stage button
-                return (
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="text-green-600 hover:text-green-700"
-                    onClick={() => {
-                      if (!onStatusChange) return;
-                      const currentStatus = statusLower;
-                      const nextStatus = currentStatus === "applied" 
-                        ? "shortlisted" 
-                        : currentStatus === "shortlisted"
-                        ? "interview"
-                        : "shortlisted";
-                      onStatusChange(applicant.id || applicant._id, nextStatus);
-                    }}
-                  >
-                    <ArrowRight className="h-4 w-4 mr-1" />
-                    Next Stage
-                  </Button>
-                );
+                // For applied/reviewing status, show Next Stage button to move to shortlisted
+                if (statusLower === "applied" || statusLower === "reviewing") {
+                  return (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="text-green-600 hover:text-green-700"
+                      onClick={() => {
+                        if (!onStatusChange) return;
+                        onStatusChange(applicant.id || applicant._id, "shortlisted");
+                      }}
+                    >
+                      <ArrowRight className="h-4 w-4 mr-1" />
+                      Next Stage
+                    </Button>
+                  );
+                }
+                
+                // For shortlisted status, show Next Stage button to move to interview
+                if (statusLower === "shortlisted") {
+                  return (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="text-green-600 hover:text-green-700"
+                      onClick={() => {
+                        if (!onStatusChange) return;
+                        onStatusChange(applicant.id || applicant._id, "interview");
+                      }}
+                    >
+                      <ArrowRight className="h-4 w-4 mr-1" />
+                      Next Stage
+                    </Button>
+                  );
+                }
+                
+                // Don't show button for unknown or invalid statuses
+                return null;
               })()}
             </div>
           </div>
@@ -587,6 +657,7 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
   const [notes, setNotes] = useState(applicant.notes || "");
   const [rating, setRating] = useState(applicant.rating || 0);
   const [showCoverLetterModal, setShowCoverLetterModal] = useState(false);
+  const [showInterviewProposal, setShowInterviewProposal] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
   const [detailedRatings, setDetailedRatings] = useState({
@@ -1146,10 +1217,13 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
           </Button>
           <Button
             className="bg-purple-600 hover:bg-purple-700"
-            onClick={() => onStatusChange('interview')}
+            onClick={() => {
+              onStatusChange('interview');
+              setShowInterviewProposal(true);
+            }}
           >
             <Video className="h-4 w-4 mr-2" />
-            Interview
+            Schedule Interview
           </Button>
         </div>
       </div>
