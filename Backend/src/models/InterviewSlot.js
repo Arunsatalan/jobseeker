@@ -77,13 +77,20 @@ const interviewSlotSchema = new mongoose.Schema(
       slotIndex: Number, // Index of confirmed slot in proposedSlots
       startTime: Date,
       endTime: Date,
+      meetingType: {
+        type: String,
+        enum: ['video', 'phone', 'in-person'],
+      },
       meetingLink: String,
+      location: String,
+      timezone: String, // Store timezone for display
       calendarEventId: String, // Google Calendar event ID
       confirmedAt: Date,
       confirmedBy: {
         type: String,
         enum: ['employer', 'candidate', 'ai'],
       },
+      candidateNotes: String, // Notes from candidate when booking
     },
     status: {
       type: String,
@@ -110,10 +117,10 @@ const interviewSlotSchema = new mongoose.Schema(
       reminderSent: { type: Boolean, default: false },
       confirmedSent: { type: Boolean, default: false },
     },
-    // Deadline for voting
+    // Deadline for voting (optional - defaults to 3 days from creation)
     votingDeadline: {
       type: Date,
-      required: true,
+      required: false,
     },
   },
   { timestamps: true }

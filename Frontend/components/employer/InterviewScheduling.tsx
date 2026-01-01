@@ -49,18 +49,18 @@ export function InterviewScheduling() {
 
       if (confirmedResponse.data && confirmedResponse.data.success) {
         const interviews = confirmedResponse.data.data || [];
-        const now = new Date();
-        const upcoming = interviews
+        // Show all confirmed interviews (both upcoming and past for reference)
+        const sorted = interviews
           .filter((interview: any) => {
-            if (!interview.confirmedSlot?.startTime) return false;
-            return new Date(interview.confirmedSlot.startTime) > now;
+            // Only show if it has a confirmed slot
+            return interview.confirmedSlot && interview.confirmedSlot.startTime;
           })
           .sort((a: any, b: any) => {
             const dateA = new Date(a.confirmedSlot?.startTime || 0);
             const dateB = new Date(b.confirmedSlot?.startTime || 0);
             return dateA.getTime() - dateB.getTime();
           });
-        setConfirmedInterviews(upcoming);
+        setConfirmedInterviews(sorted);
       }
 
       // Load pending votes (candidates have voted, awaiting confirmation)

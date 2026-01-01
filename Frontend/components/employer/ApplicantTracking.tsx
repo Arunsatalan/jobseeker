@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useApplications } from "@/hooks/useApplications";
 import { InterviewSlotProposal } from "./InterviewSlotProposal";
+import { SimpleInterviewScheduler } from "./SimpleInterviewScheduler";
 import {
   User,
   Mail,
@@ -354,9 +355,9 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
         />
       )}
 
-      {/* Interview Slot Proposal Dialog */}
+      {/* Interview Slot Proposal Dialog - Simplified */}
       {showInterviewProposal && interviewApplicant && (
-        <InterviewSlotProposal
+        <SimpleInterviewScheduler
           applicationId={interviewApplicant._id || interviewApplicant.id}
           candidateName={interviewApplicant.name}
           jobTitle={(() => {

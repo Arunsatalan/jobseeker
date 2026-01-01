@@ -194,9 +194,16 @@ exports.getApplications = asyncHandler(async (req, res, next) => {
   const pagination = helpers.getPaginationData(page, limit, await Application.countDocuments(query));
 
   const applications = await Application.find(query)
-    .populate('job')
+    .populate({
+      path: 'job',
+      select: 'title company location employer',
+      populate: {
+        path: 'employer',
+        select: 'firstName lastName email _id'
+      }
+    })
     .populate('applicant', 'firstName lastName email')
-    .populate('employer', 'firstName lastName')
+    .populate('employer', 'firstName lastName email _id')
     .populate('resume', '_id parsedData')
     .limit(pagination.limit)
     .skip(pagination.startIndex)
@@ -293,6 +300,29 @@ exports.updateApplicationStatus = asyncHandler(async (req, res, next) => {
       relatedApplication: application._id,
       isRead: false,
     });
+
+    // Send email notification to applicant
+    try {
+      const applicantEmail = application.applicant?.email;
+      if (applicantEmail) {
+        const emailSubject = statusTitles[status] || 'Application Status Updated';
+        const emailMessage = `${statusMessages[status] || 'Your application status has been updated'} for ${jobTitle} at ${companyName}.`;
+        
+        await emailService.sendStatusUpdateEmail(
+          applicantEmail,
+          emailSubject,
+          emailMessage,
+          jobTitle,
+          companyName,
+          status
+        );
+        logger.info(`Status update email sent to applicant ${applicantEmail}`);
+      } else {
+        logger.warn('No applicant email available for status update email');
+      }
+    } catch (emailError) {
+      logger.warn('Failed to send status update email:', emailError);
+    }
 
     logger.info(`Notification sent to applicant ${application.applicant._id} for status change: ${oldStatus} -> ${status}`);
   } catch (notifError) {

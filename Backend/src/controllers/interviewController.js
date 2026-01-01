@@ -83,11 +83,31 @@ exports.proposeInterviewSlots = asyncHandler(async (req, res, next) => {
     .populate('applicant', 'email firstName lastName')
     .populate('employer', 'email firstName lastName');
 
-  if (!application) {
-    return sendError(res, 404, 'Application not found');
+  // Check authorization - employer can be in application.employer or application.job.employer
+  let employerId = null;
+  
+  // Try application.employer first (populated or string)
+  if (application.employer) {
+    if (typeof application.employer === 'object' && application.employer._id) {
+      employerId = application.employer._id.toString();
+    } else if (typeof application.employer === 'string') {
+      employerId = application.employer;
+    }
+  }
+  
+  // Fallback to job.employer if application.employer is not available
+  if (!employerId && application.job) {
+    if (typeof application.job === 'object' && application.job.employer) {
+      if (typeof application.job.employer === 'object' && application.job.employer._id) {
+        employerId = application.job.employer._id.toString();
+      } else if (typeof application.job.employer === 'string') {
+        employerId = application.job.employer;
+      }
+    }
   }
 
-  if (application.employer._id.toString() !== req.user._id.toString()) {
+  if (!employerId || employerId !== req.user._id.toString()) {
+    logger.warn(`Authorization failed for interview proposal. User: ${req.user._id}, EmployerId: ${employerId}, Application: ${applicationId}`);
     return sendError(res, 403, 'Not authorized to propose slots for this application');
   }
 
@@ -96,10 +116,20 @@ exports.proposeInterviewSlots = asyncHandler(async (req, res, next) => {
     return sendError(res, 400, 'Please propose at least 1 time slot');
   }
 
-  // Validate voting deadline
-  const deadline = new Date(votingDeadline);
-  if (deadline <= new Date()) {
-    return sendError(res, 400, 'Voting deadline must be in the future');
+  // Validate voting deadline (optional - default to 3 days from now if not provided)
+  let deadline;
+  if (votingDeadline) {
+    deadline = new Date(votingDeadline);
+    if (isNaN(deadline.getTime())) {
+      return sendError(res, 400, 'Invalid voting deadline format');
+    }
+    if (deadline <= new Date()) {
+      return sendError(res, 400, 'Voting deadline must be in the future');
+    }
+  } else {
+    // Default to 3 days from now if not provided
+    deadline = new Date();
+    deadline.setDate(deadline.getDate() + 3);
   }
 
   // Check if interview slot already exists
@@ -107,26 +137,8 @@ exports.proposeInterviewSlots = asyncHandler(async (req, res, next) => {
 
   if (interviewSlot) {
     // Update existing proposal
-    interviewSlot.proposedSlots = proposedSlots.map(slot => ({
-      startTime: new Date(slot.startTime),
-      endTime: new Date(slot.endTime),
-      timezone: slot.timezone || 'UTC',
-      meetingType: meetingType || 'video',
-      meetingLink: slot.meetingLink || '',
-      location: slot.location || '',
-      notes: slot.notes || '',
-      aiScore: slot.aiScore || 0,
-    }));
-    interviewSlot.votingDeadline = deadline;
-    interviewSlot.status = 'voting';
-  } else {
-    // Create new interview slot proposal
-    interviewSlot = await InterviewSlot.create({
-      application: applicationId,
-      job: application.job._id,
-      employer: req.user._id,
-      candidate: application.applicant._id,
-      proposedSlots: proposedSlots.map(slot => ({
+    try {
+      interviewSlot.proposedSlots = proposedSlots.map(slot => ({
         startTime: new Date(slot.startTime),
         endTime: new Date(slot.endTime),
         timezone: slot.timezone || 'UTC',
@@ -135,49 +147,155 @@ exports.proposeInterviewSlots = asyncHandler(async (req, res, next) => {
         location: slot.location || '',
         notes: slot.notes || '',
         aiScore: slot.aiScore || 0,
-      })),
-      votingDeadline: deadline,
-      status: 'voting',
-    });
+      }));
+      interviewSlot.votingDeadline = deadline;
+      interviewSlot.status = 'voting';
+      await interviewSlot.save();
+    } catch (updateError) {
+      logger.error(`Failed to update interview slot: ${updateError.message}`, updateError);
+      return sendError(res, 500, `Failed to update interview slot: ${updateError.message}`);
+    }
+  } else {
+    // Create new interview slot proposal
+    // Ensure we have the job ID and candidate ID (could be populated object or string)
+    const jobId = typeof application.job === 'object' && application.job._id 
+      ? application.job._id 
+      : application.job;
+    const candidateId = typeof application.applicant === 'object' && application.applicant._id
+      ? application.applicant._id
+      : application.applicant;
+    
+    if (!jobId || !candidateId) {
+      logger.error(`Invalid application data for ${applicationId}: jobId=${jobId}, candidateId=${candidateId}`);
+      return sendError(res, 400, 'Invalid application data: missing job or candidate information');
+    }
+
+    try {
+      interviewSlot = await InterviewSlot.create({
+        application: applicationId,
+        job: jobId,
+        employer: req.user._id,
+        candidate: candidateId,
+        proposedSlots: proposedSlots.map(slot => ({
+          startTime: new Date(slot.startTime),
+          endTime: new Date(slot.endTime),
+          timezone: slot.timezone || 'UTC',
+          meetingType: meetingType || 'video',
+          meetingLink: slot.meetingLink || '',
+          location: slot.location || '',
+          notes: slot.notes || '',
+          aiScore: slot.aiScore || 0,
+        })),
+        votingDeadline: deadline,
+        status: 'voting',
+      });
+    } catch (createError) {
+      logger.error(`Failed to create interview slot: ${createError.message}`, createError);
+      return sendError(res, 500, `Failed to create interview slot: ${createError.message}`);
+    }
   }
 
   // Calculate AI scores for slots
-  const aiScores = await Promise.all(
-    interviewSlot.proposedSlots.map(async (slot, index) => {
-      const score = interviewAIService.suggestOptimalSlot([slot]);
-      interviewSlot.proposedSlots[index].aiScore = score?.allScores?.[0]?.score || 0;
-      return interviewSlot.proposedSlots[index];
-    })
-  );
-  interviewSlot.proposedSlots = aiScores;
-  await interviewSlot.save();
+  try {
+    const allSlots = interviewSlot.proposedSlots.map(slot => ({
+      startTime: slot.startTime instanceof Date ? slot.startTime : new Date(slot.startTime),
+      endTime: slot.endTime instanceof Date ? slot.endTime : new Date(slot.endTime),
+    }));
+    const aiResult = interviewAIService.suggestOptimalSlot(allSlots);
+    
+    // Update AI scores for each slot
+    if (aiResult && aiResult.allScores && Array.isArray(aiResult.allScores)) {
+      // Map scores back to slots by matching slotIndex
+      aiResult.allScores.forEach((scoreData) => {
+        if (scoreData && typeof scoreData.slotIndex === 'number' && interviewSlot.proposedSlots[scoreData.slotIndex]) {
+          interviewSlot.proposedSlots[scoreData.slotIndex].aiScore = scoreData.score || 0;
+        }
+      });
+      
+      // Set default score for any slots that weren't scored
+      interviewSlot.proposedSlots.forEach((slot, index) => {
+        if (slot.aiScore === undefined || slot.aiScore === null) {
+          slot.aiScore = 0;
+        }
+      });
+    } else {
+      // Fallback: calculate simple scores
+      interviewSlot.proposedSlots.forEach((slot) => {
+        try {
+          const startTime = slot.startTime instanceof Date ? slot.startTime : new Date(slot.startTime);
+          const hour = startTime.getHours();
+          const dayOfWeek = startTime.getDay();
+          let score = 0;
+          if (hour >= 9 && hour <= 17) score += 40;
+          if (dayOfWeek >= 1 && dayOfWeek <= 5) score += 30;
+          slot.aiScore = score;
+        } catch (err) {
+          slot.aiScore = 0;
+        }
+      });
+    }
+  } catch (error) {
+    logger.warn('Failed to calculate AI scores:', error);
+    // Set default scores if AI calculation fails
+    interviewSlot.proposedSlots.forEach((slot) => {
+      if (!slot.aiScore && slot.aiScore !== 0) {
+        slot.aiScore = 0;
+      }
+    });
+  }
+  
+  // Save interview slot (only if it wasn't already saved in the update block)
+  if (!interviewSlot.isNew) {
+    try {
+      await interviewSlot.save();
+    } catch (saveError) {
+      logger.error(`Failed to save interview slot: ${saveError.message}`, saveError);
+      return sendError(res, 500, `Failed to save interview slot: ${saveError.message}`);
+    }
+  }
 
   // Send notification to candidate
   try {
+    const applicantId = typeof application.applicant === 'object' && application.applicant._id
+      ? application.applicant._id
+      : application.applicant;
+    const jobId = typeof application.job === 'object' && application.job._id
+      ? application.job._id
+      : application.job;
+    const jobTitle = typeof application.job === 'object' && application.job.title
+      ? application.job.title
+      : 'the position';
+    const applicantEmail = typeof application.applicant === 'object' && application.applicant.email
+      ? application.applicant.email
+      : null;
+
     await Notification.create({
-      user: application.applicant._id,
-      userId: application.applicant._id,
+      user: applicantId,
+      userId: applicantId,
       type: 'application_status',
       title: 'Interview Slots Available',
-      message: `Interview time slots have been proposed for ${application.job.title}. Please vote for your preferred times.`,
-      relatedJob: application.job._id,
+      message: `Interview time slots have been proposed for ${jobTitle}. Please choose your preferred time.`,
+      relatedJob: jobId,
       relatedApplication: applicationId,
       actionUrl: `/applications/${applicationId}/interview-slots`,
       isRead: false,
     });
 
-    // Send email notification
-    await emailService.sendInterviewProposalEmail(
-      application.applicant.email,
-      application.job.title,
-      interviewSlot.proposedSlots.length,
-      deadline
-    );
+    // Send email notification if email is available
+    if (applicantEmail) {
+      await emailService.sendInterviewProposalEmail(
+        applicantEmail,
+        jobTitle,
+        interviewSlot.proposedSlots.length,
+        deadline
+      );
+    }
 
     interviewSlot.notificationsSent.proposalSent = true;
     await interviewSlot.save();
   } catch (error) {
     logger.warn('Failed to send notification:', error);
+    // Don't fail the request if notification fails
   }
 
   logger.info(`Interview slots proposed for application ${applicationId}`);
@@ -366,7 +484,10 @@ exports.confirmInterviewSlot = asyncHandler(async (req, res, next) => {
     slotIndex,
     startTime: selectedSlot.startTime,
     endTime: selectedSlot.endTime,
+    meetingType: selectedSlot.meetingType,
     meetingLink,
+    location: selectedSlot.location,
+    timezone: selectedSlot.timezone || 'UTC', // Store timezone
     calendarEventId,
     confirmedAt: new Date(),
     confirmedBy: 'employer',
@@ -405,6 +526,146 @@ exports.confirmInterviewSlot = asyncHandler(async (req, res, next) => {
   logger.info(`Interview slot confirmed: ${interviewSlotId}`);
 
   return sendSuccess(res, 200, 'Interview slot confirmed successfully', interviewSlot);
+});
+
+// @desc Candidate one-click booking (direct confirmation)
+// @route POST /api/v1/interviews/confirm
+// @access Private/JobSeeker
+exports.candidateConfirmSlot = asyncHandler(async (req, res, next) => {
+  const { interviewSlotId, slotIndex, notes } = req.body;
+
+  const interviewSlot = await InterviewSlot.findById(interviewSlotId)
+    .populate('job', 'title')
+    .populate('employer', 'email firstName lastName')
+    .populate('candidate', 'email firstName lastName phone');
+
+  if (!interviewSlot) {
+    return sendError(res, 404, 'Interview slot not found');
+  }
+
+  // Check if candidate is authorized
+  if (interviewSlot.candidate._id.toString() !== req.user._id.toString()) {
+    return sendError(res, 403, 'Not authorized to confirm this interview');
+  }
+
+  if (slotIndex < 0 || slotIndex >= interviewSlot.proposedSlots.length) {
+    return sendError(res, 400, 'Invalid slot index');
+  }
+
+  if (interviewSlot.status === 'confirmed') {
+    return sendError(res, 400, 'Interview slot has already been confirmed');
+  }
+
+  const selectedSlot = interviewSlot.proposedSlots[slotIndex];
+  let calendarEventId = null;
+  let meetingLink = selectedSlot.meetingLink;
+
+  // Create Google Calendar event if employer has calendar integration
+  if (interviewSlot.employer.googleCalendarTokens) {
+    try {
+      const calendarResult = await googleCalendarService.createCalendarEvent(
+        interviewSlot.employer.googleCalendarTokens,
+        {
+          title: `Interview: ${interviewSlot.job.title}`,
+          description: `Interview with ${interviewSlot.candidate.firstName} ${interviewSlot.candidate.lastName}${notes ? `\nNotes: ${notes}` : ''}`,
+          startTime: selectedSlot.startTime.toISOString(),
+          endTime: selectedSlot.endTime.toISOString(),
+          timezone: selectedSlot.timezone,
+          meetingLink: selectedSlot.meetingLink,
+          attendees: [
+            { email: interviewSlot.candidate.email },
+            { email: interviewSlot.employer.email },
+          ],
+        }
+      );
+
+      calendarEventId = calendarResult.eventId;
+      meetingLink = calendarResult.meetingLink || meetingLink;
+    } catch (error) {
+      logger.warn('Failed to create calendar event:', error);
+      // Continue without calendar event
+    }
+  }
+
+  // Update interview slot
+  interviewSlot.confirmedSlot = {
+    slotIndex,
+    startTime: selectedSlot.startTime,
+    endTime: selectedSlot.endTime,
+    meetingType: selectedSlot.meetingType,
+    meetingLink,
+    location: selectedSlot.location,
+    timezone: selectedSlot.timezone || 'UTC', // Store timezone
+    calendarEventId,
+    confirmedAt: new Date(),
+    confirmedBy: 'candidate',
+    candidateNotes: notes || '',
+  };
+
+  interviewSlot.status = 'confirmed';
+  await interviewSlot.save();
+
+  // Update application status
+  await Application.findByIdAndUpdate(interviewSlot.application, {
+    status: 'interview',
+    interviewDate: selectedSlot.startTime,
+    interviewLink: meetingLink,
+  });
+
+  // Send notifications to both parties
+  try {
+    await Notification.create({
+      user: interviewSlot.candidate._id,
+      userId: interviewSlot.candidate._id,
+      type: 'interview_confirmed',
+      title: 'Interview Confirmed! 🎉',
+      message: `Your interview for ${interviewSlot.job.title} has been confirmed for ${new Date(selectedSlot.startTime).toLocaleString()}.`,
+      relatedJob: interviewSlot.job._id,
+      relatedApplication: interviewSlot.application,
+      isRead: false,
+    });
+
+    await Notification.create({
+      user: interviewSlot.employer._id,
+      userId: interviewSlot.employer._id,
+      type: 'interview_confirmed',
+      title: 'Interview Confirmed',
+      message: `${interviewSlot.candidate.firstName} ${interviewSlot.candidate.lastName} has confirmed the interview for ${interviewSlot.job.title} on ${new Date(selectedSlot.startTime).toLocaleString()}.`,
+      relatedJob: interviewSlot.job._id,
+      relatedApplication: interviewSlot.application,
+      isRead: false,
+    });
+
+    interviewSlot.notificationsSent.confirmedSent = true;
+    await interviewSlot.save();
+  } catch (error) {
+    logger.warn('Failed to send confirmation notifications:', error);
+  }
+
+  // Send email notifications
+  try {
+    await emailService.sendInterviewConfirmationEmail(
+      interviewSlot.candidate.email,
+      interviewSlot.job.title,
+      new Date(selectedSlot.startTime),
+      meetingLink,
+      interviewSlot.employer.firstName + ' ' + interviewSlot.employer.lastName
+    );
+
+    await emailService.sendInterviewConfirmationEmail(
+      interviewSlot.employer.email,
+      interviewSlot.job.title,
+      new Date(selectedSlot.startTime),
+      meetingLink,
+      interviewSlot.candidate.firstName + ' ' + interviewSlot.candidate.lastName
+    );
+  } catch (error) {
+    logger.warn('Failed to send confirmation emails:', error);
+  }
+
+  logger.info(`Interview slot confirmed by candidate: ${interviewSlotId}`);
+
+  return sendSuccess(res, 200, 'Interview confirmed successfully', interviewSlot);
 });
 
 // @desc Get AI suggestions for optimal slots

@@ -28,9 +28,18 @@ router.get('/slots/:applicationId', interviewController.getInterviewSlots);
 router.post('/vote', authorize('jobseeker'), interviewController.voteOnSlots);
 
 // @route   POST /api/v1/interviews/confirm
-// @desc    Confirm interview slot
-// @access  Private/Employer
-router.post('/confirm', authorize('employer'), interviewController.confirmInterviewSlot);
+// @desc    Confirm interview slot (Employer or Candidate - one-click booking)
+// @access  Private (Both Employer and Candidate)
+router.post('/confirm', async (req, res, next) => {
+  // Check if user is employer or candidate and route accordingly
+  if (req.user.role === 'employer') {
+    return interviewController.confirmInterviewSlot(req, res, next);
+  } else if (req.user.role === 'jobseeker') {
+    return interviewController.candidateConfirmSlot(req, res, next);
+  } else {
+    return res.status(403).json({ success: false, message: 'Not authorized' });
+  }
+});
 
 // @route   GET /api/v1/interviews/ai-suggestions
 // @desc    Get AI suggestions for optimal interview times

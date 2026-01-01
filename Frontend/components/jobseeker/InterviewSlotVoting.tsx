@@ -48,6 +48,11 @@ export function InterviewSlotVoting({
   const { toast } = useToast();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
+  // Recalculate ranked votes whenever votes change
+  const rankedVotes = votes.filter(v => v.rank > 0 && v.rank <= 5).length;
+  const totalSlots = interviewSlot?.proposedSlots?.length || 0;
+  const minRequired = Math.min(1, totalSlots); // Simplified: only 1 slot needs to be ranked (2025 UX)
+
   useEffect(() => {
     if (open && applicationId) {
       loadInterviewSlots();
@@ -100,37 +105,40 @@ export function InterviewSlotVoting({
   };
 
   const updateVote = (slotIndex: number, field: keyof CandidateVote, value: any) => {
-    const updated = votes.map(v => {
-      if (v.slotIndex === slotIndex) {
-        return { ...v, [field]: value };
-      }
-      return v;
+    setVotes(prevVotes => {
+      return prevVotes.map(v => {
+        if (v.slotIndex === slotIndex) {
+          return { ...v, [field]: value };
+        }
+        return v;
+      });
     });
-    setVotes(updated);
   };
 
   const setRank = (slotIndex: number, rank: number) => {
     // Ensure only one slot has each rank (1-5)
-    const updated = votes.map(v => {
-      if (v.slotIndex === slotIndex) {
-        return { ...v, rank };
-      } else if (v.rank === rank) {
-        return { ...v, rank: 0 }; // Remove rank from other slot
-      }
-      return v;
+    setVotes(prevVotes => {
+      const updated = prevVotes.map(v => {
+        if (v.slotIndex === slotIndex) {
+          return { ...v, rank };
+        } else if (v.rank === rank) {
+          return { ...v, rank: 0 }; // Remove rank from other slot
+        }
+        return v;
+      });
+      return updated;
     });
-    setVotes(updated);
   };
 
   const handleSubmit = async () => {
-    // Validate that minimum required slots are ranked (dynamic based on available slots)
-    const rankedVotes = votes.filter(v => v.rank > 0);
+    // Validate that minimum required slots are ranked (simplified: 1 slot required)
+    const rankedVotes = votes.filter(v => v.rank > 0 && v.rank <= 5);
     const totalSlots = interviewSlot.proposedSlots?.length || 0;
-    const minRequired = Math.min(3, totalSlots);
+    const minRequired = Math.min(1, totalSlots); // Simplified: only 1 slot needs to be ranked
     
     if (rankedVotes.length < minRequired) {
       toast({
-        title: "Insufficient Rankings",
+        title: "Please Select a Rank",
         description: `Please rank at least ${minRequired} time slot${minRequired !== 1 ? 's' : ''} (1 = most preferred, 5 = least preferred).`,
         variant: "destructive",
       });
@@ -239,9 +247,6 @@ export function InterviewSlotVoting({
   }
 
   const timeRemaining = getTimeRemaining();
-  const rankedVotes = votes.filter(v => v.rank > 0).length;
-  const totalSlots = interviewSlot.proposedSlots?.length || 0;
-  const minRequired = Math.min(3, totalSlots); // Dynamic minimum: 3 or all slots if less than 3
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

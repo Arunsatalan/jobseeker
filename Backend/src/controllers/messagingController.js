@@ -1,8 +1,11 @@
 const Message = require('../models/Message');
+const Notification = require('../models/Notification');
+const User = require('../models/User');
 const asyncHandler = require('../middleware/async');
 const { sendSuccess, sendError, sendPaginated } = require('../utils/response');
 const helpers = require('../utils/helpers');
 const logger = require('../utils/logger');
+const emailService = require('../services/emailService');
 
 // @desc Send message
 // @route POST /api/v1/messages
@@ -18,11 +21,49 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
     sender: req.user._id,
     recipient,
     content,
-    type,
+    type: type || 'text',
+    relatedJob: req.body.relatedJob || null,
   });
 
-  await message.populate('sender', 'firstName lastName profilePhoto');
-  await message.populate('recipient', 'firstName lastName profilePhoto');
+  await message.populate('sender', 'firstName lastName profilePhoto email');
+  await message.populate('recipient', 'firstName lastName profilePhoto email');
+
+  // Create notification for recipient
+  try {
+    await Notification.create({
+      user: recipient,
+      userId: recipient, // Backward compatibility
+      type: 'message',
+      title: `New Message from ${message.sender.firstName} ${message.sender.lastName}`,
+      message: content.length > 100 ? content.substring(0, 100) + '...' : content,
+      relatedJob: req.body.relatedJob || null,
+      isRead: false,
+    });
+
+    // Send email notification to recipient
+    try {
+      const recipientUser = await User.findById(recipient).select('email firstName lastName');
+      if (recipientUser && recipientUser.email) {
+        const senderName = `${message.sender.firstName} ${message.sender.lastName}`;
+        const messagePreview = content.length > 150 ? content.substring(0, 150) + '...' : content;
+        const jobTitle = req.body.jobTitle || null;
+        
+        await emailService.sendMessageNotification(
+          recipientUser.email,
+          senderName,
+          messagePreview,
+          jobTitle
+        );
+        logger.info(`Message notification email sent to ${recipientUser.email}`);
+      }
+    } catch (emailError) {
+      logger.warn('Failed to send message notification email:', emailError);
+    }
+
+    logger.info(`Notification created for message recipient ${recipient}`);
+  } catch (notifError) {
+    logger.warn('Failed to create notification for message:', notifError);
+  }
 
   logger.info(`Message sent from ${req.user._id} to ${recipient}`);
 
