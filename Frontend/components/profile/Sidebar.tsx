@@ -35,7 +35,7 @@ const navigationItems = [
   { id: "preferences", label: "Job Preferences", icon: Briefcase },
   { id: "resumes", label: "Resume Management", icon: FileText },
   
-  { id: "progress", label: "Career Progress", icon: TrendingUp },
+  { id: "progress", label: "Interview Management", icon: TrendingUp },
   { id: "tools", label: "Tools & Resources", icon: Wrench },
   { id: "settings", label: "Account Settings", icon: Settings },
 ];

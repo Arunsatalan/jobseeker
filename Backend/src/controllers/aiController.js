@@ -6,6 +6,7 @@ const User = require('../models/User');
 const JobSeeker = require('../models/JobSeeker');
 const JobSeekerPreferences = require('../models/JobSeekerPreferences');
 const Resume = require('../models/Resume');
+const InterviewSession = require('../models/InterviewSession');
 const logger = require('../utils/logger');
 
 /**
@@ -345,24 +346,152 @@ exports.smartApply = asyncHandler(async (req, res, next) => {
 // @desc Generate support message
 // @route POST /api/v1/ai/generate-support-message
 // @access Private
-exports.generateSupportMessage = asyncHandler(async (req, res, next) => {
-    const { category, description, priority } = req.body;
+// @desc Start AI interaction session
+// @route POST /api/v1/ai/start-interview
+// @access Private
+exports.startInterview = asyncHandler(async (req, res, next) => {
+    const { jobId, userProfile, difficulty } = req.body;
 
-    // Get user details for context
-    const user = await User.findById(req.user._id);
+    if (!jobId) return sendError(res, 400, 'Job ID is required');
+
+    // Fetch context
+    const job = await Job.findById(jobId).populate('company');
+    if (!job) return sendError(res, 404, 'Job not found');
+
+    const profile = await getComprehensiveProfile(req.user._id, userProfile);
 
     try {
-        const messageDraft = await aiService.generateSupportMessage({
-            senderName: `${user.firstName} ${user.lastName}`,
-            companyName: user.company || 'N/A',
-            category,
-            description,
-            priority
+        // Start AI session
+        const initialInteraction = await aiService.startInterviewSession(profile, {
+            title: job.title,
+            company: job.company?.name || 'Company',
+            description: job.description,
+            skills: job.skills
         });
 
-        return sendSuccess(res, 200, 'Support message generated', messageDraft);
+        // Create Session Record
+        const session = await InterviewSession.create({
+            user: req.user._id,
+            job: jobId,
+            difficulty: difficulty || 'medium',
+            messages: [initialInteraction]
+        });
+
+        return sendSuccess(res, 201, 'Interview session started', {
+            sessionId: session._id,
+            message: initialInteraction
+        });
     } catch (error) {
-        logger.error('Support message generation error:', error);
-        return sendError(res, 500, error.message || 'Failed to generate support message');
+        logger.error('Start interview error:', error);
+        return sendError(res, 500, 'Failed to start interview');
+    }
+});
+
+// @desc Generate next question
+// @route POST /api/v1/ai/ask-question
+// @access Private
+exports.askQuestion = asyncHandler(async (req, res, next) => {
+    const { sessionId } = req.body;
+
+    const session = await InterviewSession.findById(sessionId).populate('job user');
+    if (!session) return sendError(res, 404, 'Session not found');
+
+    // verify ownership
+    if (session.user._id.toString() !== req.user._id.toString()) {
+        return sendError(res, 403, 'Unauthorized');
+    }
+
+    // Get comprehensive profile again or rely on what matches? 
+    // Ideally we'd store profile snapshot, but for now re-fetch is safer for freshness
+    const profile = await getComprehensiveProfile(req.user._id, {});
+
+    try {
+        const question = await aiService.generateInterviewQuestion(
+            session.messages,
+            profile,
+            {
+                title: session.job.title,
+                company: 'the company', // Populate company deep if needed
+                description: session.job.description,
+                skills: session.job.skills
+            }
+        );
+
+        session.messages.push(question);
+        await session.save();
+
+        return sendSuccess(res, 200, 'Question generated', { message: question });
+    } catch (error) {
+        logger.error('Ask question error:', error);
+        return sendError(res, 500, 'Failed to generate question');
+    }
+});
+
+// @desc Submit answer and get feedback
+// @route POST /api/v1/ai/submit-answer
+// @access Private
+exports.submitAnswer = asyncHandler(async (req, res, next) => {
+    const { sessionId, answer } = req.body;
+
+    const session = await InterviewSession.findById(sessionId).populate('job user');
+    if (!session) return sendError(res, 404, 'Session not found');
+
+    // verify ownership
+    if (session.user._id.toString() !== req.user._id.toString()) {
+        return sendError(res, 403, 'Unauthorized');
+    }
+
+    // Add user answer to history
+    session.messages.push({ role: 'user', content: answer });
+    await session.save();
+
+    const profile = await getComprehensiveProfile(req.user._id, {});
+
+    // Find the last question asked
+    // It's the message before the one we just pushed (which was user's answer)
+    // Actually we just pushed, so it is at length-1. The question is at length-2.
+    // However, if we want to be safe, filter for last 'assistant' message.
+    const lastQuestion = session.messages.slice().reverse().find(m => m.role === 'assistant');
+
+    try {
+        const feedback = await aiService.evaluateInterviewAnswer(
+            lastQuestion ? lastQuestion.content : "Tell me about yourself",
+            answer,
+            profile,
+            {
+                title: session.job.title,
+                company: 'the company',
+                description: session.job.description,
+                skills: session.job.skills
+            }
+        );
+
+        // Optionally store feedback in the session messages or separate field?
+        // User might want to see it in chat.
+        const feedbackMessage = {
+            role: 'system',
+            content: JSON.stringify(feedback) // Store structured feedback or parsed text
+        };
+        // For chat purposes, maybe we want a text response from AI too? 
+        // Evaluating answer usually returns JSON. Let's send it to frontend, 
+        // frontend can display it nicely. 
+        // We can also have the "Coach" say something.
+
+        // Let's create a conversational response from the feedback
+        const coachResponse = {
+            role: 'assistant',
+            content: `Feedback: ${feedback.feedback}\n\nRating: ${feedback.rating}/10\n\nTo improve: ${feedback.improvement_suggestion}`
+        };
+
+        session.messages.push(coachResponse);
+        await session.save();
+
+        return sendSuccess(res, 200, 'Answer analyzed', {
+            feedback,
+            message: coachResponse
+        });
+    } catch (error) {
+        logger.error('Submit answer error:', error);
+        return sendError(res, 500, 'Failed to analyze answer');
     }
 });

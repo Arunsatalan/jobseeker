@@ -10,6 +10,9 @@ router.post('/analyze-profile', aiController.analyzeProfile);
 router.post('/optimize-resume', aiController.optimizeResume);
 router.post('/generate-cover-letter', aiController.generateCoverLetter);
 router.post('/smart-apply', aiController.smartApply);
-router.post('/generate-support-message', aiController.generateSupportMessage);
+// AI Interview Coach routes
+router.post('/start-interview', aiController.startInterview);
+router.post('/ask-question', aiController.askQuestion);
+router.post('/submit-answer', aiController.submitAnswer);
 
 module.exports = router;

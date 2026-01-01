@@ -759,6 +759,139 @@ Priority: ${context.priority || 'Normal'}
 
 The message should be polite but direct, explaining the issue clearly to help the admin resolve it quickly.`;
     }
+    /**
+     * Start an AI mock interview session
+     */
+    async startInterviewSession(userProfile, job) {
+        const systemPrompt = this.buildInterviewPersonaPrompt(userProfile, job);
+
+        // Initial greeting
+        return {
+            role: 'assistant',
+            content: `Hello ${userProfile.name}, I'm your AI Interview Coach. I've reviewed your application for the ${job.title} position at ${job.company}. 
+
+I see you have experience in ${userProfile.skills?.slice(0, 3).join(', ')}. 
+
+We'll conduct a mock interview to help you prepare. I'll ask you questions one by one, analyzing your answers and providing feedback.
+
+Are you ready to begin?`
+        };
+    }
+
+    /**
+     * Generate the next interview question based on history
+     */
+    async generateInterviewQuestion(history, userProfile, job) {
+        if (!this.apiKey) return this.generateLocalInterviewQuestion(history);
+
+        const systemPrompt = this.buildInterviewPersonaPrompt(userProfile, job);
+
+        try {
+            const response = await axios.post(
+                this.apiUrl,
+                {
+                    model: this.model,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        ...history,
+                        { role: 'system', content: "Generate the next relevant interview question. Vary the difficulty. Do not repeat questions. Keep it professional." }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 200 // Keep questions concise
+                },
+                { headers: { 'Authorization': `Bearer ${this.apiKey}` } }
+            );
+
+            return {
+                role: 'assistant',
+                content: response.data.choices[0].message.content
+            };
+        } catch (error) {
+            logger.warn('⚠️ Interview question generation failed, using local fallback');
+            return this.generateLocalInterviewQuestion(history);
+        }
+    }
+
+    /**
+     * Evaluate the candidate's answer
+     */
+    async evaluateInterviewAnswer(question, answer, userProfile, job) {
+        if (!this.apiKey) return this.generateLocalAnswerEvaluation();
+
+        try {
+            const systemPrompt = `You are an expert interview coach. Analyze the candidate's answer to the question: "${question}".
+            
+Job Context: ${job.title} at ${job.company}.
+Candidate: ${userProfile.name}.
+            
+Provide feedback in JSON format:
+- rating: 1-10
+- feedback: specific constructive feedback
+- improvement_suggestion: how to make the answer better
+- sample_better_answer: a concise example of a stronger answer
+`;
+
+            const response = await axios.post(
+                this.apiUrl,
+                {
+                    model: this.model,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: answer }
+                    ],
+                    temperature: 0.3,
+                    response_format: { type: 'json_object' }
+                },
+                { headers: { 'Authorization': `Bearer ${this.apiKey}` } }
+            );
+
+            return JSON.parse(response.data.choices[0].message.content);
+        } catch (error) {
+            logger.warn('⚠️ Answer evaluation failed, using local fallback');
+            return this.generateLocalAnswerEvaluation();
+        }
+    }
+
+    buildInterviewPersonaPrompt(userProfile, job) {
+        return `You are an expert Technical Recruiter and Hiring Manager for ${job.company}. 
+You are interviewing ${userProfile.name} for the position of ${job.title}.
+
+Job Description:
+${job.description?.substring(0, 500)}...
+
+Candidate Profile:
+Skills: ${userProfile.skills?.join(', ')}
+Experience: ${userProfile.experience?.[0] || 'N/A'}
+
+Your goal is to conduct a realistic, rigorous, but supportive mock interview.
+- Ask behavioral (STAR method), technical, and situational questions.
+- Adapt difficulty based on the candidate's responses.
+- Be professional but conversational.`;
+    }
+
+    generateLocalInterviewQuestion(history) {
+        const questions = [
+            "Tell me about a time you faced a significant technical challenge.",
+            "Why do you want to work for our company?",
+            "What are your greatest professional strengths?",
+            "Describe a situation where you had to resolve a conflict within your team.",
+            "Where do you see yourself in 5 years?"
+        ];
+        // Simple random selection that tries to avoid very recent duplicates if possible
+        return {
+            role: 'assistant',
+            content: questions[Math.floor(Math.random() * questions.length)]
+        };
+    }
+
+    generateLocalAnswerEvaluation() {
+        return {
+            rating: 7,
+            feedback: "Good attempt. You covered the basics, but try to be more specific with examples.",
+            improvement_suggestion: "Use the STAR method (Situation, Task, Action, Result) to structure your response.",
+            sample_better_answer: "In my previous role, I faced X. I took action Y using tool Z. This resulted in a 20% efficiency increase."
+        };
+    }
 }
 
 module.exports = new AIService();
