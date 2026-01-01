@@ -55,7 +55,7 @@ const getComprehensiveProfile = async (userId, providedProfile) => {
             logger.info(`   Locations: ${jobSeekerPreferences.locations?.join(', ') || 'None'}`);
             logger.info(`   Experience: ${jobSeekerPreferences.experienceLevel || 'None'}`);
             logger.info(`   Salary: $${jobSeekerPreferences.salaryMin || 0} - $${jobSeekerPreferences.salaryMax || 0}`);
-            
+
             profile.preferences = {
                 desiredRoles: jobSeekerPreferences.desiredRoles || [],
                 locations: jobSeekerPreferences.locations || [],
@@ -340,5 +340,29 @@ exports.smartApply = asyncHandler(async (req, res, next) => {
     } catch (error) {
         logger.error('Smart apply error:', error);
         return sendError(res, 500, error.message || 'Failed to complete smart apply analysis');
+    }
+});
+// @desc Generate support message
+// @route POST /api/v1/ai/generate-support-message
+// @access Private
+exports.generateSupportMessage = asyncHandler(async (req, res, next) => {
+    const { category, description, priority } = req.body;
+
+    // Get user details for context
+    const user = await User.findById(req.user._id);
+
+    try {
+        const messageDraft = await aiService.generateSupportMessage({
+            senderName: `${user.firstName} ${user.lastName}`,
+            companyName: user.company || 'N/A',
+            category,
+            description,
+            priority
+        });
+
+        return sendSuccess(res, 200, 'Support message generated', messageDraft);
+    } catch (error) {
+        logger.error('Support message generation error:', error);
+        return sendError(res, 500, error.message || 'Failed to generate support message');
     }
 });

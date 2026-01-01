@@ -680,6 +680,85 @@ Sincerely,
 ${userProfile.name}
 ${userProfile.email}`;
     }
+    /**
+     * Generate professional support message using Grok AI or Local Fallback
+     */
+    async generateSupportMessage(context) {
+        try {
+            if (!this.apiKey) return this.generateLocalSupportMessage(context);
+
+            const prompt = this.buildSupportMessagePrompt(context);
+
+            const response = await axios.post(
+                this.apiUrl,
+                {
+                    model: this.model,
+                    messages: [
+                        {
+                            role: 'system',
+                            content: `You are an expert business communication assistant.
+                            
+Your task is to draft a professional, clear, and effective support request message.
+- Tone: Professional, courteous, and precise.
+- Structure: Clear subject line (if applicable), concise explanation of the issue, steps taken (if any), and desired outcome.
+- Audience: Platform Administrators/Support Team.
+
+Return a JSON object with:
+- "subject": A clear, concise subject line.
+- "content": The body of the message.`
+                        },
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.5,
+                    max_tokens: 1000,
+                    response_format: { type: 'json_object' }
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            return JSON.parse(response.data.choices[0].message.content);
+        } catch (error) {
+            logger.warn('⚠️ Support message generation falling back to Local Heuristic');
+            return this.generateLocalSupportMessage(context);
+        }
+    }
+
+    generateLocalSupportMessage(context) {
+        return {
+            subject: `Support Request: ${context.category || 'General Issue'}`,
+            content: `Dear Support Team,
+
+I am writing to request assistance regarding ${context.category || 'an issue'}.
+
+Details:
+${context.description || 'No details provided.'}
+
+Thank you for your help.
+
+Best regards,
+${context.senderName || 'User'}`
+        };
+    }
+
+    buildSupportMessagePrompt(context) {
+        return `Draft a professional support message based on the following context:
+
+User Name: ${context.senderName || 'N/A'}
+Company: ${context.companyName || 'N/A'}
+Category: ${context.category || 'General'}
+Issue Description: ${context.description || 'N/A'}
+Priority: ${context.priority || 'Normal'}
+
+The message should be polite but direct, explaining the issue clearly to help the admin resolve it quickly.`;
+    }
 }
 
 module.exports = new AIService();

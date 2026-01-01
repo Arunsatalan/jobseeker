@@ -12,6 +12,8 @@ router.get('/analytics', protect, messageController.getMessagingAnalytics);
 router.get('/flagged', protect, authorize('admin'), messageController.getFlaggedMessages);
 router.put('/:id/read', protect, messageController.markAsRead);
 router.put('/:id/moderate', protect, authorize('admin'), messageController.updateModerationStatus);
+router.post('/support', protect, messageController.sendSupportMessage);
+router.get('/support', protect, authorize('admin'), messageController.getSupportMessages);
 
 // Template routes
 router.post('/templates', protect, templateController.createTemplate);

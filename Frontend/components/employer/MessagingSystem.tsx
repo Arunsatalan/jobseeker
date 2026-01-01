@@ -6,13 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   DialogDescription,
-  DialogFooter 
+  DialogFooter
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -21,12 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  MessageCircle, 
-  Search, 
-  Star, 
-  Reply, 
-  Trash2, 
+import {
+  MessageCircle,
+  Search,
+  Star,
+  Reply,
+  Trash2,
   MoreVertical,
   Send,
   Users,
@@ -113,6 +113,11 @@ export function MessagingSystem() {
   const [selectedJob, setSelectedJob] = useState<string>("");
   const [bulkRecipients, setBulkRecipients] = useState<string[]>([]);
   const [bulkFilters, setBulkFilters] = useState<any>({});
+  const [showContactSupportDialog, setShowContactSupportDialog] = useState(false);
+  const [supportCategory, setSupportCategory] = useState("Technical Issue");
+  const [supportPriority, setSupportPriority] = useState("Normal");
+  const [supportDescription, setSupportDescription] = useState("");
+  const [isGeneratingSupport, setIsGeneratingSupport] = useState(false);
   const { toast } = useToast();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
@@ -259,11 +264,81 @@ export function MessagingSystem() {
     }
   };
 
+  const generateSupportMessage = async () => {
+    setIsGeneratingSupport(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${apiUrl}/api/v1/ai/generate-support-message`,
+        {
+          category: supportCategory,
+          description: supportDescription || "I am facing an issue with the platform.",
+          priority: supportPriority
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.data.success) {
+        setSupportDescription(response.data.data.content);
+        toast({
+          title: "AI Draft Generated",
+          description: "Support message draft has been generated.",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to generate ID draft",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingSupport(false);
+    }
+  };
+
+  const sendSupportMessage = async () => {
+    setSending(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${apiUrl}/api/v1/messages/support`,
+        {
+          category: supportCategory,
+          priority: supportPriority,
+          content: supportDescription,
+          subject: `${supportCategory} - ${supportPriority}`
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.data.success) {
+        toast({
+          title: "Support Request Sent",
+          description: "Your support request has been sent to the admin team.",
+        });
+        setShowContactSupportDialog(false);
+        setSupportDescription("");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to send support request",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
   const filteredConversations = conversations.filter(conv => {
     const userName = `${conv.user[0]?.firstName || ''} ${conv.user[0]?.lastName || ''}`.toLowerCase();
     const matchesSearch = userName.includes(searchTerm.toLowerCase()) ||
-                         conv.lastMessage.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      conv.lastMessage.toLowerCase().includes(searchTerm.toLowerCase());
+
     switch (selectedFilter) {
       case "unread":
         return conv.unreadCount > 0 && matchesSearch;
@@ -283,15 +358,23 @@ export function MessagingSystem() {
           <p className="text-gray-600">Communicate with candidates</p>
         </div>
         <div className="flex gap-2">
-          <Button 
+          <Button
             variant="outline"
             onClick={() => setShowBulkMessageDialog(true)}
           >
             <Users className="h-4 w-4 mr-2" />
             Bulk Message
           </Button>
-          <Button 
-            className="text-white" 
+          <Button
+            variant="outline"
+            className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+            onClick={() => setShowContactSupportDialog(true)}
+          >
+            <AlertCircle className="h-4 w-4 mr-2" />
+            Contact Support
+          </Button>
+          <Button
+            className="text-white"
             style={{ backgroundColor: '#02243b' }}
             onClick={() => setShowNewMessageDialog(true)}
           >
@@ -327,8 +410,8 @@ export function MessagingSystem() {
           <Card className="p-4 mt-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-medium">Templates</h4>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => setShowTemplateDialog(true)}
               >
@@ -337,10 +420,10 @@ export function MessagingSystem() {
             </div>
             <div className="space-y-2">
               {templates.slice(0, 5).map((template) => (
-                <Button 
+                <Button
                   key={template._id}
-                  variant="outline" 
-                  size="sm" 
+                  variant="outline"
+                  size="sm"
                   className="w-full text-left justify-start"
                   onClick={() => {
                     setSelectedTemplate(template._id);
@@ -380,9 +463,8 @@ export function MessagingSystem() {
                   filteredConversations.map((conv) => (
                     <div
                       key={conv._id}
-                      className={`p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
-                        conv.unreadCount > 0 ? "bg-blue-50 border-blue-200" : "border-gray-200"
-                      }`}
+                      className={`p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${conv.unreadCount > 0 ? "bg-blue-50 border-blue-200" : "border-gray-200"
+                        }`}
                       onClick={() => setSelectedConversation(conv)}
                     >
                       <div className="flex items-start justify-between">
@@ -441,11 +523,10 @@ export function MessagingSystem() {
                       className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[80%] p-3 rounded-lg ${
-                          isFromMe
-                            ? 'text-white'
-                            : 'bg-gray-100 text-gray-900'
-                        }`}
+                        className={`max-w-[80%] p-3 rounded-lg ${isFromMe
+                          ? 'text-white'
+                          : 'bg-gray-100 text-gray-900'
+                          }`}
                         style={isFromMe ? { backgroundColor: '#02243b' } : {}}
                       >
                         <p className="text-sm">{msg.content}</p>
@@ -581,15 +662,23 @@ export function MessagingSystem() {
             </div>
             <div>
               <Label>Filter by Application Status</Label>
-              <Select 
-                value={bulkFilters.status || ""} 
-                onValueChange={(value) => setBulkFilters({ ...bulkFilters, status: value })}
+              <Select
+                value={bulkFilters.status || "all"}
+                onValueChange={(value) => {
+                  const newFilters = { ...bulkFilters };
+                  if (value === "all") {
+                    delete newFilters.status;
+                  } else {
+                    newFilters.status = value;
+                  }
+                  setBulkFilters(newFilters);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All statuses" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All statuses</SelectItem>
+                  <SelectItem value="all">All statuses</SelectItem>
                   <SelectItem value="applied">Applied</SelectItem>
                   <SelectItem value="shortlisted">Shortlisted</SelectItem>
                   <SelectItem value="interview">Interview</SelectItem>
@@ -616,6 +705,97 @@ export function MessagingSystem() {
                 <>
                   <Users className="h-4 w-4 mr-2" />
                   Send Bulk Message
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contact Support Dialog */}
+      <Dialog open={showContactSupportDialog} onOpenChange={setShowContactSupportDialog}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Contact Support</DialogTitle>
+            <DialogDescription>
+              Need help? Send a message to our support team.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Category</Label>
+                <Select value={supportCategory} onValueChange={setSupportCategory}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Technical Issue">Technical Issue</SelectItem>
+                    <SelectItem value="Billing Inquiry">Billing Inquiry</SelectItem>
+                    <SelectItem value="Feature Request">Feature Request</SelectItem>
+                    <SelectItem value="Account Management">Account Management</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Priority</Label>
+                <Select value={supportPriority} onValueChange={setSupportPriority}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Normal">Normal</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <Label>Message</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs text-blue-600 hover:text-blue-800"
+                  onClick={generateSupportMessage}
+                  disabled={isGeneratingSupport}
+                >
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  {isGeneratingSupport ? 'Generating...' : 'AI Assist'}
+                </Button>
+              </div>
+              <Textarea
+                value={supportDescription}
+                onChange={(e) => setSupportDescription(e.target.value)}
+                rows={6}
+                placeholder="Describe your issue..."
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowContactSupportDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={sendSupportMessage}
+              disabled={!supportDescription.trim() || sending}
+              className="text-white"
+              style={{ backgroundColor: '#02243b' }}
+            >
+              {sending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Send Request
                 </>
               )}
             </Button>

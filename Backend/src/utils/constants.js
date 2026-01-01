@@ -61,6 +61,7 @@ const MESSAGE_TYPE = {
   TEXT: 'text',
   DOCUMENT: 'document',
   IMAGE: 'image',
+  SUPPORT: 'support',
 };
 
 const PAYMENT_STATUS = {

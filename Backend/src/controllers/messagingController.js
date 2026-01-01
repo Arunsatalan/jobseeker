@@ -53,7 +53,7 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
   if (!messageContent || (typeof messageContent === 'string' && messageContent.trim().length === 0)) {
     return sendError(res, 400, 'Message content cannot be empty');
   }
-  
+
   // Ensure messageContent is a string
   if (typeof messageContent !== 'string') {
     messageContent = String(messageContent || '');
@@ -73,7 +73,7 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
       confidence: 'low',
     };
   }
-  
+
   // If content is flagged, still create message but mark it
   let message;
   try {
@@ -104,7 +104,7 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
   }
 
   // Get sender name safely
-  const senderName = message.sender 
+  const senderName = message.sender
     ? `${message.sender.firstName || ''} ${message.sender.lastName || ''}`.trim()
     : `${req.user.firstName || ''} ${req.user.lastName || ''}`.trim() || 'Someone';
 
@@ -126,7 +126,7 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
       if (recipientUser && recipientUser.email) {
         const messagePreview = messageContent.length > 150 ? messageContent.substring(0, 150) + '...' : messageContent;
         const jobTitle = req.body.jobTitle || null;
-        
+
         try {
           await emailService.sendMessageNotification(
             recipientUser.email,
@@ -156,10 +156,10 @@ exports.sendMessage = asyncHandler(async (req, res, next) => {
       websocketService.emitToUser(recipient.toString(), 'new_message', {
         message: {
           _id: message._id,
-          sender: message.sender || { 
-            _id: req.user._id, 
-            firstName: req.user.firstName, 
-            lastName: req.user.lastName 
+          sender: message.sender || {
+            _id: req.user._id,
+            firstName: req.user.firstName,
+            lastName: req.user.lastName
           },
           recipient: message.recipient || { _id: recipient },
           content: message.content,
@@ -245,10 +245,12 @@ exports.getConversations = asyncHandler(async (req, res, next) => {
         unreadCount: {
           $sum: {
             $cond: [
-              { $and: [
-                { $eq: ['$isRead', false] },
-                { $eq: ['$recipient', req.user._id] },
-              ]},
+              {
+                $and: [
+                  { $eq: ['$isRead', false] },
+                  { $eq: ['$recipient', req.user._id] },
+                ]
+              },
               1,
               0,
             ],
@@ -488,7 +490,7 @@ exports.getMessagingAnalytics = asyncHandler(async (req, res, next) => {
   // Get messages by day (last 30 days)
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  
+
   const dailyStats = await Message.aggregate([
     {
       $match: {
@@ -576,4 +578,89 @@ exports.updateModerationStatus = asyncHandler(async (req, res, next) => {
   );
 
   return sendSuccess(res, 200, 'Moderation status updated', updatedMessage);
+});
+// @desc Send support message to admin
+// @route POST /api/v1/messages/support
+// @access Private
+exports.sendSupportMessage = asyncHandler(async (req, res, next) => {
+  const { subject, content, category, priority } = req.body;
+
+  if (!content) {
+    return sendError(res, 400, 'Message content is required');
+  }
+
+  // Find an admin to receive the message
+  // In a real app, you might have a dedicated support user or a queue
+  // Here we'll pick the first admin we find
+  const admin = await User.findOne({ role: 'admin' });
+
+  if (!admin) {
+    return sendError(res, 500, 'No support staff available. Please try again later.');
+  }
+
+  const messageContent = subject ? `[${category || 'Support'}] ${subject}\n\n${content}` : content;
+
+  const message = await Message.create({
+    sender: req.user._id,
+    recipient: admin._id,
+    content: messageContent,
+    type: 'support', // Custom type we added
+    readAt: null,
+    isRead: false,
+    flagged: false, // Support messages are assumed safe or moderated differently
+    channels: [{ type: 'in-app', sentAt: new Date(), delivered: true }],
+    // Store metadata in a way we can retrieve it
+    // Since schema doesn't have metadata, we can't easily store category/priority without schema change
+    // For now, we embed it in content or just rely on the text
+  });
+
+  // Notify admin
+  try {
+    await Notification.create({
+      user: admin._id,
+      userId: admin._id,
+      type: 'message',
+      title: `Support Request from ${req.user.firstName}`,
+      message: `Category: ${category || 'General'}. Priority: ${priority || 'Normal'}`,
+      relatedJob: null,
+      isRead: false,
+    });
+
+    // Emit websocket
+    if (websocketService && typeof websocketService.emitToUser === 'function') {
+      websocketService.emitToUser(admin._id.toString(), 'new_message', {
+        message: {
+          ...message.toObject(),
+          sender: req.user,
+        }
+      });
+    }
+  } catch (err) {
+    logger.warn('Failed to notify admin:', err);
+  }
+
+  return sendSuccess(res, 201, 'Support message sent successfully', message);
+});
+
+// @desc Get support messages (for admin)
+// @route GET /api/v1/messages/support
+// @access Private/Admin
+exports.getSupportMessages = asyncHandler(async (req, res, next) => {
+  const { page = 1, limit = 20, status } = req.query;
+
+  const query = { type: 'support' };
+
+  if (status === 'unread') {
+    query.isRead = false;
+  }
+
+  const pagination = helpers.getPaginationData(page, limit, await Message.countDocuments(query));
+
+  const messages = await Message.find(query)
+    .populate('sender', 'firstName lastName email profilePhoto company')
+    .limit(pagination.limit)
+    .skip(pagination.startIndex)
+    .sort({ createdAt: -1 });
+
+  return sendPaginated(res, 200, 'Support messages retrieved successfully', messages, pagination);
 });
