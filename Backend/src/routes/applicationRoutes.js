@@ -10,6 +10,8 @@ router.post('/:jobId', protect, authorize('jobseeker'), applicationController.ap
 router.get('/', protect, applicationController.getApplications);
 router.get('/:id', protect, applicationController.getApplicationById);
 router.put('/:id/status', protect, applicationController.updateApplicationStatus);
+router.put('/:id/notes', protect, authorize('employer'), applicationController.updateApplicationNotes);
+router.put('/:id/rating', protect, authorize('employer'), applicationController.updateApplicationRating);
 
 // Employer routes
 router.get('/employer/applications', protect, authorize('employer'), applicationController.getEmployerApplications);

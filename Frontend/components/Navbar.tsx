@@ -102,7 +102,8 @@ export default function Navbar({
 
       if (!token) return;
 
-      const response = await fetch('http://localhost:5000/api/v1/notifications?limit=10', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/v1/notifications?limit=10`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -134,7 +135,8 @@ export default function Navbar({
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:5000/api/v1/notifications/${notificationId}/read`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/v1/notifications/${notificationId}/read`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

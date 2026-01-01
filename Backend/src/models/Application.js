@@ -32,6 +32,16 @@ const applicationSchema = new mongoose.Schema(
       min: 1,
       max: 5,
     },
+    detailedRatings: {
+      technical: { type: Number, min: 0, max: 5, default: 0 },
+      cultural: { type: Number, min: 0, max: 5, default: 0 },
+      communication: { type: Number, min: 0, max: 5, default: 0 },
+      experience: { type: Number, min: 0, max: 5, default: 0 }
+    },
+    notes: {
+      type: String,
+      default: ''
+    },
     feedback: String,
     interviewDate: Date,
     interviewLink: String,

@@ -10,8 +10,8 @@ exports.getNotifications = asyncHandler(async (req, res, next) => {
     const { page = 1, limit = 20, unreadOnly = false } = req.query;
     const skip = (page - 1) * limit;
 
-    // Build filter
-    const filter = { userId: req.user._id };
+    // Build filter - support both 'user' and 'userId' fields for backward compatibility
+    const filter = { $or: [{ user: req.user._id }, { userId: req.user._id }] };
     if (unreadOnly === 'true') {
       filter.isRead = false;
     }
@@ -21,6 +21,7 @@ exports.getNotifications = asyncHandler(async (req, res, next) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
+      .populate('user', 'firstName lastName email')
       .populate('userId', 'firstName lastName email');
 
     // Get total count
@@ -47,7 +48,7 @@ exports.markAsRead = asyncHandler(async (req, res, next) => {
   try {
     const notification = await Notification.findOne({
       _id: req.params.id,
-      userId: req.user._id,
+      $or: [{ user: req.user._id }, { userId: req.user._id }],
     });
 
     if (!notification) {
@@ -55,10 +56,12 @@ exports.markAsRead = asyncHandler(async (req, res, next) => {
     }
 
     notification.isRead = true;
+    notification.readAt = new Date();
     await notification.save();
 
     return sendSuccess(res, 200, 'Notification marked as read', notification);
   } catch (error) {
+    console.error('Error marking notification as read:', error);
     return sendError(res, 500, 'Failed to mark notification as read');
   }
 });
@@ -69,12 +72,13 @@ exports.markAsRead = asyncHandler(async (req, res, next) => {
 exports.markAllAsRead = asyncHandler(async (req, res, next) => {
   try {
     await Notification.updateMany(
-      { userId: req.user._id, isRead: false },
-      { isRead: true }
+      { $or: [{ user: req.user._id }, { userId: req.user._id }], isRead: false },
+      { isRead: true, readAt: new Date() }
     );
 
     return sendSuccess(res, 200, 'All notifications marked as read');
   } catch (error) {
+    console.error('Error marking all notifications as read:', error);
     return sendError(res, 500, 'Failed to mark all notifications as read');
   }
 });
@@ -86,7 +90,7 @@ exports.deleteNotification = asyncHandler(async (req, res, next) => {
   try {
     const notification = await Notification.findOne({
       _id: req.params.id,
-      userId: req.user._id,
+      $or: [{ user: req.user._id }, { userId: req.user._id }],
     });
 
     if (!notification) {
@@ -97,6 +101,7 @@ exports.deleteNotification = asyncHandler(async (req, res, next) => {
 
     return sendSuccess(res, 200, 'Notification deleted successfully');
   } catch (error) {
+    console.error('Error deleting notification:', error);
     return sendError(res, 500, 'Failed to delete notification');
   }
 });
@@ -107,12 +112,13 @@ exports.deleteNotification = asyncHandler(async (req, res, next) => {
 exports.getUnreadCount = asyncHandler(async (req, res, next) => {
   try {
     const count = await Notification.countDocuments({
-      userId: req.user._id,
+      $or: [{ user: req.user._id }, { userId: req.user._id }],
       isRead: false,
     });
 
     return sendSuccess(res, 200, 'Unread count retrieved', { count });
   } catch (error) {
+    console.error('Error getting unread count:', error);
     return sendError(res, 500, 'Failed to get unread count');
   }
 });

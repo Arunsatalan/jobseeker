@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useApplications } from "@/hooks/useApplications";
 import {
   User,
@@ -23,7 +24,11 @@ import {
   Filter,
   Download,
   Loader2,
-  X
+  X,
+  AlertTriangle,
+  Save,
+  CheckCircle2,
+  ChevronDown
 } from "lucide-react";
 
 interface Job {
@@ -50,7 +55,7 @@ interface Applicant {
   appliedDate: string; // Added for UI compatibility
   resumeLink: string;
   resumeId?: string; // Resume ID for direct lookup
-  status: "Applied" | "Shortlisted" | "Interviewing" | "Rejected" | "Hired";
+  status: "Applied" | "Shortlisted" | "Interviewing" | "Rejected" | "Hired" | string;
   rating: number;
   notes: string;
   phone?: string;
@@ -69,7 +74,7 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
   const [selectedResume, setSelectedResume] = useState<any | null>(null);
   const [loadingResume, setLoadingResume] = useState(false);
 
-  const { applications, isLoading, setFilters, updateStatus } = useApplications({
+  const { applications, isLoading, setFilters, updateStatus, refresh } = useApplications({
     jobId: selectedJobId === 'all' ? undefined : selectedJobId,
     status: 'all' // We fetch all and filter client-side for tabs or could fetch per tab
   });
@@ -98,17 +103,39 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
 
   const applicantsByStatus = {
     all: filteredApplicants,
-    applied: filteredApplicants.filter(app => app.status === "Applied" || app.status === "applied"),
-    shortlisted: filteredApplicants.filter(app => app.status === "Shortlisted" || app.status === "shortlisted"),
-    interviewing: filteredApplicants.filter(app => app.status === "Interviewing" || app.status === "interviewing"),
-    rejected: filteredApplicants.filter(app => app.status === "Rejected" || app.status === "rejected"),
-    hired: filteredApplicants.filter(app => app.status === "Hired" || app.status === "hired"),
+    applied: filteredApplicants.filter(app => {
+      const status = (app.status || "").toLowerCase();
+      return status === "applied";
+    }),
+    shortlisted: filteredApplicants.filter(app => {
+      const status = (app.status || "").toLowerCase();
+      return status === "shortlisted";
+    }),
+    interviewing: filteredApplicants.filter(app => {
+      const status = (app.status || "").toLowerCase();
+      return status === "interview" || status === "interviewing";
+    }),
+    rejected: filteredApplicants.filter(app => {
+      const status = (app.status || "").toLowerCase();
+      return status === "rejected";
+    }),
+    hired: filteredApplicants.filter(app => {
+      const status = (app.status || "").toLowerCase();
+      return status === "hired" || status === "accepted" || status === "offered";
+    }),
   };
 
   const handleStatusChange = async (applicantId: string, newStatus: string) => {
-    await updateStatus(applicantId, newStatus);
-    if (selectedApplicant && selectedApplicant.id === applicantId) {
-      setSelectedApplicant(prev => prev ? ({ ...prev, status: newStatus as any }) : null);
+    // Convert to lowercase to match backend constants
+    const normalizedStatus = newStatus.toLowerCase();
+    const success = await updateStatus(applicantId, normalizedStatus);
+    if (success) {
+      // Refresh the applications list
+      refresh();
+      // Update selected applicant if it's the same one
+      if (selectedApplicant && (selectedApplicant.id === applicantId || selectedApplicant._id === applicantId)) {
+        setSelectedApplicant(prev => prev ? ({ ...prev, status: newStatus as any }) : null);
+      }
     }
   };
 
@@ -180,7 +207,7 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
           });
 
           if (!resume) {
-            console.error('Resume not found. Available resumes:', resumes.map(r => ({
+            console.error('Resume not found. Available resumes:', resumes.map((r: any) => ({
               email: r.parsedData?.email,
               name: r.parsedData?.name,
               id: r._id
@@ -277,6 +304,7 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
               <ApplicantList
                 applicants={applicants}
                 onSelectApplicant={setSelectedApplicant}
+                onStatusChange={handleStatusChange}
               />
             </TabsContent>
           ))
@@ -320,7 +348,28 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
   );
 }
 
-function ApplicantList({ applicants, onSelectApplicant }: { applicants: Applicant[], onSelectApplicant: (applicant: Applicant) => void }) {
+function ApplicantList({ applicants, onSelectApplicant, onStatusChange }: { applicants: Applicant[], onSelectApplicant: (applicant: Applicant) => void, onStatusChange?: (applicantId: string, status: string) => void }) {
+  // Calculate remaining days for review deadline
+  const getRemainingDays = (appliedAt: string) => {
+    const appliedDate = new Date(appliedAt);
+    const now = new Date();
+    const reviewDeadlineDays = 5; // 5 business days
+    
+    // Calculate deadline (5 business days)
+    const deadlineDate = new Date(appliedDate);
+    let businessDaysAdded = 0;
+    while (businessDaysAdded < reviewDeadlineDays) {
+      deadlineDate.setDate(deadlineDate.getDate() + 1);
+      const dayOfWeek = deadlineDate.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday or Saturday
+        businessDaysAdded++;
+      }
+    }
+    
+    const daysUntilDeadline = Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return { daysUntilDeadline, deadlineDate, isPastDeadline: daysUntilDeadline < 0, isApproaching: daysUntilDeadline <= 2 && daysUntilDeadline >= 0 };
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Applied":
@@ -395,7 +444,7 @@ function ApplicantList({ applicants, onSelectApplicant }: { applicants: Applican
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
                     <div className="flex items-center gap-2">
                       <Mail className="h-4 w-4" />
                       <span>{applicant.email}</span>
@@ -403,6 +452,28 @@ function ApplicantList({ applicants, onSelectApplicant }: { applicants: Applican
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
                       <span>Applied {applicant.appliedDate}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      {(() => {
+                        const timeInfo = getRemainingDays(applicant.appliedAt);
+                        return (
+                          <span className={`font-medium ${
+                            timeInfo.isPastDeadline 
+                              ? 'text-red-600' 
+                              : timeInfo.isApproaching 
+                              ? 'text-yellow-600' 
+                              : 'text-gray-600'
+                          }`}>
+                            {timeInfo.isPastDeadline 
+                              ? `⚠️ ${Math.abs(timeInfo.daysUntilDeadline)}d overdue`
+                              : timeInfo.isApproaching
+                              ? `⚠️ ${timeInfo.daysUntilDeadline}d left`
+                              : `${timeInfo.daysUntilDeadline}d remaining`
+                            }
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex">{renderStars(applicant.rating)}</div>
@@ -435,12 +506,74 @@ function ApplicantList({ applicants, onSelectApplicant }: { applicants: Applican
                 <MessageCircle className="h-4 w-4 mr-1" />
                 Message
               </Button>
-              {applicant.status !== "Hired" && applicant.status !== "Rejected" && (
-                <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700">
-                  <ArrowRight className="h-4 w-4 mr-1" />
-                  Next Stage
-                </Button>
-              )}
+              {(() => {
+                const statusLower = (applicant.status || "").toLowerCase();
+                const isFinalStatus = statusLower === "hired" || statusLower === "rejected" || statusLower === "accepted";
+                if (isFinalStatus) return null;
+                
+                // For interviewing status, show dropdown with Reject/Hired options
+                if (statusLower === "interview" || statusLower === "interviewing") {
+                  return (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="text-green-600 hover:text-green-700"
+                        >
+                          <ArrowRight className="h-4 w-4 mr-1" />
+                          Next Stage
+                          <ChevronDown className="h-4 w-4 ml-1" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            if (!onStatusChange) return;
+                            onStatusChange(applicant.id || applicant._id, "accepted");
+                          }}
+                          className="text-green-600 focus:text-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Hire
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            if (!onStatusChange) return;
+                            onStatusChange(applicant.id || applicant._id, "rejected");
+                          }}
+                          className="text-red-600 focus:text-red-700"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                }
+                
+                // For other statuses, show regular Next Stage button
+                return (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="text-green-600 hover:text-green-700"
+                    onClick={() => {
+                      if (!onStatusChange) return;
+                      const currentStatus = statusLower;
+                      const nextStatus = currentStatus === "applied" 
+                        ? "shortlisted" 
+                        : currentStatus === "shortlisted"
+                        ? "interview"
+                        : "shortlisted";
+                      onStatusChange(applicant.id || applicant._id, nextStatus);
+                    }}
+                  >
+                    <ArrowRight className="h-4 w-4 mr-1" />
+                    Next Stage
+                  </Button>
+                );
+              })()}
             </div>
           </div>
         </Card>
@@ -454,6 +587,16 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
   const [notes, setNotes] = useState(applicant.notes || "");
   const [rating, setRating] = useState(applicant.rating || 0);
   const [showCoverLetterModal, setShowCoverLetterModal] = useState(false);
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
+  const [detailedRatings, setDetailedRatings] = useState({
+    technical: applicant.rating || 0,
+    cultural: 0,
+    communication: 0,
+    experience: 0
+  });
+  const [reviewDeadlineDays] = useState(5); // 5 business days for initial review
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
   // Get job title from applicant job object or jobs array
   const getJobTitle = () => {
@@ -469,6 +612,134 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
       }
     }
     return 'Position';
+  };
+
+  // Calculate time since application and deadline
+  const getApplicationTimeInfo = () => {
+    const appliedDate = new Date(applicant.appliedAt);
+    const now = new Date();
+    const diffTime = now.getTime() - appliedDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffTime % (1000 * 60 * 60)) / (1000 * 60));
+    
+    // Calculate deadline (reviewDeadlineDays business days)
+    const deadlineDate = new Date(appliedDate);
+    let businessDaysAdded = 0;
+    while (businessDaysAdded < reviewDeadlineDays) {
+      deadlineDate.setDate(deadlineDate.getDate() + 1);
+      const dayOfWeek = deadlineDate.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday or Saturday
+        businessDaysAdded++;
+      }
+    }
+    
+    const daysUntilDeadline = Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const isApproachingDeadline = daysUntilDeadline <= 2 && daysUntilDeadline >= 0;
+    const isPastDeadline = daysUntilDeadline < 0;
+    
+    let timeAgo = '';
+    if (diffDays > 0) {
+      timeAgo = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    } else if (diffHours > 0) {
+      timeAgo = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    } else {
+      timeAgo = `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+    }
+    
+    return {
+      timeAgo,
+      daysUntilDeadline,
+      isApproachingDeadline,
+      isPastDeadline,
+      deadlineDate
+    };
+  };
+
+  // Save notes with debouncing
+  useEffect(() => {
+    const saveNotes = async () => {
+      if (notes === (applicant.notes || "")) return; // No changes
+      
+      setSavingNotes(true);
+      setNotesSaved(false);
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        await fetch(`${apiUrl}/api/v1/applications/${applicant._id || applicant.id}/notes`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ notes })
+        });
+        
+        setNotesSaved(true);
+        setTimeout(() => setNotesSaved(false), 2000);
+      } catch (error) {
+        console.error('Error saving notes:', error);
+      } finally {
+        setSavingNotes(false);
+      }
+    };
+
+    const timeoutId = setTimeout(saveNotes, 1000); // Debounce 1 second
+    return () => clearTimeout(timeoutId);
+  }, [notes, applicant._id, applicant.id, applicant.notes, apiUrl]);
+
+  // Save rating
+  const handleRatingChange = async (newRating: number) => {
+    setRating(newRating);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      await fetch(`${apiUrl}/api/v1/applications/${applicant._id || applicant.id}/rating`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ rating: newRating })
+      });
+    } catch (error) {
+      console.error('Error saving rating:', error);
+    }
+  };
+
+  // Save detailed ratings
+  const handleDetailedRatingChange = async (category: string, value: number) => {
+    const updated = { ...detailedRatings, [category]: value };
+    setDetailedRatings(updated);
+    
+    // Calculate overall rating as average
+    const overallRating = Math.round(
+      Object.values(updated).reduce((sum, val) => sum + val, 0) / Object.values(updated).length
+    );
+    setRating(overallRating);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      await fetch(`${apiUrl}/api/v1/applications/${applicant._id || applicant.id}/rating`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          rating: overallRating,
+          detailedRatings: updated
+        })
+      });
+    } catch (error) {
+      console.error('Error saving detailed rating:', error);
+    }
   };
 
   // Download cover letter as PDF
@@ -658,22 +929,75 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
     }
   };
 
-  const renderStars = (currentRating: number) => {
+  const renderStars = (currentRating: number, onRatingChange: (rating: number) => void, size: 'sm' | 'md' | 'lg' = 'md') => {
+    const sizeClasses = {
+      sm: 'h-4 w-4',
+      md: 'h-5 w-5',
+      lg: 'h-6 w-6'
+    };
+    
     return Array.from({ length: 5 }, (_, i) => (
       <button
         key={i}
-        onClick={() => setRating(i + 1)}
-        className="focus:outline-none"
+        onClick={() => onRatingChange(i + 1)}
+        className="focus:outline-none transition-transform hover:scale-110"
+        type="button"
       >
         <Star
-          className={`h-5 w-5 ${i < currentRating ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-400"}`}
+          className={`${sizeClasses[size]} ${i < currentRating ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-400"}`}
         />
       </button>
     ));
   };
 
+  const timeInfo = getApplicationTimeInfo();
+
   return (
     <div className="space-y-6">
+      {/* Application Timer & Alert */}
+      <div className={`p-4 rounded-lg border-2 ${
+        timeInfo.isPastDeadline 
+          ? 'bg-red-50 border-red-300' 
+          : timeInfo.isApproachingDeadline 
+          ? 'bg-yellow-50 border-yellow-300' 
+          : 'bg-blue-50 border-blue-200'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Clock className={`h-5 w-5 ${
+              timeInfo.isPastDeadline 
+                ? 'text-red-600' 
+                : timeInfo.isApproachingDeadline 
+                ? 'text-yellow-600' 
+                : 'text-blue-600'
+            }`} />
+            <div>
+              <p className="text-sm font-medium text-gray-700">
+                Applied {timeInfo.timeAgo}
+              </p>
+              {timeInfo.isPastDeadline ? (
+                <p className="text-sm text-red-700 font-semibold mt-1">
+                  ⚠️ Review deadline passed {Math.abs(timeInfo.daysUntilDeadline)} day{Math.abs(timeInfo.daysUntilDeadline) > 1 ? 's' : ''} ago
+                </p>
+              ) : timeInfo.isApproachingDeadline ? (
+                <p className="text-sm text-yellow-700 font-semibold mt-1">
+                  ⚠️ Review deadline in {timeInfo.daysUntilDeadline} day{timeInfo.daysUntilDeadline > 1 ? 's' : ''}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600 mt-1">
+                  Review deadline: {timeInfo.deadlineDate.toLocaleDateString()} ({timeInfo.daysUntilDeadline} days remaining)
+                </p>
+              )}
+            </div>
+          </div>
+          {(timeInfo.isApproachingDeadline || timeInfo.isPastDeadline) && (
+            <AlertTriangle className={`h-5 w-5 ${
+              timeInfo.isPastDeadline ? 'text-red-600' : 'text-yellow-600'
+            }`} />
+          )}
+        </div>
+      </div>
+
       {/* Profile Header */}
       <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
         <div className="h-16 w-16 bg-gray-200 rounded-full flex items-center justify-center">
@@ -702,28 +1026,91 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
         </div>
       )}
 
-      {/* Rating */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Rating
-        </label>
-        <div className="flex gap-1">
-          {renderStars(rating)}
+      {/* Enhanced Rating System */}
+      <Card className="p-4">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Overall Rating
+            </label>
+            <div className="flex items-center gap-2">
+              {renderStars(rating, handleRatingChange, 'lg')}
+              <span className="ml-2 text-sm text-gray-600">({rating}/5)</span>
+            </div>
+          </div>
+          
+          <div className="border-t pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-3">
+              Detailed Ratings
+            </label>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">Technical Skills</span>
+                <div className="flex items-center gap-2">
+                  {renderStars(detailedRatings.technical, (r) => handleDetailedRatingChange('technical', r), 'sm')}
+                  <span className="text-xs text-gray-500 w-8">{detailedRatings.technical}/5</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">Cultural Fit</span>
+                <div className="flex items-center gap-2">
+                  {renderStars(detailedRatings.cultural, (r) => handleDetailedRatingChange('cultural', r), 'sm')}
+                  <span className="text-xs text-gray-500 w-8">{detailedRatings.cultural}/5</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">Communication</span>
+                <div className="flex items-center gap-2">
+                  {renderStars(detailedRatings.communication, (r) => handleDetailedRatingChange('communication', r), 'sm')}
+                  <span className="text-xs text-gray-500 w-8">{detailedRatings.communication}/5</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">Experience Level</span>
+                <div className="flex items-center gap-2">
+                  {renderStars(detailedRatings.experience, (r) => handleDetailedRatingChange('experience', r), 'sm')}
+                  <span className="text-xs text-gray-500 w-8">{detailedRatings.experience}/5</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </Card>
 
-      {/* Notes */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Internal Notes
-        </label>
-        <Textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Add your notes about this candidate..."
-          rows={4}
-        />
-      </div>
+      {/* Enhanced Notes with Auto-save */}
+      <Card className="p-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">
+              Internal Notes
+            </label>
+            <div className="flex items-center gap-2">
+              {savingNotes && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Saving...
+                </span>
+              )}
+              {notesSaved && (
+                <span className="text-xs text-green-600 flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Saved
+                </span>
+              )}
+            </div>
+          </div>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Add your notes about this candidate... (Auto-saves after 1 second)"
+            rows={6}
+            className="resize-none"
+          />
+          <p className="text-xs text-gray-500">
+            💡 Notes are automatically saved and can be searched/filtered later
+          </p>
+        </div>
+      </Card>
 
       {/* Actions */}
       <div className="flex justify-between">
@@ -745,21 +1132,21 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
           <Button
             variant="outline"
             className="text-red-600 hover:text-red-700"
-            onClick={() => onStatusChange('Rejected')}
+            onClick={() => onStatusChange('rejected')}
           >
             <XCircle className="h-4 w-4 mr-2" />
             Reject
           </Button>
           <Button
             className="bg-green-600 hover:bg-green-700"
-            onClick={() => onStatusChange('Shortlisted')}
+            onClick={() => onStatusChange('shortlisted')}
           >
             <CheckCircle className="h-4 w-4 mr-2" />
             Shortlist
           </Button>
           <Button
             className="bg-purple-600 hover:bg-purple-700"
-            onClick={() => onStatusChange('Interviewing')}
+            onClick={() => onStatusChange('interview')}
           >
             <Video className="h-4 w-4 mr-2" />
             Interview

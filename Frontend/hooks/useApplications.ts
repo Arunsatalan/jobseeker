@@ -83,10 +83,8 @@ export function useApplications(initialFilters: Filters = {}) {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            // Optimistic update
-            setApplications(prev => prev.map(app =>
-                app._id === applicationId ? { ...app, status: newStatus } : app
-            ));
+            // Refresh applications to get updated data
+            await fetchApplications();
 
             toast({
                 title: "Status Updated",
@@ -102,7 +100,7 @@ export function useApplications(initialFilters: Filters = {}) {
             });
             return false;
         }
-    }, [apiUrl, toast]);
+    }, [apiUrl, toast, fetchApplications]);
 
     const setFiltersCallback = useCallback((newFilters: Partial<Filters>) => {
         setFilters(prev => {

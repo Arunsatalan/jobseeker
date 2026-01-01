@@ -227,6 +227,89 @@ exports.getApplicationById = asyncHandler(async (req, res, next) => {
 exports.updateApplicationStatus = asyncHandler(async (req, res, next) => {
   const { status } = req.body;
 
+  let application = await Application.findById(req.params.id)
+    .populate({
+      path: 'job',
+      select: 'title company',
+      populate: {
+        path: 'company',
+        select: 'name',
+        model: 'Company'
+      }
+    })
+    .populate('applicant', 'firstName lastName email');
+
+  if (!application) {
+    return sendError(res, 404, 'Application not found');
+  }
+
+  if (application.employer.toString() !== req.user._id.toString()) {
+    return sendError(res, 403, 'Not authorized to update this application');
+  }
+
+  const oldStatus = application.status;
+  application.status = status;
+  application.reviewedAt = new Date();
+  await application.save();
+
+  // Send notification to applicant about status change
+  try {
+    const statusMessages = {
+      'applied': 'Your application has been received',
+      'shortlisted': 'Congratulations! Your application has been shortlisted',
+      'interview': 'You have been selected for an interview',
+      'rejected': 'Your application status has been updated',
+      'accepted': 'Congratulations! You have been hired',
+      'offered': 'You have received a job offer'
+    };
+
+    const statusTitles = {
+      'applied': 'Application Received',
+      'shortlisted': 'Application Shortlisted',
+      'interview': 'Interview Scheduled',
+      'rejected': 'Application Update',
+      'accepted': 'Congratulations! You\'re Hired',
+      'offered': 'Job Offer Received'
+    };
+
+    const jobTitle = application.job?.title || 'the position';
+    // Handle company - it could be an object (populated) or just a string/ID
+    let companyName = 'the company';
+    if (application.job?.company) {
+      if (typeof application.job.company === 'object' && application.job.company.name) {
+        companyName = application.job.company.name;
+      } else if (typeof application.job.company === 'string') {
+        companyName = application.job.company;
+      }
+    }
+
+    await Notification.create({
+      user: application.applicant._id,
+      userId: application.applicant._id, // Backward compatibility
+      type: 'application_status',
+      title: statusTitles[status] || 'Application Status Updated',
+      message: `${statusMessages[status] || 'Your application status has been updated'} for ${jobTitle} at ${companyName}.`,
+      relatedJob: application.job?._id || application.job,
+      relatedApplication: application._id,
+      isRead: false,
+    });
+
+    logger.info(`Notification sent to applicant ${application.applicant._id} for status change: ${oldStatus} -> ${status}`);
+  } catch (notifError) {
+    logger.warn('Failed to create notification for applicant:', notifError);
+  }
+
+  logger.info(`Application status updated: ${application._id} from ${oldStatus} to ${status}`);
+
+  return sendSuccess(res, 200, 'Application status updated successfully', application);
+});
+
+// @desc Update application notes
+// @route PUT /api/v1/applications/:id/notes
+// @access Private/Employer
+exports.updateApplicationNotes = asyncHandler(async (req, res, next) => {
+  const { notes } = req.body;
+
   let application = await Application.findById(req.params.id);
 
   if (!application) {
@@ -237,13 +320,46 @@ exports.updateApplicationStatus = asyncHandler(async (req, res, next) => {
     return sendError(res, 403, 'Not authorized to update this application');
   }
 
-  application.status = status;
-  application.reviewedAt = new Date();
+  application.notes = notes || '';
   await application.save();
 
-  logger.info(`Application status updated: ${application._id}`);
+  logger.info(`Application notes updated: ${application._id}`);
 
-  return sendSuccess(res, 200, 'Application status updated successfully', application);
+  return sendSuccess(res, 200, 'Notes updated successfully', application);
+});
+
+// @desc Update application rating
+// @route PUT /api/v1/applications/:id/rating
+// @access Private/Employer
+exports.updateApplicationRating = asyncHandler(async (req, res, next) => {
+  const { rating, detailedRatings } = req.body;
+
+  let application = await Application.findById(req.params.id);
+
+  if (!application) {
+    return sendError(res, 404, 'Application not found');
+  }
+
+  if (application.employer.toString() !== req.user._id.toString()) {
+    return sendError(res, 403, 'Not authorized to update this application');
+  }
+
+  if (rating !== undefined) {
+    application.rating = rating;
+  }
+
+  if (detailedRatings) {
+    application.detailedRatings = {
+      ...application.detailedRatings,
+      ...detailedRatings
+    };
+  }
+
+  await application.save();
+
+  logger.info(`Application rating updated: ${application._id}`);
+
+  return sendSuccess(res, 200, 'Rating updated successfully', application);
 });
 
 // @desc Get employer applications
