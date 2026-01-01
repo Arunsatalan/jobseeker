@@ -84,8 +84,15 @@ exports.login = asyncHandler(async (req, res, next) => {
     return sendSuccess(res, 200, 'Login successful', {
       user: {
         id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         role: user.role,
+        profilePic: user.profilePic,
+        subscription: user.subscription,
+        accountType: user.accountType,
+        profileCompleted: user.profileCompleted,
+        isEmailVerified: user.isEmailVerified,
       },
       token,
     });
@@ -480,8 +487,15 @@ exports.verifyToken = asyncHandler(async (req, res, next) => {
     return sendSuccess(res, 200, 'Token is valid', {
       user: {
         id: req.user._id,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
         email: req.user.email,
         role: req.user.role,
+        profilePic: req.user.profilePic,
+        subscription: req.user.subscription,
+        accountType: req.user.accountType,
+        profileCompleted: req.user.profileCompleted,
+        isEmailVerified: req.user.isEmailVerified,
       },
     });
   } catch (error) {
