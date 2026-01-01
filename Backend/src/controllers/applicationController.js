@@ -195,7 +195,9 @@ exports.getApplications = asyncHandler(async (req, res, next) => {
 
   const applications = await Application.find(query)
     .populate('job')
+    .populate('applicant', 'firstName lastName email')
     .populate('employer', 'firstName lastName')
+    .populate('resume', '_id parsedData')
     .limit(pagination.limit)
     .skip(pagination.startIndex)
     .sort({ createdAt: -1 });
@@ -259,6 +261,7 @@ exports.getEmployerApplications = asyncHandler(async (req, res, next) => {
   const applications = await Application.find(query)
     .populate('job')
     .populate('applicant', 'firstName lastName email')
+    .populate('resume', '_id parsedData')
     .limit(pagination.limit)
     .skip(pagination.startIndex)
     .sort({ createdAt: -1 });
