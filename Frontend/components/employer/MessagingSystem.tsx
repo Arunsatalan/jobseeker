@@ -128,7 +128,8 @@ export function MessagingSystem() {
   const [showPreview, setShowPreview] = useState(false);
   const [isConnected, setIsConnected] = useState(true); // Optimistic initial state
   const [refreshing, setRefreshing] = useState(false);
-  const [messageHistory, setMessageHistory] = useState<Map<string, Message[]>>(new Map()); // Store message history for search
+  const [messageHistory, setMessageHistory] = useState<Map<string, Message[]>>(new Map());
+  const [currentUserId, setCurrentUserId] = useState<string>("");
 
   const getPreviewContent = (content: string) => {
     return content
@@ -145,6 +146,8 @@ export function MessagingSystem() {
   // Initialize WebSocket connection on mount
   useEffect(() => {
     const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('userId');
+    if (userId) setCurrentUserId(userId);
     if (token) {
       websocketService.connect(token);
     }
@@ -157,7 +160,7 @@ export function MessagingSystem() {
     // WebSocket Listeners
     const handleNewMessage = (data: any) => {
       if (!data.message) return;
-      
+
       // Update messages if conversation is open
       if (selectedConversation && (
         (data.message.sender._id === selectedConversation.user[0]._id) ||
@@ -298,7 +301,7 @@ export function MessagingSystem() {
         });
         // Mark unread messages as read when loading conversation
         const currentUserId = localStorage.getItem('userId');
-        const unreadMsgs = loadedMessages.filter((m: Message) => 
+        const unreadMsgs = loadedMessages.filter((m: Message) =>
           !m.isRead && m.sender._id === userId && m.recipient._id === currentUserId
         );
         unreadMsgs.forEach((m: Message) => markAsRead(m._id));
@@ -504,7 +507,7 @@ export function MessagingSystem() {
     // Search in message history for this conversation
     const userId = conv.user[0]?._id;
     const historyMessages = messageHistory.get(userId) || [];
-    const historyMatch = historyMessages.some((msg: Message) => 
+    const historyMatch = historyMessages.some((msg: Message) =>
       msg.content.toLowerCase().includes(searchLower)
     );
 
@@ -725,7 +728,7 @@ export function MessagingSystem() {
               {/* Messages */}
               <div className="space-y-3 mb-4 max-h-96 overflow-y-auto">
                 {messages.map((msg) => {
-                  const isFromMe = msg.sender._id === localStorage.getItem('userId');
+                  const isFromMe = msg.sender._id === currentUserId;
                   return (
                     <div
                       key={msg._id}
@@ -738,6 +741,11 @@ export function MessagingSystem() {
                           }`}
                         style={isFromMe ? { backgroundColor: '#02243b' } : {}}
                       >
+                        {!isFromMe && (
+                          <p className="text-xs font-bold mb-1 text-blue-800">
+                            {msg.sender.firstName} {msg.sender.lastName}
+                          </p>
+                        )}
                         <p className="text-sm">{msg.content}</p>
                         <div className="flex items-center justify-end gap-1 mt-1">
                           <p className="text-xs opacity-70">

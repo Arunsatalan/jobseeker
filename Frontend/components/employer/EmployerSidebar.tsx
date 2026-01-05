@@ -114,16 +114,15 @@ function SidebarContent({ company, activeSection, onNavigate, onLogout, onUpgrad
           {navigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeSection === item.id;
-            
+
             return (
               <Button
                 key={item.id}
                 variant="ghost"
-                className={`w-full justify-start h-auto p-3 ${
-                  isActive 
-                    ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600" 
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
+                className={`w-full justify-start h-auto p-3 ${isActive
+                  ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
+                  : "text-gray-700 hover:bg-gray-50"
+                  }`}
                 onClick={() => onNavigate(item.id)}
               >
                 <div className="flex items-center gap-3 w-full">

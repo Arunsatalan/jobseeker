@@ -12,6 +12,7 @@ import { DashboardOverview } from "@/components/employer/DashboardOverview";
 import { JobManagement } from "@/components/employer/JobManagement";
 import { ApplicantTracking } from "@/components/employer/ApplicantTracking";
 import { InterviewScheduling } from "@/components/employer/InterviewScheduling";
+
 import { MessagingSystem } from "@/components/employer/MessagingSystem";
 import { CompanyProfile } from "@/components/employer/CompanyProfile";
 import { PlanBilling } from "@/components/employer/PlanBilling";
@@ -277,9 +278,9 @@ export default function EmployerDashboard() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={handleRefresh}
                   disabled={isRefreshing}
                 >
@@ -300,8 +301,8 @@ export default function EmployerDashboard() {
                 <p className="text-gray-600">Manage your job postings, applicants, and company profile</p>
               </div>
               <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleRefresh}
                   disabled={isRefreshing}
                   className="hover:bg-gray-50"
@@ -361,6 +362,8 @@ export default function EmployerDashboard() {
               {activeSection === "interviews" && (
                 <InterviewScheduling />
               )}
+
+
 
               {activeSection === "messages" && (
                 <MessagingSystem />

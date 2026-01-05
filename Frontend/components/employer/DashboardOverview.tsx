@@ -1,8 +1,10 @@
+
 "use client";
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Briefcase,
   Users,
@@ -18,10 +20,24 @@ import {
   Star,
   MapPin,
   Phone,
-  User,
   Sparkles,
+  Download
 } from "lucide-react";
 import axios from "axios";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from "recharts";
+import { format } from "date-fns";
 
 interface Company {
   name: string;
@@ -53,21 +69,43 @@ interface Job {
 
 interface DashboardOverviewProps {
   company: Company;
-  stats: Stats;
+  stats: Stats; // Kept for interface compatibility but will override with real analytics data
   recentJobs: Job[];
   onPostJob: () => void;
 }
 
-export function DashboardOverview({ company, stats, recentJobs, onPostJob }: DashboardOverviewProps) {
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+export function DashboardOverview({ company, recentJobs, onPostJob }: DashboardOverviewProps) {
   const [upcomingInterviews, setUpcomingInterviews] = useState<any[]>([]);
   const [pendingVotes, setPendingVotes] = useState<any[]>([]);
   const [loadingInterviews, setLoadingInterviews] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     loadUpcomingInterviews();
     loadPendingVotes();
+    fetchAnalytics();
   }, []);
+
+  const fetchAnalytics = async () => {
+    setLoadingAnalytics(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${apiUrl}/api/v1/analytics/dashboard`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setAnalyticsData(response.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch analytics:", error);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
 
   const loadUpcomingInterviews = async () => {
     setLoadingInterviews(true);
@@ -82,7 +120,6 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
 
       if (response.data && response.data.success) {
         const interviews = response.data.data || [];
-        // Filter to show only upcoming interviews
         const now = new Date();
         const upcoming = interviews
           .filter((interview: any) => {
@@ -94,7 +131,7 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
             const dateB = new Date(b.confirmedSlot?.startTime || 0);
             return dateA.getTime() - dateB.getTime();
           })
-          .slice(0, 5); // Show top 5 upcoming
+          .slice(0, 5);
         setUpcomingInterviews(upcoming);
       }
     } catch (error) {
@@ -116,7 +153,6 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
 
       if (response.data && response.data.success) {
         const interviews = response.data.data || [];
-        // Show interviews where candidate has voted but not yet confirmed
         const pending = interviews
           .filter((interview: any) => {
             return interview.candidateVotes && interview.candidateVotes.length > 0;
@@ -126,7 +162,7 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
             const dateB = new Date(b.votingDeadline || 0);
             return dateA.getTime() - dateB.getTime();
           })
-          .slice(0, 3); // Show top 3 pending
+          .slice(0, 3);
         setPendingVotes(pending);
       }
     } catch (error) {
@@ -149,13 +185,13 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
     const interviewTime = new Date(dateString);
     const now = new Date();
     const diff = interviewTime.getTime() - now.getTime();
-    
+
     if (diff < 0) return { text: 'Past', color: 'text-gray-500' };
-    
+
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     if (days > 0) {
       return { text: `${days}d ${hours}h`, color: 'text-blue-600' };
     } else if (hours > 0) {
@@ -179,7 +215,7 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
     }
 
     const reason = prompt('Please provide a reason for cancellation (optional):');
-    
+
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
@@ -204,14 +240,10 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
 
   const getCandidateVoteInfo = (interview: any) => {
     if (!interview.candidateVotes || interview.candidateVotes.length === 0) return null;
-    
-    // Find the vote for the confirmed slot
     const confirmedSlotIndex = interview.confirmedSlot?.slotIndex;
     if (confirmedSlotIndex === undefined) return null;
-    
     const vote = interview.candidateVotes.find((v: any) => v.slotIndex === confirmedSlotIndex);
     if (!vote) return null;
-    
     return {
       rank: vote.rank,
       notes: vote.notes,
@@ -219,23 +251,16 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
     };
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Open":
-        return "bg-green-100 text-green-700";
-      case "Paused":
-        return "bg-yellow-100 text-yellow-700";
-      case "Closed":
-        return "bg-gray-100 text-gray-700";
-      case "Draft":
-        return "bg-slate-100 text-slate-900";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
+  const stats = analyticsData?.summary || {
+    totalJobs: 0,
+    activeJobs: 0,
+    totalApplications: 0,
+    hiresMade: 0,
+    totalInterviews: 0
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-500">
       {/* Welcome Section */}
       <div className="bg-linear-to-r from-slate-900 to-amber-700 rounded-xl p-8 text-white">
         <div className="flex items-center justify-between">
@@ -265,13 +290,15 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Using Real Analytics Data */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="p-6 bg-linear-to-br from-slate-50 to-slate-100 border-slate-200">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-slate-700 text-sm font-medium">Total Job Posts</p>
-              <p className="text-3xl font-bold text-slate-900 mt-1">{stats.totalJobs}</p>
+              {loadingAnalytics ? <Skeleton className="h-8 w-16 mt-1" /> : (
+                <p className="text-3xl font-bold text-slate-900 mt-1">{stats.totalJobs}</p>
+              )}
               <p className="text-xs text-slate-700 mt-2">All time</p>
             </div>
             <div className="h-12 w-12 bg-slate-200 rounded-lg flex items-center justify-center">
@@ -284,7 +311,9 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-600 text-sm font-medium">Active Jobs</p>
-              <p className="text-3xl font-bold text-green-700 mt-1">{stats.activeJobs}</p>
+              {loadingAnalytics ? <Skeleton className="h-8 w-16 mt-1" /> : (
+                <p className="text-3xl font-bold text-green-700 mt-1">{stats.activeJobs}</p>
+              )}
               <p className="text-xs text-green-600 mt-2">Currently open</p>
             </div>
             <div className="h-12 w-12 bg-green-200 rounded-lg flex items-center justify-center">
@@ -296,9 +325,11 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
         <Card className="p-6 bg-linear-to-br from-purple-50 to-purple-100 border-purple-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-600 text-sm font-medium">Applications Received</p>
-              <p className="text-3xl font-bold text-purple-700 mt-1">{stats.totalApplications}</p>
-              <p className="text-xs text-purple-600 mt-2">This month</p>
+              <p className="text-purple-600 text-sm font-medium">Applications</p>
+              {loadingAnalytics ? <Skeleton className="h-8 w-16 mt-1" /> : (
+                <p className="text-3xl font-bold text-purple-700 mt-1">{stats.totalApplications}</p>
+              )}
+              <p className="text-xs text-purple-600 mt-2">All received</p>
             </div>
             <div className="h-12 w-12 bg-purple-200 rounded-lg flex items-center justify-center">
               <Users className="h-6 w-6 text-purple-600" />
@@ -310,8 +341,10 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
           <div className="flex items-center justify-between">
             <div>
               <p className="text-orange-600 text-sm font-medium">Hires Made</p>
-              <p className="text-3xl font-bold text-orange-700 mt-1">{stats.hiresMade}</p>
-              <p className="text-xs text-orange-600 mt-2">This quarter</p>
+              {loadingAnalytics ? <Skeleton className="h-8 w-16 mt-1" /> : (
+                <p className="text-3xl font-bold text-orange-700 mt-1">{stats.hiresMade}</p>
+              )}
+              <p className="text-xs text-orange-600 mt-2">Conversion: {stats.conversionRate}%</p>
             </div>
             <div className="h-12 w-12 bg-orange-200 rounded-lg flex items-center justify-center">
               <CheckCircle className="h-6 w-6 text-orange-600" />
@@ -320,7 +353,58 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
         </Card>
       </div>
 
-      {/* Pending Votes - Candidate Has Selected, Awaiting Confirmation */}
+      {/* Analytics Charts & Graphs Section */}
+      {analyticsData && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-5 duration-700">
+          {/* Recruitment Funnel */}
+          <Card className="p-6 shadow-md border-gray-100">
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Recruitment Overview</h3>
+              <p className="text-sm text-gray-500">Candidate pipeline stages</p>
+            </div>
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={analyticsData.funnelData}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" />
+                  <YAxis dataKey="status" type="category" width={100} tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="count" name="Candidates" fill="#02243b" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          {/* Job Performance */}
+          <Card className="p-6 shadow-md border-gray-100">
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Job Performance</h3>
+              <p className="text-sm text-gray-500">Top postings by activity</p>
+            </div>
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={analyticsData.jobPerformance}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="title" tick={{ fontSize: 10 }} interval={0} angle={-15} textAnchor="end" height={60} />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="stats.applications" name="Applications" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="stats.views" name="Views" fill="#93c5fd" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Pending Votes Section */}
       {pendingVotes.length > 0 && (
         <Card className="p-6 shadow-lg border-0 bg-gradient-to-br from-amber-50 to-orange-50">
           <div className="flex items-center justify-between mb-6">
@@ -355,7 +439,7 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
                         <Briefcase className="h-3 w-3" />
                         {interview.job?.title}
                       </p>
-                      
+
                       {topSlot && (
                         <div className="space-y-2 mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
                           <div className="flex items-center justify-between">
@@ -387,7 +471,6 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
                           size="sm"
                           className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white"
                           onClick={() => {
-                            // Navigate to applicant tracking to confirm
                             window.location.href = '/employer-dashboard?tab=applicants';
                           }}
                         >
@@ -404,7 +487,7 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
         </Card>
       )}
 
-      {/* Upcoming Interviews - Enhanced 2025 Design */}
+      {/* Upcoming Interviews Section */}
       {upcomingInterviews.length > 0 && (
         <Card className="p-6 shadow-lg border-0 bg-gradient-to-br from-white to-slate-50">
           <div className="flex items-center justify-between mb-6">
@@ -430,7 +513,6 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
                   key={idx}
                   className="group relative p-5 bg-white rounded-xl border-2 border-slate-200 hover:border-purple-300 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
                 >
-                  {/* Status Indicator */}
                   <div className="absolute top-4 right-4">
                     {timeInfo && (
                       <Badge className={`${timeInfo.color} bg-opacity-10 border-0 font-medium`}>
@@ -441,7 +523,6 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
                   </div>
 
                   <div className="flex items-start gap-4">
-                    {/* Avatar/Icon */}
                     <div className="h-14 w-14 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
                       {meetingType === 'video' ? (
                         <Video className="h-7 w-7 text-white" />
@@ -451,8 +532,6 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
                         <MapPin className="h-7 w-7 text-white" />
                       )}
                     </div>
-
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between mb-2">
                         <div>
@@ -466,7 +545,6 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
                         </div>
                       </div>
 
-                      {/* Interview Details */}
                       <div className="space-y-2 mt-3">
                         {interviewTime && (
                           <div className="flex items-center gap-2 text-sm">
@@ -476,8 +554,6 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
                             </span>
                           </div>
                         )}
-
-                        {/* Candidate Vote Info */}
                         {voteInfo && (
                           <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
                             <div className="flex items-center gap-1">
@@ -487,23 +563,20 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
                               </span>
                             </div>
                             {voteInfo.availability && (
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${
-                                  voteInfo.availability === 'available' 
+                              <Badge
+                                variant="outline"
+                                className={`text-xs ${voteInfo.availability === 'available'
                                     ? 'border-green-300 text-green-700 bg-green-50'
                                     : voteInfo.availability === 'maybe'
-                                    ? 'border-amber-300 text-amber-700 bg-amber-50'
-                                    : 'border-red-300 text-red-700 bg-red-50'
-                                }`}
+                                      ? 'border-amber-300 text-amber-700 bg-amber-50'
+                                      : 'border-red-300 text-red-700 bg-red-50'
+                                  }`}
                               >
                                 {voteInfo.availability}
                               </Badge>
                             )}
                           </div>
                         )}
-
-                        {/* Meeting Type & Location */}
                         <div className="flex items-center gap-3 text-xs text-slate-500">
                           <span className="capitalize font-medium">{meetingType}</span>
                           {interview.confirmedSlot?.location && (
@@ -518,7 +591,6 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
                         </div>
                       </div>
 
-                      {/* Actions */}
                       <div className="flex items-center gap-2 mt-4 pt-3 border-t border-slate-100">
                         {interview.confirmedSlot?.meetingLink && (
                           <Button
@@ -551,57 +623,7 @@ export function DashboardOverview({ company, stats, recentJobs, onPostJob }: Das
         </Card>
       )}
 
-      {/* Recent Jobs */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Recent Job Posts</h2>
-            <p className="text-gray-600 text-sm">Monitor your latest job postings</p>
-          </div>
-          <Button variant="outline">
-            <Eye className="h-4 w-4 mr-2" />
-            View All
-          </Button>
-        </div>
-
-        <div className="space-y-4">
-          {recentJobs.map((job) => (
-            <div key={job.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="font-semibold text-gray-900">{job.title}</h3>
-                  <Badge className={getStatusColor(job.status)}>{job.status}</Badge>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <span className="flex items-center gap-1">
-                    <Building2 className="h-4 w-4" />
-                    {job.department}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    Posted {job.postedDate}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    {job.applicantsCount} applicants
-                  </span>
-                </div>
-              </div>
-              {/* <div className="flex gap-2">
-                <Button size="sm" variant="outline">
-                  <Eye className="h-4 w-4 mr-1" />
-                  View
-                </Button>
-                <Button size="sm" variant="outline">
-                  Edit
-                </Button>
-              </div>*/}
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Quick Actions */}
+      {/* Quick Actions at the bottom */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="p-6 text-center hover:shadow-md transition-shadow cursor-pointer">
           <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
