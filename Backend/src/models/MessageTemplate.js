@@ -54,3 +54,4 @@ messageTemplateSchema.index({ name: 1 });
 
 module.exports = mongoose.model('MessageTemplate', messageTemplateSchema);
 
+

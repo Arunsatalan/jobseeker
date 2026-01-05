@@ -22,6 +22,7 @@ import {
   Smartphone,
   Loader2,
   CheckCircle,
+  CheckCheck,
   AlertCircle,
   Clock,
   User,
@@ -74,8 +75,19 @@ export function CandidateMessagingPortal() {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
+  const [messageHistory, setMessageHistory] = useState<Map<string, Message[]>>(new Map());
   const { toast } = useToast();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  // Initialize WebSocket connection on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      websocketService.connect(token);
+    }
+  }, []);
 
   useEffect(() => {
     loadConversations();
@@ -83,12 +95,15 @@ export function CandidateMessagingPortal() {
     // Setup WebSocket for real-time updates
     const token = localStorage.getItem('token');
     if (token) {
-      websocketService.connect(token);
-      
       // Listen for new messages
       const unsubscribeNewMessage = websocketService.on('new_message', (data: any) => {
+        if (!data.message) return;
+        
         if (selectedConversation && data.message?.sender?._id === selectedConversation.user[0]._id) {
-          loadMessages(selectedConversation.user[0]._id);
+          setMessages((prev) => {
+            if (prev.some(m => m._id === data.message._id)) return prev;
+            return [...prev, data.message];
+          });
         }
         loadConversations();
       });
@@ -99,15 +114,44 @@ export function CandidateMessagingPortal() {
         setMessages(prev => prev.map(msg => 
           msg._id === data.messageId ? { ...msg, isRead: true } : msg
         ));
+        // Update in message history
+        setMessageHistory((prev) => {
+          const updated = new Map(prev);
+          updated.forEach((msgs, key) => {
+            updated.set(key, msgs.map(msg => msg._id === data.messageId ? { ...msg, isRead: true } : msg));
+          });
+          return updated;
+        });
+      });
+
+      const unsubscribeConnect = websocketService.on('connected', () => {
+        setIsConnected(true);
+        loadConversations();
+      });
+      const unsubscribeDisconnect = websocketService.on('disconnected', () => setIsConnected(false));
+      const unsubscribeError = websocketService.on('error', () => {
+        setIsConnected(false);
+        toast({ title: "Connection Error", description: "Lost connection to messaging server", variant: "destructive" });
       });
 
       return () => {
         unsubscribeNewMessage();
         unsubscribeRead();
-        websocketService.disconnect();
+        if (unsubscribeConnect) unsubscribeConnect();
+        if (unsubscribeDisconnect) unsubscribeDisconnect();
+        if (unsubscribeError) unsubscribeError();
       };
     }
   }, [selectedConversation]);
+
+  // Periodic polling for real-time updates
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setRefreshing(true);
+      loadConversations().finally(() => setRefreshing(false));
+    }, 15000);
+    return () => clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -116,24 +160,38 @@ export function CandidateMessagingPortal() {
   }, [selectedConversation]);
 
   const loadConversations = async () => {
-    setLoading(true);
+    if (!refreshing) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${apiUrl}/api/v1/messages`, {
         headers: { Authorization: `Bearer ${token}` },
+        params: { limit: 50, includeAll: true }
       });
 
       if (response.data.success) {
-        setConversations(response.data.data || []);
+        const newConversations = response.data.data || [];
+        setConversations((prev) => {
+          // Merge and deduplicate
+          const merged = [...prev, ...newConversations];
+          return merged.filter((conv, index, self) =>
+            index === self.findIndex((c) => c._id === conv._id)
+          );
+        });
       }
     } catch (error: any) {
       console.error('Failed to load conversations:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to load conversations",
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false);
+      if (!refreshing) setLoading(false);
     }
   };
 
   const loadMessages = async (userId: string) => {
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${apiUrl}/api/v1/messages/conversation/${userId}`, {
@@ -141,20 +199,41 @@ export function CandidateMessagingPortal() {
       });
 
       if (response.data.success) {
-        setMessages(response.data.data || []);
+        const loadedMessages = response.data.data || [];
+        setMessages(loadedMessages);
+        // Store in message history for search
+        setMessageHistory((prev) => {
+          const updated = new Map(prev);
+          updated.set(userId, loadedMessages);
+          return updated;
+        });
         
         // Mark messages as read
-        const unreadMessages = response.data.data.filter((msg: Message) => !msg.isRead && msg.recipient._id === localStorage.getItem('userId'));
+        const currentUserId = localStorage.getItem('userId');
+        const unreadMessages = loadedMessages.filter((msg: Message) => 
+          !msg.isRead && msg.recipient._id === currentUserId && msg.sender._id === userId
+        );
         for (const msg of unreadMessages) {
-          await axios.put(
-            `${apiUrl}/api/v1/messages/${msg._id}/read`,
-            {},
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
+          try {
+            await axios.put(
+              `${apiUrl}/api/v1/messages/${msg._id}/read`,
+              {},
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+          } catch (err) {
+            console.error('Failed to mark message as read:', err);
+          }
         }
       }
     } catch (error: any) {
       console.error('Failed to load messages:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to load messages",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -195,9 +274,24 @@ export function CandidateMessagingPortal() {
   };
 
   const filteredConversations = conversations.filter(conv => {
+    if (!searchTerm.trim()) return true;
+
+    const searchLower = searchTerm.toLowerCase();
     const userName = `${conv.user[0]?.firstName || ''} ${conv.user[0]?.lastName || ''}`.toLowerCase();
-    return userName.includes(searchTerm.toLowerCase()) ||
-           conv.lastMessage.toLowerCase().includes(searchTerm.toLowerCase());
+    const jobTitle = (conv.user[0]?.preferences?.jobTitle || '').toLowerCase();
+    const contentMatch = conv.lastMessage.toLowerCase().includes(searchLower);
+
+    // Search in message history
+    const userId = conv.user[0]?._id;
+    const historyMessages = messageHistory.get(userId) || [];
+    const historyMatch = historyMessages.some((msg: Message) => 
+      msg.content.toLowerCase().includes(searchLower)
+    );
+
+    return userName.includes(searchLower) ||
+      contentMatch ||
+      jobTitle.includes(searchLower) ||
+      historyMatch;
   });
 
   const unreadCount = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
@@ -207,7 +301,20 @@ export function CandidateMessagingPortal() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
-          <p className="text-gray-600">Communicate with employers</p>
+          <div className="flex items-center gap-2">
+            <p className="text-gray-600">Communicate with employers</p>
+            {!isConnected && (
+              <Badge variant="destructive" className="text-xs">
+                Disconnected
+              </Badge>
+            )}
+            {refreshing && (
+              <Badge variant="outline" className="text-xs">
+                <Loader2 className="h-3 w-3 mr-1 animate-spin inline" />
+                Refreshing...
+              </Badge>
+            )}
+          </div>
         </div>
         <Badge variant="outline" className="flex items-center gap-2">
           <Bell className="h-4 w-4" />
@@ -329,7 +436,13 @@ export function CandidateMessagingPortal() {
                             {new Date(msg.createdAt).toLocaleTimeString()}
                           </p>
                           {isFromMe && (
-                            <CheckCircle className={`h-3 w-3 ${msg.isRead ? 'text-blue-300' : 'opacity-50'}`} />
+                            <div title={msg.isRead ? "Read" : "Sent"}>
+                              {msg.isRead ? (
+                                <CheckCircle className="h-3 w-3 text-blue-300" />
+                              ) : (
+                                <Clock className="h-3 w-3 opacity-50" />
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>

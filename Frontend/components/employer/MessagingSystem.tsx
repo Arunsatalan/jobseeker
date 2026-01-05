@@ -42,6 +42,8 @@ import {
   Mail,
   Smartphone,
   Bell,
+  CheckCheck,
+  Filter,
 } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +56,9 @@ interface Conversation {
     firstName: string;
     lastName: string;
     profilePhoto?: string;
+    preferences?: {
+      jobTitle: string;
+    };
   }>;
   lastMessage: string;
   lastMessageTime: string;
@@ -118,12 +123,105 @@ export function MessagingSystem() {
   const [supportPriority, setSupportPriority] = useState("Normal");
   const [supportDescription, setSupportDescription] = useState("");
   const [isGeneratingSupport, setIsGeneratingSupport] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
+  const [isConnected, setIsConnected] = useState(true); // Optimistic initial state
+  const [refreshing, setRefreshing] = useState(false);
+  const [messageHistory, setMessageHistory] = useState<Map<string, Message[]>>(new Map()); // Store message history for search
+
+  const getPreviewContent = (content: string) => {
+    return content
+      .replace(/{{name}}/g, "John Doe")
+      .replace(/{{firstName}}/g, "John")
+      .replace(/{{lastName}}/g, "Doe")
+      .replace(/{{company}}/g, "Your Company")
+      .replace(/{{jobTitle}}/g, "Senior Developer");
+  };
+
   const { toast } = useToast();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
+  // Initialize WebSocket connection on mount
   useEffect(() => {
-    loadConversations();
+    const token = localStorage.getItem('token');
+    if (token) {
+      websocketService.connect(token);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadConversations(1, true); // Initial load
     loadTemplates();
+
+    // WebSocket Listeners
+    const handleNewMessage = (data: any) => {
+      if (!data.message) return;
+      
+      // Update messages if conversation is open
+      if (selectedConversation && (
+        (data.message.sender._id === selectedConversation.user[0]._id) ||
+        (data.message.recipient._id === selectedConversation.user[0]._id)
+      )) {
+        setMessages((prev) => {
+          // Avoid duplicates
+          if (prev.some(m => m._id === data.message._id)) return prev;
+          return [...prev, data.message];
+        });
+        // Mark as read if I'm receiving and looking at it
+        const currentUserId = localStorage.getItem('userId');
+        if (data.message.sender._id !== currentUserId && data.message.recipient._id === currentUserId) {
+          markAsRead(data.message._id);
+        }
+      }
+      // Refresh conversations to update order/unread count
+      loadConversations(1, true);
+    };
+
+    const handleMessageRead = (data: any) => {
+      // Update message read status in current view
+      setMessages((prev) =>
+        prev.map(msg => msg._id === data.messageId ? { ...msg, isRead: true } : msg)
+      );
+      // Also update in message history for search
+      setMessageHistory((prev) => {
+        const updated = new Map(prev);
+        updated.forEach((msgs, key) => {
+          updated.set(key, msgs.map(msg => msg._id === data.messageId ? { ...msg, isRead: true } : msg));
+        });
+        return updated;
+      });
+    };
+
+    const unsubscribeNew = websocketService.on('new_message', handleNewMessage);
+    const unsubscribeRead = websocketService.on('message_read', handleMessageRead);
+    const unsubscribeConnect = websocketService.on('connected', () => {
+      setIsConnected(true);
+      // Refresh conversations when reconnected
+      loadConversations(1, true);
+    });
+    const unsubscribeDisconnect = websocketService.on('disconnected', () => setIsConnected(false));
+    const unsubscribeError = websocketService.on('error', () => {
+      setIsConnected(false);
+      toast({ title: "Connection Error", description: "Lost connection to messaging server", variant: "destructive" });
+    });
+
+    return () => {
+      if (unsubscribeNew) unsubscribeNew();
+      if (unsubscribeRead) unsubscribeRead();
+      if (unsubscribeConnect) unsubscribeConnect();
+      if (unsubscribeDisconnect) unsubscribeDisconnect();
+      if (unsubscribeError) unsubscribeError();
+    };
+  }, [selectedConversation]);
+
+  // Periodic Polling (every 15 seconds for better real-time feel)
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setRefreshing(true);
+      loadConversations(1, true).finally(() => setRefreshing(false));
+    }, 15000);
+    return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {
@@ -132,30 +230,57 @@ export function MessagingSystem() {
     }
   }, [selectedConversation]);
 
-  const loadConversations = async () => {
-    setLoading(true);
+  const loadConversations = async (pageNum = 1, reset = false) => {
+    if (pageNum === 1 && !refreshing) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${apiUrl}/api/v1/messages`, {
         headers: { Authorization: `Bearer ${token}` },
+        params: { page: pageNum, limit: 50, includeAll: true } // Increased limit and includeAll flag
       });
 
       if (response.data.success) {
-        setConversations(response.data.data || []);
+        const newConversations = response.data.data || [];
+        if (reset) {
+          setConversations(newConversations);
+        } else {
+          // Merge and deduplicate conversations
+          setConversations((prev) => {
+            const merged = [...prev, ...newConversations];
+            const unique = merged.filter((conv, index, self) =>
+              index === self.findIndex((c) => c._id === conv._id)
+            );
+            return unique;
+          });
+        }
+        setHasMore(newConversations.length === 50);
       }
     } catch (error: any) {
       console.error('Failed to load conversations:', error);
       toast({
         title: "Error",
-        description: "Failed to load conversations",
+        description: error.response?.data?.message || "Failed to load conversations",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if (pageNum === 1 && !refreshing) setLoading(false);
+    }
+  };
+
+  const markAsRead = async (messageId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`${apiUrl}/api/v1/messages/${messageId}/read`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (err: any) {
+      console.error('Failed to mark message as read:', err);
+      // Don't show toast for read status updates to avoid spam
     }
   };
 
   const loadMessages = async (userId: string) => {
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${apiUrl}/api/v1/messages/conversation/${userId}`, {
@@ -163,12 +288,77 @@ export function MessagingSystem() {
       });
 
       if (response.data.success) {
-        setMessages(response.data.data || []);
+        const loadedMessages = response.data.data || [];
+        setMessages(loadedMessages);
+        // Store in message history for search
+        setMessageHistory((prev) => {
+          const updated = new Map(prev);
+          updated.set(userId, loadedMessages);
+          return updated;
+        });
+        // Mark unread messages as read when loading conversation
+        const currentUserId = localStorage.getItem('userId');
+        const unreadMsgs = loadedMessages.filter((m: Message) => 
+          !m.isRead && m.sender._id === userId && m.recipient._id === currentUserId
+        );
+        unreadMsgs.forEach((m: Message) => markAsRead(m._id));
       }
     } catch (error: any) {
       console.error('Failed to load messages:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to load messages",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
+
+  /* ... loadTemplates, sendMessage, sendBulkMessages, etc. keep existing logic ... */
+  // Re-implementing sendBulkMessages to include new filters
+
+  const sendBulkMessages = async () => {
+    setSending(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${apiUrl}/api/v1/messages/bulk`,
+        {
+          recipients: bulkRecipients.length > 0 ? bulkRecipients : undefined,
+          filters: Object.keys(bulkFilters).length > 0 ? bulkFilters : undefined,
+          jobId: selectedJob || undefined,
+          content: messageContent,
+          templateId: selectedTemplate || undefined,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.data.success) {
+        toast({
+          title: "Bulk Messages Sent",
+          description: `${response.data.data.sent} messages sent successfully`,
+        });
+        setShowBulkMessageDialog(false);
+        setMessageContent("");
+        setBulkRecipients([]);
+        setBulkFilters({});
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to send bulk messages",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  /* ... generateSupportMessage, sendSupportMessage ... */
+  // Keeping these the same as they were not requested to change drastically, just ensuring imports match.
 
   const loadTemplates = async () => {
     try {
@@ -212,51 +402,12 @@ export function MessagingSystem() {
         if (selectedConversation) {
           loadMessages(selectedConversation.user[0]._id);
         }
-        loadConversations();
+        loadConversations(1, true);
       }
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.response?.data?.message || "Failed to send message",
-        variant: "destructive",
-      });
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const sendBulkMessages = async () => {
-    setSending(true);
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${apiUrl}/api/v1/messages/bulk`,
-        {
-          recipients: bulkRecipients.length > 0 ? bulkRecipients : undefined,
-          filters: Object.keys(bulkFilters).length > 0 ? bulkFilters : undefined,
-          jobId: selectedJob || undefined,
-          content: messageContent,
-          templateId: selectedTemplate || undefined,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (response.data.success) {
-        toast({
-          title: "Bulk Messages Sent",
-          description: `${response.data.data.sent} messages sent successfully`,
-        });
-        setShowBulkMessageDialog(false);
-        setMessageContent("");
-        setBulkRecipients([]);
-        setBulkFilters({});
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to send bulk messages",
         variant: "destructive",
       });
     } finally {
@@ -335,9 +486,33 @@ export function MessagingSystem() {
   };
 
   const filteredConversations = conversations.filter(conv => {
+    if (!searchTerm.trim()) {
+      // No search term, just apply filter
+      switch (selectedFilter) {
+        case "unread":
+          return conv.unreadCount > 0;
+        default:
+          return true;
+      }
+    }
+
+    const searchLower = searchTerm.toLowerCase();
     const userName = `${conv.user[0]?.firstName || ''} ${conv.user[0]?.lastName || ''}`.toLowerCase();
-    const matchesSearch = userName.includes(searchTerm.toLowerCase()) ||
-      conv.lastMessage.toLowerCase().includes(searchTerm.toLowerCase());
+    const jobTitle = (conv.user[0]?.preferences?.jobTitle || '').toLowerCase();
+    const contentMatch = conv.lastMessage.toLowerCase().includes(searchLower);
+
+    // Search in message history for this conversation
+    const userId = conv.user[0]?._id;
+    const historyMessages = messageHistory.get(userId) || [];
+    const historyMatch = historyMessages.some((msg: Message) => 
+      msg.content.toLowerCase().includes(searchLower)
+    );
+
+    // Search in Name, Last Message, Job Title, and Message History
+    const matchesSearch = userName.includes(searchLower) ||
+      contentMatch ||
+      jobTitle.includes(searchLower) ||
+      historyMatch;
 
     switch (selectedFilter) {
       case "unread":
@@ -349,13 +524,27 @@ export function MessagingSystem() {
 
   const unreadCount = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
 
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
-          <p className="text-gray-600">Communicate with candidates</p>
+          <div className="flex items-center gap-2">
+            <p className="text-gray-600">Communicate with candidates</p>
+            {!isConnected && (
+              <Badge variant="destructive" className="text-xs">
+                Disconnected
+              </Badge>
+            )}
+            {refreshing && (
+              <Badge variant="outline" className="text-xs">
+                <Loader2 className="h-3 w-3 mr-1 animate-spin inline" />
+                Refreshing...
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           <Button
@@ -455,38 +644,58 @@ export function MessagingSystem() {
               </div>
 
               <div className="space-y-3">
-                {loading ? (
+                {loading && page === 1 ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                   </div>
                 ) : filteredConversations.length > 0 ? (
-                  filteredConversations.map((conv) => (
-                    <div
-                      key={conv._id}
-                      className={`p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${conv.unreadCount > 0 ? "bg-blue-50 border-blue-200" : "border-gray-200"
-                        }`}
-                      onClick={() => setSelectedConversation(conv)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`font-medium ${conv.unreadCount > 0 ? "font-semibold" : ""}`}>
-                              {conv.user[0]?.firstName} {conv.user[0]?.lastName}
-                            </span>
-                            {conv.unreadCount > 0 && (
-                              <Badge variant="default" className="bg-blue-600">
-                                {conv.unreadCount}
-                              </Badge>
-                            )}
+                  <>
+                    {filteredConversations.map((conv) => (
+                      <div
+                        key={conv._id}
+                        className={`p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${conv.unreadCount > 0 ? "bg-blue-50 border-blue-200" : "border-gray-200"
+                          }`}
+                        onClick={() => setSelectedConversation(conv)}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`font-medium ${conv.unreadCount > 0 ? "font-semibold" : ""}`}>
+                                {conv.user[0]?.firstName} {conv.user[0]?.lastName}
+                              </span>
+                              {conv.unreadCount > 0 && (
+                                <Badge variant="default" className="bg-blue-600">
+                                  {conv.unreadCount}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-500 line-clamp-2">{conv.lastMessage}</p>
                           </div>
-                          <p className="text-sm text-gray-500 line-clamp-2">{conv.lastMessage}</p>
+                          <span className="text-xs text-gray-500 ml-4">
+                            {new Date(conv.lastMessageTime).toLocaleString()}
+                          </span>
                         </div>
-                        <span className="text-xs text-gray-500 ml-4">
-                          {new Date(conv.lastMessageTime).toLocaleString()}
-                        </span>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                    {!loading && hasMore && filteredConversations.length >= 20 && (
+                      <Button
+                        variant="ghost"
+                        className="w-full text-blue-600"
+                        onClick={() => {
+                          const nextPage = page + 1;
+                          setPage(nextPage);
+                          loadConversations(nextPage);
+                        }}
+                      >
+                        Load More
+                      </Button>
+                    )}
+                    {loading && page > 1 && (
+                      <div className="flex justify-center py-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="text-center py-8">
                     <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -530,9 +739,20 @@ export function MessagingSystem() {
                         style={isFromMe ? { backgroundColor: '#02243b' } : {}}
                       >
                         <p className="text-sm">{msg.content}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {new Date(msg.createdAt).toLocaleString()}
-                        </p>
+                        <div className="flex items-center justify-end gap-1 mt-1">
+                          <p className="text-xs opacity-70">
+                            {new Date(msg.createdAt).toLocaleString()}
+                          </p>
+                          {isFromMe && (
+                            <div className="flex items-center gap-1" title={msg.isRead ? "Read" : "Sent"}>
+                              {msg.isRead ? (
+                                <CheckCheck className="h-3 w-3 text-blue-400" />
+                              ) : (
+                                <CheckCircle className="h-3 w-3 opacity-50" />
+                              )}
+                            </div>
+                          )}
+                        </div>
                         {msg.flagged && (
                           <Badge variant="destructive" className="mt-1 text-xs">
                             <AlertCircle className="h-3 w-3 mr-1" />
@@ -601,13 +821,29 @@ export function MessagingSystem() {
               </Select>
             </div>
             <div>
-              <Label>Message</Label>
-              <Textarea
-                value={messageContent}
-                onChange={(e) => setMessageContent(e.target.value)}
-                rows={5}
-                placeholder="Enter your message..."
-              />
+              <div className="flex justify-between items-center mb-1">
+                <Label>Message</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs text-blue-600"
+                  onClick={() => setShowPreview(!showPreview)}
+                >
+                  {showPreview ? "Edit Message" : "Preview"}
+                </Button>
+              </div>
+              {showPreview ? (
+                <div className="p-3 border rounded-md bg-gray-50 text-sm min-h-[120px] whitespace-pre-wrap">
+                  {getPreviewContent(messageContent)}
+                </div>
+              ) : (
+                <Textarea
+                  value={messageContent}
+                  onChange={(e) => setMessageContent(e.target.value)}
+                  rows={5}
+                  placeholder="Enter your message..."
+                />
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -652,36 +888,114 @@ export function MessagingSystem() {
               </Select>
             </div>
             <div>
-              <Label>Message</Label>
-              <Textarea
-                value={messageContent}
-                onChange={(e) => setMessageContent(e.target.value)}
-                rows={5}
-                placeholder="Enter your message..."
+              <div className="flex justify-between items-center mb-1">
+                <Label>Message</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs text-blue-600"
+                  onClick={() => setShowPreview(!showPreview)}
+                >
+                  {showPreview ? "Edit Message" : "Preview"}
+                </Button>
+              </div>
+              {showPreview ? (
+                <div className="p-3 border rounded-md bg-gray-50 text-sm min-h-[120px] whitespace-pre-wrap">
+                  {getPreviewContent(messageContent)}
+                </div>
+              ) : (
+                <Textarea
+                  value={messageContent}
+                  onChange={(e) => setMessageContent(e.target.value)}
+                  rows={5}
+                  placeholder="Enter your message..."
+                />
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Filter by Status</Label>
+                <Select
+                  value={bulkFilters.status || "all"}
+                  onValueChange={(value) => {
+                    const newFilters = { ...bulkFilters };
+                    if (value === "all") delete newFilters.status;
+                    else newFilters.status = value;
+                    setBulkFilters(newFilters);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="applied">Applied</SelectItem>
+                    <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                    <SelectItem value="interview">Interview</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="hired">Hired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Filter by Job Title</Label>
+                <Input
+                  placeholder="e.g. Frontend Dev"
+                  value={bulkFilters.jobTitle || ""}
+                  onChange={(e) => setBulkFilters({ ...bulkFilters, jobTitle: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Filter by Location</Label>
+                <Input
+                  placeholder="e.g. New York"
+                  value={bulkFilters.location || ""}
+                  onChange={(e) => setBulkFilters({ ...bulkFilters, location: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Filter by Experience (years)</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 3"
+                  value={bulkFilters.experience || ""}
+                  onChange={(e) => setBulkFilters({ ...bulkFilters, experience: e.target.value ? parseInt(e.target.value) : undefined })}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Filter by Skills (comma-separated)</Label>
+              <Input
+                placeholder="e.g. React, Node.js, TypeScript"
+                value={bulkFilters.skills || ""}
+                onChange={(e) => {
+                  const skills = e.target.value.split(',').map(s => s.trim()).filter(s => s);
+                  setBulkFilters({ ...bulkFilters, skills: skills.length > 0 ? skills : undefined });
+                }}
               />
             </div>
             <div>
-              <Label>Filter by Application Status</Label>
+              <Label>Filter by Education Level</Label>
               <Select
-                value={bulkFilters.status || "all"}
+                value={bulkFilters.education || "all"}
                 onValueChange={(value) => {
                   const newFilters = { ...bulkFilters };
-                  if (value === "all") {
-                    delete newFilters.status;
-                  } else {
-                    newFilters.status = value;
-                  }
+                  if (value === "all") delete newFilters.education;
+                  else newFilters.education = value;
                   setBulkFilters(newFilters);
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
+                  <SelectValue placeholder="All education levels" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="applied">Applied</SelectItem>
-                  <SelectItem value="shortlisted">Shortlisted</SelectItem>
-                  <SelectItem value="interview">Interview</SelectItem>
+                  <SelectItem value="all">All education levels</SelectItem>
+                  <SelectItem value="high-school">High School</SelectItem>
+                  <SelectItem value="bachelor">Bachelor's</SelectItem>
+                  <SelectItem value="master">Master's</SelectItem>
+                  <SelectItem value="phd">PhD</SelectItem>
                 </SelectContent>
               </Select>
             </div>

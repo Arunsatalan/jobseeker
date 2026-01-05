@@ -232,6 +232,9 @@ exports.getConversations = asyncHandler(async (req, res, next) => {
       },
     },
     {
+      $sort: { createdAt: -1 } // Sort by date first to get last message easily
+    },
+    {
       $group: {
         _id: {
           $cond: [
@@ -240,8 +243,8 @@ exports.getConversations = asyncHandler(async (req, res, next) => {
             '$sender',
           ],
         },
-        lastMessage: { $last: '$content' },
-        lastMessageTime: { $last: '$createdAt' },
+        lastMessage: { $first: '$content' }, // Since we sorted, first is latest
+        lastMessageTime: { $first: '$createdAt' },
         unreadCount: {
           $sum: {
             $cond: [
@@ -267,6 +270,12 @@ exports.getConversations = asyncHandler(async (req, res, next) => {
         as: 'user',
       },
     },
+    // Filter out conversations where user doesn't exist (deleted users)
+    {
+      $match: {
+        'user.0': { $exists: true }
+      }
+    }
   ]);
 
   return sendSuccess(res, 200, 'Conversations retrieved successfully', conversations);
@@ -325,15 +334,55 @@ exports.sendBulkMessages = asyncHandler(async (req, res, next) => {
   } else if (filters) {
     // Filter by application status, date range, etc.
     const query = {};
-    if (filters.status) query.status = filters.status;
+
+    // Ensure we only look at applications for jobs posted by this employer
+    // (Implicitly safe if we filter by job which is owned, but let's be safe if no filters provided)
+    // Actually, we usually want to message OUR applicants.
+    // Let's first find all jobs by this employer to scope the query if no specific job is selected
+    const employerJobs = await Job.find({ employer: req.user._id }).select('_id');
+    const employerJobIds = employerJobs.map(j => j._id);
+    query.job = { $in: employerJobIds };
+
+    if (filters.status && filters.status !== 'all') query.status = filters.status;
+    if (filters.jobId) query.job = filters.jobId; // Overrides the generic list if specific job selected via filter (though the line above effectively does 'in all my jobs') - wait. query.job should be intersection if both exist? usually jobId overrides.
+    // If specific jobId is passed in filters, use it.
     if (filters.jobId) query.job = filters.jobId;
+
     if (filters.dateFrom || filters.dateTo) {
       query.appliedAt = {};
       if (filters.dateFrom) query.appliedAt.$gte = new Date(filters.dateFrom);
       if (filters.dateTo) query.appliedAt.$lte = new Date(filters.dateTo);
     }
+
+    // Filter by Job Title (Find jobs first)
+    if (filters.jobTitle) {
+      const jobsWithTitle = await Job.find({
+        employer: req.user._id,
+        title: { $regex: filters.jobTitle, $options: 'i' }
+      }).select('_id');
+      const jobIdsWithTitle = jobsWithTitle.map(j => j._id);
+
+      // If we already have a job constraint (from above), we need to intersect or just use this list
+      // If filters.jobId is set, title search might be redundant or conflicting. Let's assume title search refines "All Jobs"
+      if (!filters.jobId) {
+        query.job = { $in: jobIdsWithTitle };
+      }
+    }
+
+    // Filter by Applicant Location (Find users first)
+    if (filters.location) {
+      const usersWithLocation = await User.find({
+        location: { $regex: filters.location, $options: 'i' },
+        role: { $ne: 'employer' } // optimization
+      }).select('_id');
+      const userIdsWithLocation = usersWithLocation.map(u => u._id);
+      query.applicant = { $in: userIdsWithLocation };
+    }
+
     const applications = await Application.find(query).select('applicant');
     recipientIds = applications.map(app => app.applicant).filter(Boolean);
+    // Remove duplicates
+    recipientIds = [...new Set(recipientIds.map(id => id.toString()))];
   }
 
   if (recipientIds.length === 0) {

@@ -1414,7 +1414,7 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
             <CheckCircle className="h-4 w-4 mr-2" />
             Shortlist
           </Button>
-          <Button
+          {/* <Button
             className="bg-purple-600 hover:bg-purple-700"
             onClick={() => {
               onStatusChange('interview');
@@ -1423,7 +1423,7 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
           >
             <Video className="h-4 w-4 mr-2" />
             Schedule Interview
-          </Button>
+          </Button> */}
         </div>
       </div>
 

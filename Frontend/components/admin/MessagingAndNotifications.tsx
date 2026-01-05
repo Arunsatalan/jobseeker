@@ -67,6 +67,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { useToast } from "@/hooks/use-toast";
+import { websocketService } from "@/utils/websocketService";
 
 interface FlaggedMessage {
   _id: string;
@@ -100,6 +101,9 @@ interface Conversation {
     firstName: string;
     lastName: string;
     profilePhoto?: string;
+    preferences?: {
+      jobTitle?: string;
+    };
   }>;
   lastMessage: string;
   lastMessageTime: string;
@@ -173,8 +177,19 @@ export function MessagingAndNotifications() {
   const [showMessageDetails, setShowMessageDetails] = useState(false);
   const [loading, setLoading] = useState(false);
   const [moderating, setModerating] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
+  const [messageHistory, setMessageHistory] = useState<Map<string, Message[]>>(new Map());
   const { toast } = useToast();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  // Initialize WebSocket connection on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      websocketService.connect(token);
+    }
+  }, []);
 
   useEffect(() => {
     if (selectedTab === "flagged") {
@@ -185,6 +200,51 @@ export function MessagingAndNotifications() {
       loadSupportMessages();
     } else if (selectedTab === "messages") {
       loadConversations();
+      // Setup WebSocket listeners for real-time updates
+      const handleNewMessage = (data: any) => {
+        if (selectedConversation && data.message && (
+          (data.message.sender._id === selectedConversation.user[0]._id) ||
+          (data.message.recipient._id === selectedConversation.user[0]._id)
+        )) {
+          setMessages((prev) => {
+            if (prev.some(m => m._id === data.message._id)) return prev;
+            return [...prev, data.message];
+          });
+        }
+        loadConversations();
+      };
+
+      const handleMessageRead = (data: any) => {
+        setMessages((prev) =>
+          prev.map(msg => msg._id === data.messageId ? { ...msg, isRead: true } : msg)
+        );
+      };
+
+      const unsubscribeNew = websocketService.on('new_message', handleNewMessage);
+      const unsubscribeRead = websocketService.on('message_read', handleMessageRead);
+      const unsubscribeConnect = websocketService.on('connected', () => {
+        setIsConnected(true);
+        loadConversations();
+      });
+      const unsubscribeDisconnect = websocketService.on('disconnected', () => setIsConnected(false));
+
+      return () => {
+        if (unsubscribeNew) unsubscribeNew();
+        if (unsubscribeRead) unsubscribeRead();
+        if (unsubscribeConnect) unsubscribeConnect();
+        if (unsubscribeDisconnect) unsubscribeDisconnect();
+      };
+    }
+  }, [selectedTab, selectedConversation]);
+
+  // Periodic polling for real-time updates
+  useEffect(() => {
+    if (selectedTab === "messages") {
+      const intervalId = setInterval(() => {
+        setRefreshing(true);
+        loadConversations().finally(() => setRefreshing(false));
+      }, 15000);
+      return () => clearInterval(intervalId);
     }
   }, [selectedTab]);
 
@@ -209,7 +269,7 @@ export function MessagingAndNotifications() {
       console.error('Failed to load flagged messages:', error);
       toast({
         title: "Error",
-        description: "Failed to load flagged messages",
+        description: error.response?.data?.message || "Failed to load flagged messages",
         variant: "destructive",
       });
     } finally {
@@ -230,6 +290,11 @@ export function MessagingAndNotifications() {
       }
     } catch (error: any) {
       console.error('Failed to load analytics:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to load analytics",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -250,7 +315,7 @@ export function MessagingAndNotifications() {
       console.error('Failed to load support messages:', error);
       toast({
         title: "Error",
-        description: "Failed to load support messages",
+        description: error.response?.data?.message || "Failed to load support messages",
         variant: "destructive",
       });
     } finally {
@@ -259,26 +324,38 @@ export function MessagingAndNotifications() {
   };
 
   const loadConversations = async () => {
-    setLoading(true);
+    if (!refreshing) setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${apiUrl}/api/v1/messages`, {
         headers: { Authorization: `Bearer ${token}` },
+        params: { limit: 50, includeAll: true } // Admin should see all conversations
       });
 
       if (response.data.success) {
-        // Since this is admin, we might need to fetch all conversations or specific ones
-        // For now, assuming admin can see conversations they are part of (e.g. support replies)
-        setConversations(response.data.data || []);
+        const newConversations = response.data.data || [];
+        setConversations((prev) => {
+          // Merge and deduplicate
+          const merged = [...prev, ...newConversations];
+          return merged.filter((conv, index, self) =>
+            index === self.findIndex((c) => c._id === conv._id)
+          );
+        });
       }
     } catch (error: any) {
       console.error('Failed to load conversations:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to load conversations",
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false);
+      if (!refreshing) setLoading(false);
     }
   };
 
   const loadMessages = async (userId: string) => {
+    setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(`${apiUrl}/api/v1/messages/conversation/${userId}`, {
@@ -286,10 +363,24 @@ export function MessagingAndNotifications() {
       });
 
       if (response.data.success) {
-        setMessages(response.data.data || []);
+        const loadedMessages = response.data.data || [];
+        setMessages(loadedMessages);
+        // Store in message history for search
+        setMessageHistory((prev) => {
+          const updated = new Map(prev);
+          updated.set(userId, loadedMessages);
+          return updated;
+        });
       }
     } catch (error: any) {
       console.error('Failed to load messages:', error);
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to load messages",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -331,9 +422,24 @@ export function MessagingAndNotifications() {
   };
 
   const filteredConversations = conversations.filter(conv => {
+    if (!conversationSearchTerm.trim()) return true;
+
+    const searchLower = conversationSearchTerm.toLowerCase();
     const userName = `${conv.user[0]?.firstName || ''} ${conv.user[0]?.lastName || ''}`.toLowerCase();
-    return userName.includes(conversationSearchTerm.toLowerCase()) ||
-      conv.lastMessage.toLowerCase().includes(conversationSearchTerm.toLowerCase());
+    const jobTitle = (conv.user[0]?.preferences?.jobTitle || '').toLowerCase();
+    const contentMatch = conv.lastMessage.toLowerCase().includes(searchLower);
+
+    // Search in message history
+    const userId = conv.user[0]?._id;
+    const historyMessages = messageHistory.get(userId) || [];
+    const historyMatch = historyMessages.some((msg: Message) => 
+      msg.content.toLowerCase().includes(searchLower)
+    );
+
+    return userName.includes(searchLower) ||
+      contentMatch ||
+      jobTitle.includes(searchLower) ||
+      historyMatch;
   });
 
   const updateModerationStatus = async (messageId: string, flagged: boolean, reason?: string) => {
@@ -570,9 +676,19 @@ export function MessagingAndNotifications() {
                       <h3 className="font-semibold text-gray-900">
                         {selectedConversation.user[0]?.firstName} {selectedConversation.user[0]?.lastName}
                       </h3>
-                      <p className="text-xs text-gray-500">
-                        Viewing conversation history
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-gray-500">
+                          Viewing conversation history
+                        </p>
+                        {refreshing && (
+                          <Loader2 className="h-3 w-3 animate-spin text-gray-400" />
+                        )}
+                        {!isConnected && (
+                          <Badge variant="destructive" className="text-xs">
+                            Disconnected
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <Button variant="ghost" size="sm" onClick={() => setSelectedConversation(null)} className="md:hidden">
                       Back
@@ -588,9 +704,20 @@ export function MessagingAndNotifications() {
                         <div key={msg._id} className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}>
                           <div className={`max-w-[80%] p-3 rounded-lg ${isFromMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-gray-100 text-gray-800 rounded-bl-none'}`}>
                             <p className="text-sm">{msg.content}</p>
-                            <p className={`text-xs mt-1 text-right ${isFromMe ? 'text-blue-100' : 'text-gray-400'}`}>
-                              {new Date(msg.createdAt).toLocaleString()}
-                            </p>
+                            <div className={`flex items-center justify-end gap-2 mt-1 ${isFromMe ? 'text-blue-100' : 'text-gray-400'}`}>
+                              <p className="text-xs">
+                                {new Date(msg.createdAt).toLocaleString()}
+                              </p>
+                              {isFromMe && (
+                                <div title={msg.isRead ? "Read" : "Sent"}>
+                                  {msg.isRead ? (
+                                    <CheckCircle className="h-3 w-3 text-blue-200" />
+                                  ) : (
+                                    <Clock className="h-3 w-3 opacity-50" />
+                                  )}
+                                </div>
+                              )}
+                            </div>
                             {msg.flagged && (
                               <Badge variant="destructive" className="mt-1 text-xs bg-red-500/20 text-red-100 border-0">
                                 <AlertTriangle className="h-3 w-3 mr-1" />
