@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ProtectedLayout } from "@/components/ProtectedLayout";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
@@ -15,11 +15,11 @@ import { PlatformSettings } from "@/components/admin/PlatformSettings";
 import { ContentManagement } from "@/components/admin/ContentManagement";
 import { ModerationTools } from "@/components/admin/ModerationTools";
 
-import { 
-  BarChart3, 
-  Users, 
-  Briefcase, 
-  FileText, 
+import {
+  BarChart3,
+  Users,
+  Briefcase,
+  FileText,
   MessageSquare,
   CreditCard,
   Settings,
@@ -89,13 +89,13 @@ export const adminNavItems = [
     href: "/admin/billing",
     badge: null,
   },
-//   {
-//     id: "platform",
-//     label: "Platform Settings",
-//     icon: Settings,
-//     href: "/admin/platform",
-//     badge: null,
-//   },
+  //   {
+  //     id: "platform",
+  //     label: "Platform Settings",
+  //     icon: Settings,
+  //     href: "/admin/platform",
+  //     badge: null,
+  //   },
   {
     id: "content",
     label: "Content Management",
@@ -110,20 +110,20 @@ export const adminNavItems = [
     href: "/admin/moderation",
     badge: "8",
   },
-//   {
-//     id: "ai-features",
-//     label: "AI Features",
-//     icon: Brain,
-//     href: "/admin/ai-features",
-//     badge: null,
-//   },
-//   {
-//     id: "team-access",
-//     label: "Team Access",
-//     icon: UserCog,
-//     href: "/admin/team",
-//     badge: null,
-//   },
+  //   {
+  //     id: "ai-features",
+  //     label: "AI Features",
+  //     icon: Brain,
+  //     href: "/admin/ai-features",
+  //     badge: null,
+  //   },
+  //   {
+  //     id: "team-access",
+  //     label: "Team Access",
+  //     icon: UserCog,
+  //     href: "/admin/team",
+  //     badge: null,
+  //   },
 ];
 
 export default function AdminDashboardLayout() {
@@ -131,9 +131,55 @@ export default function AdminDashboardLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Initialize nav items with default/loading badges
+  const [navItems, setNavItems] = useState(adminNavItems);
+
   const handleRefresh = () => {
     setRefreshKey(prev => prev + 1);
+    fetchSidebarStats(); // Refresh sidebar stats too
   };
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+    return num.toString();
+  };
+
+  const fetchSidebarStats = async () => {
+    try {
+      // Check for token
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/v1/admin/stats/overview`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        const { userStats, jobStats, adminStats } = data.data;
+
+        setNavItems(prevItems => prevItems.map(item => {
+          let badge = item.badge;
+
+          if (item.id === 'users') badge = formatNumber(userStats.totalUsers);
+          if (item.id === 'jobs') badge = formatNumber(jobStats.activeJobs);
+          if (item.id === 'applications') badge = formatNumber(jobStats.totalApplications);
+          if (item.id === 'messaging') badge = adminStats?.unreadMessages > 0 ? adminStats.unreadMessages.toString() : null;
+          if (item.id === 'moderation') badge = adminStats?.flaggedContent > 0 ? adminStats.flaggedContent.toString() : null;
+
+          return { ...item, badge };
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to fetch sidebar stats:", error);
+    }
+  };
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchSidebarStats();
+  }, [refreshKey]); // Refetch if refreshKey changes
 
   return (
     <ProtectedLayout requiredRole="admin">
@@ -163,7 +209,7 @@ export default function AdminDashboardLayout() {
         {/* Sidebar */}
         <AdminSidebar
           admin={mockAdmin}
-          navItems={adminNavItems}
+          navItems={navItems}
           activeSection={activeSection}
           collapsed={sidebarCollapsed}
           onNavigate={setActiveSection}
@@ -174,11 +220,11 @@ export default function AdminDashboardLayout() {
         <div className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
           {/* Header */}
           <AdminHeader
-          admin={mockAdmin}
-          activeSection={activeSection}
-          navItems={adminNavItems}
-          onRefresh={handleRefresh}
-        />
+            admin={mockAdmin}
+            activeSection={activeSection}
+            navItems={navItems}
+            onRefresh={handleRefresh}
+          />
 
           {/* Page Content */}
           <main className="p-6">

@@ -29,6 +29,7 @@ const aiRoutes = require('./routes/aiRoutes');
 const interviewRoutes = require('./routes/interviewRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const billingRoutes = require('./routes/billingRoutes');
+const adminStatsRoutes = require('./routes/adminStatsRoutes');
 
 const app = express();
 
@@ -79,6 +80,7 @@ app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/interviews', interviewRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/billing', billingRoutes);
+app.use('/api/v1/admin/stats', adminStatsRoutes);
 app.use('/api/v1/debug', debugRoutes);
 
 // 404 handler
