@@ -42,6 +42,18 @@ exports.applyForJob = asyncHandler(async (req, res, next) => {
   job.applicants.push(req.user._id);
   await job.save();
 
+  // Attempt to deduct credits from employer
+  try {
+    const billingController = require('./billingController');
+    // job.employer might be an object if populated, checks needed. 
+    // In applyForJob, job is fetched from Job.findById(req.params.jobId). Not populated yet.
+    // So job.employer is ID.
+    await billingController.checkAndDeductCredits(job.employer, 'APPLICATION');
+  } catch (error) {
+    logger.warn(`Credit deduction failed for employer ${job.employer}: ${error.message}`);
+    // Choosing not to block application for now, but in a strict system this might block.
+  }
+
   // Send notification to employer
   await emailService.sendApplicationNotification(
     job.employer.email,
@@ -54,7 +66,7 @@ exports.applyForJob = asyncHandler(async (req, res, next) => {
   return sendSuccess(res, 201, 'Application submitted successfully', application);
 });
 
-// @desc Smart Apply - AI-optimized application submission
+// @desc Smart Apply - AI-optimized application submission -- Modified to include credit deduction logic
 // @route POST /api/v1/applications/smart-apply/:jobId
 // @access Private/JobSeeker
 exports.smartApplyForJob = asyncHandler(async (req, res, next) => {
@@ -157,6 +169,16 @@ exports.smartApplyForJob = asyncHandler(async (req, res, next) => {
     }
   } catch (notifError) {
     logger.warn('Failed to create employer notification:', notifError);
+  }
+
+  // Attempt to deduct credits from employer
+  try {
+    const billingController = require('./billingController');
+    if (job.employer && job.employer._id) {
+      await billingController.checkAndDeductCredits(job.employer._id, 'APPLICATION');
+    }
+  } catch (error) {
+    logger.warn(`Credit deduction failed for employer ${job.employer?._id}: ${error.message}`);
   }
 
   // Send email notification to employer
@@ -307,7 +329,7 @@ exports.updateApplicationStatus = asyncHandler(async (req, res, next) => {
       if (applicantEmail) {
         const emailSubject = statusTitles[status] || 'Application Status Updated';
         const emailMessage = `${statusMessages[status] || 'Your application status has been updated'} for ${jobTitle} at ${companyName}.`;
-        
+
         await emailService.sendStatusUpdateEmail(
           applicantEmail,
           emailSubject,

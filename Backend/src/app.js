@@ -28,6 +28,7 @@ const cvRoutes = require('./routes/cvRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const interviewRoutes = require('./routes/interviewRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const billingRoutes = require('./routes/billingRoutes');
 
 const app = express();
 
@@ -77,6 +78,7 @@ app.use('/api/v1/cv', cvRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/interviews', interviewRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/billing', billingRoutes);
 app.use('/api/v1/debug', debugRoutes);
 
 // 404 handler

@@ -377,6 +377,9 @@ exports.getEmployerCompanyData = catchAsync(async (req, res, next) => {
     tagline: userProfile.headline || '', // Tagline not in Company model schema
     culture: userProfile.bio || '', // Using bio for culture as per previous logic
     socialLinks: companyDataFromModel?.socialLinks || userProfile.socialLinks || {},
+    subscription: user.subscription, // Key addition for frontend logic
+    credits: user.subscription?.credits || 0,
+    plan: user.subscription?.plan || 'Free',
   };
 
   res.status(200).json({
@@ -413,7 +416,7 @@ exports.uploadProfilePic = catchAsync(async (req, res, next) => {
     console.log('=== UPLOAD PROFILE PIC ===');
     console.log('User ID:', req.user?.id);
     console.log('File exists:', !!req.file);
-    
+
     if (!req.file) {
       console.log('No file provided in request');
       return next(new ErrorResponse('Please upload a file', 400));
@@ -441,7 +444,7 @@ exports.uploadProfilePic = catchAsync(async (req, res, next) => {
     // Update user's profile picture URL
     const userProfile = await UserProfile.findOneAndUpdate(
       { userId: req.user.id },
-      { 
+      {
         profilePhoto: {
           url: profilePhotoUrl,
           publicId: publicId || null,
@@ -460,7 +463,7 @@ exports.uploadProfilePic = catchAsync(async (req, res, next) => {
 
     // Also update the User model if needed
     await User.findByIdAndUpdate(
-      req.user.id, 
+      req.user.id,
       { profilePhoto: profilePhotoUrl }
     ).catch(err => {
       console.error('Error updating User model:', err);

@@ -21,7 +21,8 @@ import {
   MapPin,
   Phone,
   Sparkles,
-  Download
+  Download,
+  Coins
 } from "lucide-react";
 import axios from "axios";
 import {
@@ -68,15 +69,16 @@ interface Job {
 }
 
 interface DashboardOverviewProps {
-  company: Company;
-  stats: Stats; // Kept for interface compatibility but will override with real analytics data
+  company: any; // Updated to any to support subscription data without strict typing issues for now
+  stats: Stats;
   recentJobs: Job[];
   onPostJob: () => void;
+  onNavigate: (section: string) => void;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
-export function DashboardOverview({ company, recentJobs, onPostJob }: DashboardOverviewProps) {
+export function DashboardOverview({ company, recentJobs, onPostJob, onNavigate }: DashboardOverviewProps) {
   const [upcomingInterviews, setUpcomingInterviews] = useState<any[]>([]);
   const [pendingVotes, setPendingVotes] = useState<any[]>([]);
   const [loadingInterviews, setLoadingInterviews] = useState(false);
@@ -259,10 +261,13 @@ export function DashboardOverview({ company, recentJobs, onPostJob }: DashboardO
     totalInterviews: 0
   };
 
+  // Helper to get credits
+  const credits = company.subscription?.credits || 0;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Welcome Section */}
-      <div className="bg-linear-to-r from-slate-900 to-amber-700 rounded-xl p-8 text-white">
+      <div className="bg-gradient-to-r from-slate-900 to-amber-700 rounded-xl p-8 text-white">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">Welcome, {company.name}!</h1>
@@ -278,20 +283,43 @@ export function DashboardOverview({ company, recentJobs, onPostJob }: DashboardO
               <span>{company.location}</span>
             </div>
           </div>
-          <Button
-            onClick={onPostJob}
-            className="text-slate-900 hover:bg-slate-100"
-            style={{ backgroundColor: '#f5f3f0' }}
-            size="lg"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Post New Job
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={onPostJob}
+              className="text-slate-900 hover:bg-slate-100"
+              style={{ backgroundColor: '#f5f3f0' }}
+              size="lg"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Post New Job
+            </Button>
+            <Button
+              variant="outline"
+              className="border-amber-500 text-amber-100 hover:bg-amber-900/20"
+              onClick={() => onNavigate('billing')}
+            >
+              <Coins className="h-4 w-4 mr-2 text-yellow-500" />
+              {credits.toFixed(1)} Credits Available
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Stats Cards - Using Real Analytics Data */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="p-6 bg-gradient-to-br from-yellow-50 to-amber-50 border-amber-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-amber-700 text-sm font-medium">Credits</p>
+              <p className="text-3xl font-bold text-amber-800 mt-1">{credits.toFixed(1)}</p>
+              <p className="text-xs text-amber-600 mt-2 cursor-pointer hover:underline" onClick={() => onNavigate('billing')}>Buy More</p>
+            </div>
+            <div className="h-12 w-12 bg-amber-200 rounded-lg flex items-center justify-center">
+              <Coins className="h-6 w-6 text-amber-700" />
+            </div>
+          </div>
+        </Card>
+
         <Card className="p-6 bg-linear-to-br from-slate-50 to-slate-100 border-slate-200">
           <div className="flex items-center justify-between">
             <div>
@@ -566,10 +594,10 @@ export function DashboardOverview({ company, recentJobs, onPostJob }: DashboardO
                               <Badge
                                 variant="outline"
                                 className={`text-xs ${voteInfo.availability === 'available'
-                                    ? 'border-green-300 text-green-700 bg-green-50'
-                                    : voteInfo.availability === 'maybe'
-                                      ? 'border-amber-300 text-amber-700 bg-amber-50'
-                                      : 'border-red-300 text-red-700 bg-red-50'
+                                  ? 'border-green-300 text-green-700 bg-green-50'
+                                  : voteInfo.availability === 'maybe'
+                                    ? 'border-amber-300 text-amber-700 bg-amber-50'
+                                    : 'border-red-300 text-red-700 bg-red-50'
                                   }`}
                               >
                                 {voteInfo.availability}

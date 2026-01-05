@@ -43,7 +43,7 @@ exports.getJobById = asyncHandler(async (req, res, next) => {
     { $inc: { 'stats.views': 1 } },
     { new: true }
   ).populate('employer', 'firstName lastName company email')
-   .populate('company', 'name logo industry size location description website socialLinks foundedYear');
+    .populate('company', 'name logo industry size location description website socialLinks foundedYear');
 
   if (!job) {
     return sendError(res, 404, 'Job not found');
@@ -56,43 +56,56 @@ exports.getJobById = asyncHandler(async (req, res, next) => {
 // @route POST /api/v1/jobs
 // @access Private/Employer
 exports.createJob = asyncHandler(async (req, res, next) => {
-  // logger.info(`Create Job Request Body: ${JSON.stringify(req.body)}`); // Debug log
+  const mongoose = require('mongoose');
+  const billingController = require('./billingController');
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
+    // Deduct Credits first
+    await billingController.checkAndDeductCredits(req.user._id, 'JOB_POST', session);
+
     // Validate that company exists
     const Company = require('../models/Company');
-    const company = await Company.findById(req.body.company);
+    const company = await Company.findById(req.body.company).session(session);
     if (!company) {
-      return sendError(res, 400, 'Invalid company selected');
+      throw new Error('Invalid company selected');
     }
 
     const jobData = {
       ...req.body,
       employer: req.user._id,
-      status: req.body.status || 'published', // Default to published if not specified
+      status: req.body.status || 'published',
     };
 
-    const job = await Job.create(jobData);
+    const job = await Job.create([jobData], { session });
+    const createdJob = job[0];
 
     // Add job to company's jobs array
     await Company.findByIdAndUpdate(req.body.company, {
-      $push: { jobs: job._id },
+      $push: { jobs: createdJob._id },
       $inc: { 'stats.jobsPosted': 1 }
-    });
+    }, { session });
 
-    logger.info(`Job created: ${job._id}`);
+    await session.commitTransaction();
+    session.endSession();
 
-    // Create notification for the employer
+    logger.info(`Job created: ${createdJob._id}`);
+
+    // Create notification for the employer (Notifications don't strictly need to be in the transaction, but safe to keep out or in)
+    // Keeping them out of the transaction critical path to avoid locking if notification service is slow/complex, 
+    // although strictly they should be "after commit".
+
     try {
       await notificationService.createNotification(
         req.user._id,
         'job_posted',
         'Job Posted Successfully',
-        `Your job posting for "${job.title}" has been created successfully.`,
+        `Your job posting for "${createdJob.title}" has been created successfully.`,
         {
-          jobId: job._id,
-          jobTitle: job.title,
-          link: `/jobs/${job._id}`
+          jobId: createdJob._id,
+          jobTitle: createdJob.title,
+          link: `/jobs/${createdJob._id}`
         }
       );
     } catch (error) {
@@ -107,12 +120,12 @@ exports.createJob = asyncHandler(async (req, res, next) => {
           admin._id,
           'admin_new_job',
           'New Job Posted',
-          `${req.user.firstName}  (Company: ${company.name}) has posted a new job: ${job.title}`,
+          `${req.user.firstName} (Company: ${company.name}) has posted a new job: ${createdJob.title}`,
           {
-            jobId: job._id,
+            jobId: createdJob._id,
             employerId: req.user._id,
-            jobTitle: job.title,
-            link: `/admin/jobs/${job._id}`
+            jobTitle: createdJob.title,
+            link: `/admin/jobs/${createdJob._id}`
           }
         );
       }
@@ -120,13 +133,20 @@ exports.createJob = asyncHandler(async (req, res, next) => {
       logger.error(`Failed to create admin notification: ${error.message}`);
     }
 
-    return sendSuccess(res, 201, 'Job created successfully', job);
+    return sendSuccess(res, 201, 'Job created successfully', createdJob);
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(val => val.message);
       return sendError(res, 400, `Validation Error: ${messages.join(', ')}`);
+    } else if (error.message.includes('Insufficient credits')) {
+      return sendError(res, 402, error.message); // Payment Required
     }
-    throw error;
+
+    // Pass to global error handler or throw
+    return sendError(res, 400, error.message || 'Job creation failed');
   }
 });
 

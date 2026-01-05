@@ -256,6 +256,7 @@ export default function EmployerDashboard() {
           onNavigate={setActiveSection}
           onLogout={handleLogout}
           onUpgrade={handleUpgrade}
+          stats={stats}
         />
 
         {/* Main Content */}
@@ -336,6 +337,7 @@ export default function EmployerDashboard() {
                       stats={stats}
                       recentJobs={jobs.slice(0, 3)}
                       onPostJob={handlePostJob}
+                      onNavigate={setActiveSection}
                     />
                   )}
 
