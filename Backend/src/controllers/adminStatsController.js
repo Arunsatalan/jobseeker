@@ -216,3 +216,93 @@ exports.getRecentActivities = asyncHandler(async (req, res, next) => {
 
     return sendSuccess(res, 200, 'Recent activities retrieved', allActivities);
 });
+
+// @desc Get applications statistics and list
+// @route GET /api/v1/admin/stats/applications
+// @access Private/Admin
+exports.getApplicationsStats = asyncHandler(async (req, res, next) => {
+    // 1. Stats Cards Data
+    const total = await Application.countDocuments();
+    const pending = await Application.countDocuments({ status: 'Applied' });
+    const inReview = await Application.countDocuments({ status: { $in: ['Reviewed', 'Interview'] } });
+    const hired = await Application.countDocuments({ status: 'Hired' });
+    const rejected = await Application.countDocuments({ status: 'Rejected' });
+
+    // Simplified flagged logic 
+    const flagged = 0;
+
+    // 2. Trends Data (Last 6 Months)
+    const trendsAggregation = await Application.aggregate([
+        {
+            $group: {
+                _id: {
+                    year: { $year: "$createdAt" },
+                    month: { $month: "$createdAt" },
+                    status: "$status"
+                },
+                count: { $sum: 1 }
+            }
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } }
+    ]);
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const trendsMap = {};
+
+    trendsAggregation.forEach(item => {
+        const key = `${monthNames[item._id.month - 1]}`;
+        if (!trendsMap[key]) trendsMap[key] = { month: key, applied: 0, reviewed: 0, interviewed: 0, hired: 0 };
+
+        const status = item._id.status;
+        if (status === 'Applied') trendsMap[key].applied += item.count;
+        if (status === 'Reviewed') trendsMap[key].reviewed += item.count;
+        if (status === 'Interview') trendsMap[key].interviewed += item.count;
+        if (status === 'Hired') trendsMap[key].hired += item.count;
+    });
+    const trendsData = Object.values(trendsMap).slice(-6);
+
+    // 3. Status Distribution
+    const statusDistribution = [
+        { status: 'Applied', count: pending, color: '#3b82f6' },
+        { status: 'Reviewed', count: await Application.countDocuments({ status: 'Reviewed' }), color: '#f59e0b' },
+        { status: 'Interview', count: await Application.countDocuments({ status: 'Interview' }), color: '#8b5cf6' },
+        { status: 'Rejected', count: rejected, color: '#ef4444' },
+        { status: 'Hired', count: hired, color: '#10b981' },
+    ];
+
+    // 4. Detailed Applications List 
+    const { status } = req.query;
+    let query = {};
+    if (status && status !== 'all') query.status = status;
+
+    const recentApplications = await Application.find(query)
+        .populate('applicant', 'firstName lastName email profilePhoto')
+        .populate({ path: 'job', select: 'title company', populate: { path: 'employer', select: 'firstName lastName' } })
+        .sort({ createdAt: -1 })
+        .limit(50);
+
+    const formattedApplications = recentApplications.map(app => ({
+        id: app._id,
+        applicantName: app.applicant ? `${app.applicant.firstName} ${app.applicant.lastName}` : 'Unknown',
+        applicantAvatar: app.applicant?.profilePhoto?.url || "",
+        applicantEmail: app.applicant?.email || "",
+        jobTitle: app.job?.title || "Unknown Job",
+        company: "TechCorp (Demo)", // Need deep population or company field
+        companyLogo: "",
+        status: app.status,
+        appliedDate: app.createdAt,
+        experience: "N/A",
+        rating: app.rating || null,
+        flagged: false,
+        matchScore: app.aiScore || 0,
+        resumeAttached: !!app.resume,
+        coverLetter: !!app.coverLetter
+    }));
+
+    return sendSuccess(res, 200, 'Applications stats retrieved', {
+        stats: { total, pending, inReview, hired, flagged },
+        trends: trendsData.length > 0 ? trendsData : [{ month: 'No Data', applied: 0 }],
+        distribution: statusDistribution,
+        applications: formattedApplications
+    });
+});

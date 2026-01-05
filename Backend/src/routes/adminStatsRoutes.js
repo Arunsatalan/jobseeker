@@ -20,5 +20,6 @@ router.get('/revenue', getRevenueStats);
 router.get('/user-growth', getUserGrowthStats);
 router.get('/geography', getGeographyStats);
 router.get('/activities/recent', getRecentActivities);
+router.get('/applications', require('../controllers/adminStatsController').getApplicationsStats);
 
 module.exports = router;
