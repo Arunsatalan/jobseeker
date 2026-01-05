@@ -340,6 +340,7 @@ export function ApplicantTracking({ jobs }: ApplicantTrackingProps) {
               onStatusChange={(status) => handleStatusChange(selectedApplicant.id, status)}
               onViewResume={handleViewResume}
               loadingResume={loadingResume}
+              onRefresh={refresh}
             />
           </DialogContent>
         </Dialog>
@@ -654,7 +655,7 @@ function ApplicantList({ applicants, onSelectApplicant, onStatusChange, onSchedu
 }
 
 // Update the ApplicantDetails component signature and logic
-function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadingResume }: { applicant: Applicant, jobs: Job[], onStatusChange: (status: string) => void, onViewResume: (applicant: Applicant) => void, loadingResume: boolean }) {
+function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadingResume, onRefresh }: { applicant: Applicant, jobs: Job[], onStatusChange: (status: string) => void, onViewResume: (applicant: Applicant) => void, loadingResume: boolean, onRefresh?: () => void }) {
   const [notes, setNotes] = useState(applicant.notes || "");
   const [rating, setRating] = useState(applicant.rating || 0);
   const [showCoverLetterModal, setShowCoverLetterModal] = useState(false);
@@ -664,12 +665,14 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
   const [confirmedInterview, setConfirmedInterview] = useState<any | null>(null);
   const [loadingInterview, setLoadingInterview] = useState(false);
   const [detailedRatings, setDetailedRatings] = useState({
-    technical: applicant.rating || 0,
-    cultural: 0,
-    communication: 0,
-    experience: 0
+    technical: (applicant as any)?.detailedRatings?.technical || applicant.rating || 0,
+    cultural: (applicant as any)?.detailedRatings?.cultural || 0,
+    communication: (applicant as any)?.detailedRatings?.communication || 0,
+    experience: (applicant as any)?.detailedRatings?.experience || 0
   });
   const [reviewDeadlineDays] = useState(5); // 5 business days for initial review
+  const [savingRating, setSavingRating] = useState(false);
+  const [ratingSaved, setRatingSaved] = useState(false);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
   // Get job title from applicant job object or jobs array
@@ -687,6 +690,18 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
     }
     return 'Position';
   };
+
+  // Update detailed ratings when applicant changes
+  useEffect(() => {
+    const newRatings = {
+      technical: (applicant as any)?.detailedRatings?.technical || applicant.rating || 0,
+      cultural: (applicant as any)?.detailedRatings?.cultural || 0,
+      communication: (applicant as any)?.detailedRatings?.communication || 0,
+      experience: (applicant as any)?.detailedRatings?.experience || 0
+    };
+    console.log('Loading detailed ratings for applicant:', applicant._id || applicant.id, newRatings, 'from applicant data:', (applicant as any)?.detailedRatings);
+    setDetailedRatings(newRatings);
+  }, [applicant._id, applicant.id]);
 
   // Calculate time since application and deadline
   const getApplicationTimeInfo = () => {
@@ -736,10 +751,19 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
       setLoadingInterview(true);
       try {
         const token = localStorage.getItem('token');
-        if (!token) return;
+        if (!token) {
+          console.warn('No token found, skipping interview slot fetch');
+          return;
+        }
+
+        const applicantId = applicant._id || applicant.id;
+        if (!applicantId) {
+          console.warn('No applicant ID, skipping interview slot fetch');
+          return;
+        }
 
         const response = await fetch(
-          `${apiUrl}/api/v1/interviews/slots/${applicant._id || applicant.id}`,
+          `${apiUrl}/api/v1/interviews/slots/${applicantId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -750,6 +774,11 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
           if (data.success && data.data && data.data.status === 'confirmed') {
             setConfirmedInterview(data.data);
           }
+        } else if (response.status === 404) {
+          // No interview slots yet - this is normal, don't log as error
+          console.log('No interview slots found for applicant');
+        } else {
+          console.warn(`Failed to load interview slots: ${response.status}`);
         }
       } catch (error) {
         console.error('Error loading interview:', error);
@@ -795,56 +824,128 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
     return () => clearTimeout(timeoutId);
   }, [notes, applicant._id, applicant.id, applicant.notes, apiUrl]);
 
-  // Save rating
-  const handleRatingChange = async (newRating: number) => {
-    setRating(newRating);
-    
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
+  // Save rating with debouncing (like notes)
+  useEffect(() => {
+    const saveRating = async () => {
+      if (rating === (applicant.rating || 0)) return; // No changes
       
-      await fetch(`${apiUrl}/api/v1/applications/${applicant._id || applicant.id}/rating`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ rating: newRating })
-      });
-    } catch (error) {
-      console.error('Error saving rating:', error);
-    }
+      setSavingRating(true);
+      setRatingSaved(false);
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.warn('No token found for saving rating');
+          return;
+        }
+        
+        const applicantId = applicant._id || applicant.id;
+        const url = `${apiUrl}/api/v1/applications/${applicantId}/rating`;
+        console.log('Saving overall rating:', rating, 'to:', url);
+        
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ rating })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          console.log('✓ Overall rating saved successfully:', rating);
+          setRatingSaved(true);
+          setTimeout(() => setRatingSaved(false), 2000);
+        } else {
+          console.error('Failed to save overall rating:', response.status, data);
+        }
+      } catch (error) {
+        console.error('Error saving overall rating:', error);
+      } finally {
+        setSavingRating(false);
+      }
+    };
+
+    const timeoutId = setTimeout(saveRating, 1000); // Debounce 1 second
+    return () => clearTimeout(timeoutId);
+  }, [rating, applicant._id, applicant.id, applicant.rating, apiUrl]);
+
+  // Save detailed ratings with debouncing
+  useEffect(() => {
+    const saveDetailedRatings = async () => {
+      // Calculate overall rating as average
+      const overallRating = Math.round(
+        Object.values(detailedRatings).reduce((sum, val) => sum + val, 0) / Object.values(detailedRatings).length
+      );
+
+      setSavingRating(true);
+      setRatingSaved(false);
+      
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.warn('No token found for saving detailed ratings');
+          return;
+        }
+        
+        const applicantId = applicant._id || applicant.id;
+        const url = `${apiUrl}/api/v1/applications/${applicantId}/rating`;
+        const payload = { 
+          rating: overallRating,
+          detailedRatings
+        };
+        console.log('Saving detailed ratings:', payload, 'to:', url);
+        
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          console.log('✓ Detailed ratings saved successfully:', payload);
+          setRatingSaved(true);
+          setTimeout(() => setRatingSaved(false), 2000);
+          // Refresh applications list to update UI with new data from database
+          if (onRefresh) {
+            setTimeout(() => onRefresh(), 500);
+          }
+        } else {
+          console.error('Failed to save detailed ratings:', response.status, data);
+        }
+      } catch (error) {
+        console.error('Error saving detailed ratings:', error);
+      } finally {
+        setSavingRating(false);
+      }
+    };
+
+    const timeoutId = setTimeout(saveDetailedRatings, 1000); // Debounce 1 second
+    return () => clearTimeout(timeoutId);
+  }, [detailedRatings, applicant._id, applicant.id, apiUrl]);
+
+  // Handle rating change - just update state, useEffect handles saving
+  const handleRatingChange = (newRating: number) => {
+    setRating(newRating);
   };
 
-  // Save detailed ratings
-  const handleDetailedRatingChange = async (category: string, value: number) => {
+  // Handle detailed rating change - just update state, useEffect handles saving
+  const handleDetailedRatingChange = (category: string, value: number) => {
     const updated = { ...detailedRatings, [category]: value };
+    console.log('Rating changed:', category, 'to', value, 'Updated ratings:', updated);
     setDetailedRatings(updated);
     
     // Calculate overall rating as average
     const overallRating = Math.round(
       Object.values(updated).reduce((sum, val) => sum + val, 0) / Object.values(updated).length
     );
+    console.log('Overall rating calculated:', overallRating);
     setRating(overallRating);
-    
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      
-      await fetch(`${apiUrl}/api/v1/applications/${applicant._id || applicant.id}/rating`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          rating: overallRating,
-          detailedRatings: updated
-        })
-      });
-    } catch (error) {
-      console.error('Error saving detailed rating:', error);
-    }
   };
 
   // Download cover letter as PDF
@@ -1183,9 +1284,25 @@ function ApplicantDetails({ applicant, jobs, onStatusChange, onViewResume, loadi
       <Card className="p-4">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Overall Rating
-            </label>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Overall Rating
+              </label>
+              <div className="flex items-center gap-2">
+                {savingRating && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Saving...
+                  </span>
+                )}
+                {ratingSaved && (
+                  <span className="text-xs text-green-600 flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Saved
+                  </span>
+                )}
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               {renderStars(rating, handleRatingChange, 'lg')}
               <span className="ml-2 text-sm text-gray-600">({rating}/5)</span>

@@ -142,21 +142,34 @@ export function Sidebar({ user, activeSection = "user-info", onNavigate, onLogou
               <button
                 key={item.id}
                 onClick={() => handleNavigate(item.id)}
-                disabled={isLocked && false} // We don't want to actually disable the button, just style it and intercept click
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all duration-200 ${isActive
-                  ? "bg-amber-600 text-white shadow-md"
-                  : "text-gray-700 hover:bg-amber-50"
-                  } ${isLocked ? "opacity-60 cursor-not-allowed bg-gray-50" : ""}`}
+                disabled={isLocked && false}
+                className={`group w-full flex items-center justify-between px-4 py-3 mb-1.5 rounded-xl transition-all duration-300 relative overflow-hidden ${isActive
+                  ? "bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg shadow-amber-900/20 translate-x-1"
+                  : "text-gray-600 hover:bg-amber-50 hover:text-amber-800 hover:translate-x-1 hover:shadow-sm"
+                  } ${isLocked ? "opacity-70 cursor-not-allowed bg-gray-50/50 grayscale-[0.5]" : ""}`}
               >
-                <div className="flex items-center gap-3">
-                  <Icon className="h-4 w-4" />
-                  <span className="text-sm font-medium">{item.label}</span>
-                </div>
-                {isLocked ? (
-                  <Lock className="h-4 w-4 text-gray-400" />
-                ) : (
-                  isActive && <ChevronRight className="h-4 w-4" />
+                {/* Active Indicator Glow */}
+                {isActive && (
+                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 )}
+
+                <div className="flex items-center gap-3.5 z-10">
+                  <div className={`p-1.5 rounded-lg transition-colors ${isActive ? "bg-white/20" : "bg-transparent group-hover:bg-amber-100/50"
+                    }`}>
+                    <Icon className={`h-4.5 w-4.5 ${isActive ? "text-white" : "text-gray-500 group-hover:text-amber-700"}`} />
+                  </div>
+                  <span className={`text-sm font-semibold tracking-wide ${isActive ? "text-white" : "text-gray-700 group-hover:text-amber-900"}`}>
+                    {item.label}
+                  </span>
+                </div>
+
+                <div className="z-10">
+                  {isLocked ? (
+                    <Lock className="h-4 w-4 text-gray-400 group-hover:text-amber-600/70 transition-colors" />
+                  ) : (
+                    isActive && <ChevronRight className="h-4 w-4 text-white/80 animate-in fade-in slide-in-from-left-1" />
+                  )}
+                </div>
               </button>
             );
           })}
@@ -179,26 +192,26 @@ export function Sidebar({ user, activeSection = "user-info", onNavigate, onLogou
 
   return (
     <>
-      {/* Mobile Sidebar Toggle */}
-      <div className="lg:hidden fixed top-4 left-4 z-40">
+      {/* Mobile Sidebar Toggle - Only visible on small screens if not using bottom nav */}
+      <div className="lg:hidden fixed top-4 left-4 z-50">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
             <Button
               size="icon"
               variant="outline"
-              className="rounded-lg bg-white border-gray-300"
+              className="rounded-full bg-white/90 backdrop-blur border-gray-200 shadow-sm hover:bg-amber-50"
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="h-5 w-5 text-gray-700" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0">
+          <SheetContent side="left" className="w-80 p-0 border-r-0">
             <SidebarContent />
           </SheetContent>
         </Sheet>
       </div>
 
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:block w-64 h-screen sticky top-0">
+      {/* Desktop Sidebar - Fills the parent container */}
+      <div className="hidden lg:block w-full h-full">
         <SidebarContent />
       </div>
     </>

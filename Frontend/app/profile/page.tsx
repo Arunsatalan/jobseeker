@@ -5,7 +5,7 @@ import { ProtectedLayout } from "@/components/ProtectedLayout";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { LogOut, User, FileText, Briefcase, Settings } from "lucide-react";
+import { LogOut, User, FileText, Briefcase, Settings, Loader2 } from "lucide-react";
 import { Sidebar } from "@/components/profile/Sidebar";
 import { ProfileOverview } from "@/components/profile/ProfileOverview";
 import { ResumeListView } from "@/components/profile/ResumeListView";
@@ -27,7 +27,6 @@ import {
 
 export default function ProfilePage() {
   const { user, logout, isLoading } = useAuth()
-  const [profileVisible, setProfileVisible] = useState(true);
   const [userResumes, setUserResumes] = useState<any[]>([]);
   const [activeSection, setActiveSection] = useState("user-info");
   const [editingResumeId, setEditingResumeId] = useState<string | null>(null);
@@ -159,9 +158,9 @@ export default function ProfilePage() {
               summary: data.summary,
               experience: data.experience || [],
               education: data.education || [],
-              skills: data.skills?.map(group => ({
+              skills: data.skills?.map((group: any) => ({
                 category: group.category || 'other',
-                items: group.items && Array.isArray(group.items) ? group.items.filter(item => item && item.trim()) : []
+                items: group.items && Array.isArray(group.items) ? group.items.filter((item: any) => item && item.trim()) : []
               })) || [],
               certifications: data.certifications || [],
               languages: data.languages || [],
@@ -227,8 +226,9 @@ export default function ProfilePage() {
     <ProtectedLayout>
       {/* Show loading while auth is being checked */}
       {isLoading ? (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-amber-500"></div>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-amber-50 via-white to-purple-50">
+          <Loader2 className="h-12 w-12 animate-spin text-amber-600 mb-4" />
+          <p className="text-gray-500 font-medium animate-pulse">Loading profile...</p>
         </div>
       ) : !user ? (
         <div className="min-h-screen flex items-center justify-center">
@@ -427,19 +427,27 @@ function ProfilePageContent({
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-amber-50 via-white to-purple-50 flex">
-      {/* Professional Sidebar */}
-      <Sidebar
-        user={user}
-        activeSection={activeSection}
-        onNavigate={setActiveSection}
-        onLogout={handleLogout}
-      />
+    <div className="flex h-screen bg-gray-50/50 overflow-hidden font-sans selection:bg-amber-100 selection:text-amber-900">
 
-      {/* Main Content */}
-      <div className="flex-1 lg:ml-0">
+      {/* Sidebar - Fixed with glass effect */}
+      <aside className="hidden lg:block w-80 h-full border-r border-gray-200 bg-white/80 backdrop-blur-md shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] z-20 transition-all duration-300">
+        <Sidebar
+          user={user}
+          activeSection={activeSection}
+          onNavigate={setActiveSection}
+          onLogout={handleLogout}
+        />
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto relative scroll-smooth">
+        {/* Decorative Background Elements */}
+        <div className="fixed top-0 left-0 w-full h-96 bg-gradient-to-b from-amber-50/80 to-transparent -z-10 pointer-events-none" />
+        <div className="fixed top-20 right-20 w-64 h-64 bg-purple-100/30 rounded-full blur-3xl -z-10 pointer-events-none" />
+        <div className="fixed top-40 left-60 w-96 h-96 bg-amber-100/20 rounded-full blur-3xl -z-10 pointer-events-none" />
+
         {/* Mobile Header */}
-        <div className="lg:hidden bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+        <div className="lg:hidden bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-30 shadow-sm">
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10 border-2 border-amber-500">
@@ -448,34 +456,44 @@ function ProfilePageContent({
                   <User className="h-5 w-5 text-amber-700" />
                 </AvatarFallback>
               </Avatar>
-              <div>
-                <p className="font-semibold text-gray-900">{user.name || user.email}</p>
-                <Badge className="text-xs bg-amber-100 text-amber-700">
+              <div className="flex flex-col">
+                <p className="font-semibold text-gray-900 text-sm">{user.name || user.email}</p>
+                <Badge className="text-[10px] w-fit px-1.5 py-0 bg-amber-100 text-amber-700 hover:bg-amber-200 border-none shadow-none">
                   {user.accountType || 'Free'}
                 </Badge>
               </div>
             </div>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-4 w-4 text-gray-500" />
             </Button>
+          </div>
+          {/* Mobile Nav Tabs */}
+          <div className="px-2 pb-2 flex overflow-x-auto gap-2 no-scrollbar">
+            {[
+              { id: 'user-info', label: 'Profile', icon: User },
+              { id: 'resumes', label: 'Resumes', icon: FileText },
+              { id: 'preferences', label: 'Jobs', icon: Briefcase },
+              { id: 'settings', label: 'Settings', icon: Settings },
+            ].map(item => (
+              <button
+                key={item.id}
+                onClick={() => setActiveSection(item.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${activeSection === item.id
+                    ? 'bg-amber-600 text-white shadow-md shadow-amber-200'
+                    : 'bg-gray-100 text-gray-600'
+                  }`}
+              >
+                <item.icon className="h-3 w-3" />
+                {item.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 py-6 lg:py-10 pt-16 lg:pt-10">
-          {/* Desktop Header */}
-          <div className="hidden lg:flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">Profile Dashboard</h1>
-              <p className="text-gray-600">Manage your profile, resumes, and job preferences</p>
-            </div>
-            <Button variant="destructive" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
+        <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8 lg:py-10">
 
-          {/* Main Content - Show selected section only */}
-          <div className="max-w-4xl mx-auto">
+          {/* Section Content */}
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             {editingResumeId && (
               <div className="mb-8">
                 <ResumeBuilder
@@ -533,14 +551,11 @@ function ProfilePageContent({
                   const resumeIndex = userResumes.findIndex(r => (r._id || r.id) === id);
                   if (resumeIndex >= 0) {
                     handleResumeDelete(resumeIndex);
-                  } else {
-                    console.error('Resume not found:', id);
                   }
                 }}
                 onCreateNew={handleCreateNewResume}
                 onOptimize={(id) => {
                   console.log('Optimize resume:', id);
-                  // Implement optimize functionality
                 }}
               />
             )}
@@ -564,7 +579,7 @@ function ProfilePageContent({
                 jobMatchScore={87}
                 savedJobs={12}
                 applications={5}
-                skillGaps={user?.skills?.filter(skill => skill.category === 'gap')?.map(s => s.name) || []}
+                skillGaps={user?.skills?.filter((skill: any) => skill.category === 'gap')?.map((s: any) => s.name) || []}
               />
             )}
 
@@ -581,50 +596,10 @@ function ProfilePageContent({
               />
             )}
           </div>
-
-          {/* Mobile Bottom Navigation */}
-          <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 shadow-lg">
-            <div className="flex justify-around">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`flex flex-col gap-1 ${activeSection === "user-info" ? "text-amber-600" : ""}`}
-                onClick={() => setActiveSection("user-info")}
-              >
-                <User className="h-4 w-4" />
-                <span className="text-xs">Profile</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`flex flex-col gap-1 ${activeSection === "resumes" ? "text-amber-600" : ""}`}
-                onClick={() => setActiveSection("resumes")}
-              >
-                <FileText className="h-4 w-4" />
-                <span className="text-xs">Resumes</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`flex flex-col gap-1 ${activeSection === "preferences" ? "text-amber-600" : ""}`}
-                onClick={() => setActiveSection("preferences")}
-              >
-                <Briefcase className="h-4 w-4" />
-                <span className="text-xs">Jobs</span>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`flex flex-col gap-1 ${activeSection === "settings" ? "text-amber-600" : ""}`}
-                onClick={() => setActiveSection("settings")}
-              >
-                <Settings className="h-4 w-4" />
-                <span className="text-xs">Settings</span>
-              </Button>
-            </div>
-          </div>
         </div>
-      </div>
+      </main>
+
+      {/* Modals are rendered below */}
 
       {/* Profile Completion Modal */}
       <Dialog open={needsProfileCompletion} onOpenChange={setNeedsProfileCompletion}>
