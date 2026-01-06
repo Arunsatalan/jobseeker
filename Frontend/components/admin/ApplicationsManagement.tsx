@@ -129,11 +129,11 @@ export function ApplicationsManagement() {
       (app.company || "").toLowerCase().includes(searchQuery.toLowerCase());
 
     // Client-side filtering for demonstration, ideally server-side for large datasets
-    const matchesStatus = filterStatus === "all" || app.status.toLowerCase() === filterStatus;
+    const matchesStatus = filterStatus === "all" || (app.status || "").toLowerCase() === filterStatus;
     const matchesCompany = filterCompany === "all" || app.company === filterCompany;
     const matchesTab = selectedTab === "all" ||
       (selectedTab === "flagged" && app.flagged) ||
-      (selectedTab === "active" && ["Applied", "Reviewed", "Interview"].includes(app.status));
+      (selectedTab === "active" && ["Applied", "Reviewing", "Shortlisted", "Interview", "Offered"].includes(app.status));
 
     return matchesSearch && matchesStatus && matchesCompany && matchesTab;
   });
@@ -151,25 +151,31 @@ export function ApplicationsManagement() {
   };
 
   const StatusBadge = ({ status }: { status: string }) => {
-    const variants = {
+    const variants: Record<string, string> = {
       Applied: "bg-blue-100 text-blue-800 border-blue-200",
-      Reviewed: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      Reviewing: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      Shortlisted: "bg-yellow-100 text-yellow-800 border-yellow-200",
       Interview: "bg-purple-100 text-purple-800 border-purple-200",
+      Offered: "bg-purple-100 text-purple-800 border-purple-200",
       Rejected: "bg-red-100 text-red-800 border-red-200",
-      Hired: "bg-green-100 text-green-800 border-green-200",
+      Accepted: "bg-green-100 text-green-800 border-green-200",
+      Hired: "bg-green-100 text-green-800 border-green-200", // Fallback
     };
 
-    const icons = {
+    const icons: Record<string, any> = {
       Applied: <Clock className="w-3 h-3" />,
-      Reviewed: <Eye className="w-3 h-3" />,
+      Reviewing: <Eye className="w-3 h-3" />,
+      Shortlisted: <Eye className="w-3 h-3" />,
       Interview: <MessageSquare className="w-3 h-3" />,
+      Offered: <ThumbsUp className="w-3 h-3" />,
       Rejected: <XCircle className="w-3 h-3" />,
+      Accepted: <CheckCircle className="w-3 h-3" />,
       Hired: <CheckCircle className="w-3 h-3" />,
     };
 
     return (
-      <Badge className={`${variants[status as keyof typeof variants]} flex items-center gap-1 font-medium border`}>
-        {icons[status as keyof typeof icons]}
+      <Badge className={`${variants[status] || variants.Applied} flex items-center gap-1 font-medium border`}>
+        {icons[status] || icons.Applied}
         {status}
       </Badge>
     );
@@ -386,10 +392,12 @@ export function ApplicationsManagement() {
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="applied">Applied</SelectItem>
-                    <SelectItem value="reviewed">Reviewed</SelectItem>
+                    <SelectItem value="reviewing">Reviewing</SelectItem>
+                    <SelectItem value="shortlisted">Shortlisted</SelectItem>
                     <SelectItem value="interview">Interview</SelectItem>
+                    <SelectItem value="offered">Offered</SelectItem>
+                    <SelectItem value="accepted">Hired</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
-                    <SelectItem value="hired">Hired</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -452,7 +460,7 @@ export function ApplicationsManagement() {
                           <div className="flex items-center gap-3">
                             <Avatar className="h-10 w-10 border border-gray-200">
                               <AvatarImage src={application.applicantAvatar} alt={application.applicantName} />
-                              <AvatarFallback>{application.applicantName.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                              <AvatarFallback>{application.applicantName.split(' ').map((n: string) => n[0]).join('')}</AvatarFallback>
                             </Avatar>
                             <div>
                               <div className="font-semibold text-gray-900">{application.applicantName}</div>

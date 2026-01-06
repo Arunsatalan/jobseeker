@@ -223,10 +223,10 @@ exports.getRecentActivities = asyncHandler(async (req, res, next) => {
 exports.getApplicationsStats = asyncHandler(async (req, res, next) => {
     // 1. Stats Cards Data
     const total = await Application.countDocuments();
-    const pending = await Application.countDocuments({ status: 'Applied' });
-    const inReview = await Application.countDocuments({ status: { $in: ['Reviewed', 'Interview'] } });
-    const hired = await Application.countDocuments({ status: 'Hired' });
-    const rejected = await Application.countDocuments({ status: 'Rejected' });
+    const pending = await Application.countDocuments({ status: 'applied' });
+    const inReview = await Application.countDocuments({ status: { $in: ['reviewing', 'shortlisted', 'interview', 'offered'] } });
+    const hired = await Application.countDocuments({ status: 'accepted' });
+    const rejected = await Application.countDocuments({ status: 'rejected' });
 
     // Simplified flagged logic 
     const flagged = 0;
@@ -249,23 +249,31 @@ exports.getApplicationsStats = asyncHandler(async (req, res, next) => {
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const trendsMap = {};
 
-    trendsAggregation.forEach(item => {
-        const key = `${monthNames[item._id.month - 1]}`;
-        if (!trendsMap[key]) trendsMap[key] = { month: key, applied: 0, reviewed: 0, interviewed: 0, hired: 0 };
+    // Fill last 6 months 
+    const today = new Date();
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const name = monthNames[d.getMonth()];
+        trendsMap[name] = { month: name, applied: 0, reviewed: 0, interviewed: 0, hired: 0 };
+    }
 
-        const status = item._id.status;
-        if (status === 'Applied') trendsMap[key].applied += item.count;
-        if (status === 'Reviewed') trendsMap[key].reviewed += item.count;
-        if (status === 'Interview') trendsMap[key].interviewed += item.count;
-        if (status === 'Hired') trendsMap[key].hired += item.count;
+    trendsAggregation.forEach(item => {
+        const key = monthNames[item._id.month - 1];
+        if (trendsMap[key]) {
+            const status = item._id.status;
+            if (status === 'applied') trendsMap[key].applied += item.count;
+            if (['reviewing', 'shortlisted', 'offered'].includes(status)) trendsMap[key].reviewed += item.count;
+            if (status === 'interview') trendsMap[key].interviewed += item.count;
+            if (status === 'accepted') trendsMap[key].hired += item.count;
+        }
     });
-    const trendsData = Object.values(trendsMap).slice(-6);
+    const trendsData = Object.values(trendsMap);
 
     // 3. Status Distribution
     const statusDistribution = [
         { status: 'Applied', count: pending, color: '#3b82f6' },
-        { status: 'Reviewed', count: await Application.countDocuments({ status: 'Reviewed' }), color: '#f59e0b' },
-        { status: 'Interview', count: await Application.countDocuments({ status: 'Interview' }), color: '#8b5cf6' },
+        { status: 'In Review', count: inReview, color: '#f59e0b' },
+        { status: 'Interview', count: await Application.countDocuments({ status: 'interview' }), color: '#8b5cf6' },
         { status: 'Rejected', count: rejected, color: '#ef4444' },
         { status: 'Hired', count: hired, color: '#10b981' },
     ];
@@ -273,7 +281,7 @@ exports.getApplicationsStats = asyncHandler(async (req, res, next) => {
     // 4. Detailed Applications List 
     const { status } = req.query;
     let query = {};
-    if (status && status !== 'all') query.status = status;
+    if (status && status !== 'all') query.status = status.toLowerCase();
 
     const recentApplications = await Application.find(query)
         .populate('applicant', 'firstName lastName email profilePhoto')
@@ -281,23 +289,26 @@ exports.getApplicationsStats = asyncHandler(async (req, res, next) => {
         .sort({ createdAt: -1 })
         .limit(50);
 
-    const formattedApplications = recentApplications.map(app => ({
-        id: app._id,
-        applicantName: app.applicant ? `${app.applicant.firstName} ${app.applicant.lastName}` : 'Unknown',
-        applicantAvatar: app.applicant?.profilePhoto?.url || "",
-        applicantEmail: app.applicant?.email || "",
-        jobTitle: app.job?.title || "Unknown Job",
-        company: "TechCorp (Demo)", // Need deep population or company field
-        companyLogo: "",
-        status: app.status,
-        appliedDate: app.createdAt,
-        experience: "N/A",
-        rating: app.rating || null,
-        flagged: false,
-        matchScore: app.aiScore || 0,
-        resumeAttached: !!app.resume,
-        coverLetter: !!app.coverLetter
-    }));
+    const formattedApplications = recentApplications.map(app => {
+        const displayStatus = app.status ? (app.status.charAt(0).toUpperCase() + app.status.slice(1)) : 'Unknown';
+        return {
+            id: app._id,
+            applicantName: app.applicant ? `${app.applicant.firstName} ${app.applicant.lastName}` : 'Unknown',
+            applicantAvatar: app.applicant?.profilePhoto?.url || "",
+            applicantEmail: app.applicant?.email || "",
+            jobTitle: app.job?.title || "Unknown Job",
+            company: "TechCorp (Demo)",
+            companyLogo: "",
+            status: displayStatus,
+            appliedDate: app.createdAt,
+            experience: "N/A",
+            rating: app.rating || null,
+            flagged: false,
+            matchScore: app.aiScore || 0,
+            resumeAttached: !!app.resume,
+            coverLetter: !!app.coverLetter
+        };
+    });
 
     return sendSuccess(res, 200, 'Applications stats retrieved', {
         stats: { total, pending, inReview, hired, flagged },
