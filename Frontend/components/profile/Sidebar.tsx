@@ -39,6 +39,7 @@ const navigationItems = [
   { id: "user-info", label: "Profile", icon: User },
   { id: "preferences", label: "Preferences", icon: Briefcase },
   { id: "resumes", label: "Resumes", icon: FileText },
+  // { id: "matches", label: "Matches", icon: Sparkles },
   { id: "progress", label: "Interviews", icon: TrendingUp },
   { id: "settings", label: "Settings", icon: Settings },
 ];
@@ -129,8 +130,8 @@ export function Sidebar({ user, activeSection = "user-info", onNavigate, onLogou
                   key={item.id}
                   onClick={() => handleNavigate(item.id)}
                   className={`relative w-full flex items-center p-3 rounded-2xl transition-all duration-300 group overflow-hidden ${isActive
-                      ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25"
-                      : "text-gray-500 hover:bg-amber-50 hover:text-amber-700"
+                    ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/25"
+                    : "text-gray-500 hover:bg-amber-50 hover:text-amber-700"
                     }`}
                 >
                   {/* Active Indicator Line (only visible when collapsed) */}
@@ -220,8 +221,8 @@ export function Sidebar({ user, activeSection = "user-info", onNavigate, onLogou
                 key={item.id}
                 onClick={() => handleNavigate(item.id)}
                 className={`w-full flex items-center p-4 rounded-xl text-lg font-medium transition-all duration-200 ${activeSection === item.id
-                    ? "bg-amber-50 text-amber-700 shadow-sm"
-                    : "text-gray-600 hover:bg-gray-50"
+                  ? "bg-amber-50 text-amber-700 shadow-sm"
+                  : "text-gray-600 hover:bg-gray-50"
                   }`}
               >
                 <item.icon className={`h-6 w-6 mr-4 ${activeSection === item.id ? "text-amber-600" : "text-gray-400"}`} />

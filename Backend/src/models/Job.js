@@ -82,6 +82,8 @@ const jobSchema = new mongoose.Schema(
     },
     expiresAt: Date,
     tags: [String],
+    benefits: [String],
+    growthOpportunities: [String],
     customSections: [{
       title: { type: String, required: true },
       content: { type: String, required: true }

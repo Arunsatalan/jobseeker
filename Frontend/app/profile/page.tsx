@@ -15,6 +15,7 @@ import { JobPreferences } from "@/components/profile/JobPreferences";
 import { CareerProgress } from "@/components/profile/CareerProgress";
 import { ToolsAccess } from "@/components/profile/ToolsAccess";
 import { AccountSettings } from "@/components/profile/AccountSettings";
+import { MatchedJobs } from "@/components/profile/MatchedJobs";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
@@ -28,6 +29,7 @@ import {
 export default function ProfilePage() {
   const router = useRouter();
   const { user, logout, isLoading } = useAuth()
+  const userAny = user as any;
   const [userResumes, setUserResumes] = useState<any[]>([]);
   const [activeSection, setActiveSection] = useState("overview"); // Default to Overview (Dashboard)
   const [editingResumeId, setEditingResumeId] = useState<string | null>(null);
@@ -125,6 +127,14 @@ export default function ProfilePage() {
     } catch (error) {
       console.error('Error deleting resume:', error);
       alert('Failed to delete resume. Please try again.');
+    }
+  };
+
+  const handleResumeEdit = (index: number) => {
+    const resume = userResumes[index];
+    if (resume) {
+      setEditingResumeId(resume._id || resume.id);
+      setAiMode(false);
     }
   };
 
@@ -283,7 +293,7 @@ export default function ProfilePage() {
 
         {/* Sidebar - Contained within this box due to 'transform' on parent */}
         <Sidebar
-          user={user}
+          user={userAny}
           activeSection={activeSection}
           onNavigate={setActiveSection}
           onLogout={handleLogout}
@@ -333,7 +343,7 @@ export default function ProfilePage() {
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">{user.name}</h1>
                         <p className="text-gray-500 font-medium mb-6 flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full bg-amber-400" />
-                          {user.headline || "Job Seeker"}
+                          {userAny?.headline || "Job Seeker"}
                         </p>
 
                         <div className="flex gap-3">
@@ -375,7 +385,7 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {activeSection === "user-info" && <ProfileOverview user={user} />}
+                {activeSection === "user-info" && <ProfileOverview user={userAny} />}
                 {activeSection === "resumes" && (
                   <ResumeListView
                     resumes={userResumes.map((r, idx) => ({
@@ -414,22 +424,53 @@ export default function ProfilePage() {
                 {activeSection === "preferences" && (
                   <JobPreferences
                     preferences={{
-                      desiredRoles: user?.preferredJobTitles || [],
-                      locations: user?.preferredLocations || [],
-                      salaryRange: user?.salaryExpectation ? `$${user.salaryExpectation.min}-${user.salaryExpectation.max}` : "",
-                      workType: user?.preferredEmploymentTypes || [],
+                      desiredRoles: userAny?.preferredJobTitles || [],
+                      locations: userAny?.preferredLocations || [],
+                      salaryMin: userAny?.salaryExpectation?.min,
+                      salaryMax: userAny?.salaryExpectation?.max,
+                      salaryPeriod: userAny?.salaryExpectation?.period,
+                      experienceLevel: userAny?.experienceLevel,
+                      workType: userAny?.preferredEmploymentTypes || [],
                       availability: "Immediately",
+                      industries: userAny?.preferredIndustries || [],
+                      companySize: userAny?.preferredCompanySizes || [],
+                      benefits: userAny?.preferredBenefits || [],
+                      growthOpportunities: userAny?.preferredGrowthOpportunities || [],
                     }}
                     profileVisible={profileVisible}
                     onProfileVisibilityChange={setProfileVisible}
                   />
+                )}
+                {activeSection === "matches" && (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-2xl font-bold text-gray-900">Your Matched Jobs</h2>
+                      <Badge variant="outline" className="text-amber-600 bg-amber-50">AI Powered</Badge>
+                    </div>
+                    <MatchedJobs
+                      userPreferences={{
+                        desiredRoles: userAny?.preferredJobTitles || [],
+                        locations: userAny?.preferredLocations || [],
+                        salaryMin: userAny?.salaryExpectation?.min,
+                        salaryMax: userAny?.salaryExpectation?.max,
+                        salaryPeriod: userAny?.salaryExpectation?.period,
+                        experienceLevel: userAny?.experienceLevel,
+                        workType: userAny?.preferredEmploymentTypes || [],
+                        industries: userAny?.preferredIndustries || [],
+                        companySize: userAny?.preferredCompanySizes || [],
+                        benefits: userAny?.preferredBenefits || [],
+                        growthOpportunities: userAny?.preferredGrowthOpportunities || [],
+                      }}
+                      onJobSelect={(job: any) => router.push(`/jobs/${job._id}`)}
+                    />
+                  </div>
                 )}
                 {activeSection === "progress" && (
                   <CareerProgress
                     jobMatchScore={87}
                     savedJobs={12}
                     applications={5}
-                    skillGaps={user?.skills?.filter((skill: any) => skill.category === 'gap')?.map((s: any) => s.name) || []}
+                    skillGaps={userAny?.skills?.filter((skill: any) => skill.category === 'gap')?.map((s: any) => s.name) || []}
                   />
                 )}
                 {activeSection === "tools" && <ToolsAccess />}

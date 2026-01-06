@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -6,19 +7,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { JobMatchingEngine, JobMatchScore } from "@/lib/jobMatchingEngine";
-import { 
-  MapPin, 
-  DollarSign, 
-  Clock, 
-  Building2, 
-  Star, 
-  TrendingUp, 
+import {
+  MapPin,
+  DollarSign,
+  Clock,
+  Building2,
+  Star,
+  TrendingUp,
   Eye,
   Heart,
   ExternalLink,
   Filter,
   SortAsc,
-  Loader2
+  Loader2,
+  ThumbsUp,
+  ThumbsDown
 } from "lucide-react";
 
 interface MatchedJobsProps {
@@ -27,6 +30,7 @@ interface MatchedJobsProps {
 }
 
 export function MatchedJobs({ userPreferences, onJobSelect }: MatchedJobsProps) {
+  const router = useRouter();
   const [matchedJobs, setMatchedJobs] = useState<JobMatchScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<'score' | 'salary' | 'date'>('score');
@@ -121,7 +125,7 @@ export function MatchedJobs({ userPreferences, onJobSelect }: MatchedJobsProps) 
               Found {filteredAndSortedJobs.length} jobs matching your preferences
             </p>
           </div>
-          
+
           <div className="flex items-center gap-3">
             {/* Min Score Filter */}
             <div className="flex items-center gap-2">
@@ -171,16 +175,16 @@ export function MatchedJobs({ userPreferences, onJobSelect }: MatchedJobsProps) 
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h4 className="text-lg font-semibold text-gray-900 hover:text-amber-700 cursor-pointer"
-                          onClick={() => onJobSelect?.(match.job)}>
+                        onClick={() => onJobSelect?.(match.job)}>
                         {match.job.title}
                       </h4>
-                      
+
                       {/* Match Score Badge */}
                       <Badge className={`${getScoreColor(match.overallScore)} px-3 py-1 font-semibold flex items-center gap-1`}>
                         <Star className="h-3 w-3" />
                         {match.overallScore}% Match
                       </Badge>
-                      
+
                       {/* Match Quality Label */}
                       <span className="text-xs text-gray-500">
                         {getScoreLabel(match.overallScore)}
@@ -192,11 +196,11 @@ export function MatchedJobs({ userPreferences, onJobSelect }: MatchedJobsProps) 
                         <Building2 className="h-4 w-4" />
                         {typeof match.job.company === 'object' ? match.job.company?.name : match.job.company}
                       </div>
-                      
+
                       <div className="flex items-center gap-1">
                         <MapPin className="h-4 w-4" />
                         {match.job.location}
-                        {(match.job.isRemote || match.job.remote) && 
+                        {(match.job.isRemote || match.job.remote) &&
                           <Badge variant="outline" className="ml-1 text-xs">Remote</Badge>
                         }
                       </div>
@@ -205,9 +209,9 @@ export function MatchedJobs({ userPreferences, onJobSelect }: MatchedJobsProps) 
                         <div className="flex items-center gap-1">
                           <DollarSign className="h-4 w-4" />
                           <span className="font-semibold text-green-600">
-                            {match.job.salaryMin && match.job.salaryMax 
+                            {match.job.salaryMin && match.job.salaryMax
                               ? `$${match.job.salaryMin.toLocaleString()} - $${match.job.salaryMax.toLocaleString()}`
-                              : match.job.salaryMin 
+                              : match.job.salaryMin
                                 ? `$${match.job.salaryMin.toLocaleString()}+`
                                 : `Up to $${match.job.salaryMax?.toLocaleString()}`
                             }
@@ -262,14 +266,14 @@ export function MatchedJobs({ userPreferences, onJobSelect }: MatchedJobsProps) 
 
                   {/* Actions */}
                   <div className="flex flex-col gap-2 ml-4">
-                    <Button 
-                      onClick={() => onJobSelect?.(match.job)}
+                    <Button
+                      onClick={() => router.push(`/jobs/${match.job._id}`)}
                       className="bg-amber-700 hover:bg-amber-800 text-white text-sm"
                     >
                       View Details
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={() => setShowBreakdown(
                         showBreakdown === match.job._id ? null : match.job._id
@@ -278,6 +282,14 @@ export function MatchedJobs({ userPreferences, onJobSelect }: MatchedJobsProps) 
                       <TrendingUp className="h-4 w-4 mr-1" />
                       Analysis
                     </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-green-600" title="Good Match">
+                        <ThumbsUp className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-red-600" title="Bad Match">
+                        <ThumbsDown className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -286,17 +298,32 @@ export function MatchedJobs({ userPreferences, onJobSelect }: MatchedJobsProps) 
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <h5 className="text-sm font-semibold text-gray-900 mb-3">Match Analysis</h5>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {Object.entries(match.breakdown).map(([key, value]) => (
-                        <div key={key} className="space-y-1">
-                          <div className="flex justify-between text-xs">
-                            <span className="capitalize text-gray-600">
-                              {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
-                            </span>
-                            <span className="font-semibold">{value}%</span>
+                      {Object.entries(match.breakdown).map(([key, value]) => {
+                        const getProgressColor = (v: number) => {
+                          if (v >= 90) return "bg-green-500";
+                          if (v >= 80) return "bg-blue-500";
+                          if (v >= 70) return "bg-amber-500";
+                          return "bg-gray-400";
+                        };
+
+                        return (
+                          <div key={key} className="space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="capitalize text-gray-600">
+                                {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace('Match', '')}
+                              </span>
+                              <span className="font-semibold">{value}%</span>
+                            </div>
+                            {/* We use a custom style or utility to override the indicator color if specific component support is limited */}
+                            <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full ${getProgressColor(value as number)} transition-all duration-300`}
+                                style={{ width: `${value}%` }}
+                              />
+                            </div>
                           </div>
-                          <Progress value={value} className="h-2" />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -309,8 +336,8 @@ export function MatchedJobs({ userPreferences, onJobSelect }: MatchedJobsProps) 
       {/* Load More Button */}
       {filteredAndSortedJobs.length > 0 && (
         <div className="text-center">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={fetchAndMatchJobs}
             className="mt-4"
           >

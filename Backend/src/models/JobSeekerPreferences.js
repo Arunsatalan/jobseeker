@@ -42,6 +42,22 @@ const jobSeekerPreferencesSchema = new mongoose.Schema({
     enum: ['Immediately', '2 weeks', '1 month', '2 months', 'Not decided'],
     default: 'Immediately',
   },
+  industries: {
+    type: [String],
+    default: [],
+  },
+  companySize: {
+    type: [String],
+    default: [],
+  },
+  benefits: {
+    type: [String],
+    default: [],
+  },
+  growthOpportunities: {
+    type: [String],
+    default: [],
+  },
   profileVisible: {
     type: Boolean,
     default: false,
@@ -57,13 +73,13 @@ const jobSeekerPreferencesSchema = new mongoose.Schema({
 });
 
 // Update the updatedAt timestamp before saving
-jobSeekerPreferencesSchema.pre('save', function(next) {
+jobSeekerPreferencesSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   next();
 });
 
 // Update the updatedAt timestamp before updating
-jobSeekerPreferencesSchema.pre('findByIdAndUpdate', function(next) {
+jobSeekerPreferencesSchema.pre('findByIdAndUpdate', function (next) {
   this.set({ updatedAt: Date.now() });
   next();
 });

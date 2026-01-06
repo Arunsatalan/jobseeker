@@ -44,6 +44,7 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
     const [newCategoryName, setNewCategoryName] = useState("");
     const [isNewCompany, setIsNewCompany] = useState(false);
     const [newCompanyName, setNewCompanyName] = useState("");
+    const [showValidationErrors, setShowValidationErrors] = useState(false);
 
     const [formData, setFormData] = useState({
         title: "",
@@ -205,28 +206,19 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
         e.preventDefault();
 
         // Validation
-        if (!formData.title || !formData.company || !formData.industry || !formData.location || !formData.description || (!formData.category && !isNewCategory)) {
+        const isTitleValid = !!formData.title;
+        const isLocationValid = !!formData.location;
+        const isDescValid = !!formData.description;
+        const isIndustryValid = !!formData.industry;
+
+        const isCompanyValid = !!formData.company && (formData.company !== 'other' || !!newCompanyName);
+        const isCategoryValid = !!formData.category && (formData.category !== 'other' || !!newCategoryName);
+
+        if (!isTitleValid || !isLocationValid || !isDescValid || !isIndustryValid || !isCompanyValid || !isCategoryValid) {
+            setShowValidationErrors(true);
             toast({
                 title: "Missing Required Fields",
-                description: "Please fill in all required fields: Title, Company, Industry, Category, Location, Description.",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        if (isNewCategory && !newCategoryName) {
-            toast({
-                title: "Missing Category Name",
-                description: "Please enter a name for the new category.",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        if (isNewCompany && !newCompanyName) {
-            toast({
-                title: "Missing Company Name",
-                description: "Please enter a name for the new company.",
+                description: "Please fill in all mapped required fields highlighted in red.",
                 variant: "destructive",
             });
             return;
@@ -400,8 +392,6 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                 setNewCompanyName("");
                 setIsNewCompany(false);
                 setNewCompanyName("");
-                setIsNewCompany(false);
-                setNewCompanyName("");
             }
         } catch (error: any) {
             console.error("Error posting job:", error);
@@ -451,6 +441,7 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                                     value={formData.title}
                                     onChange={(e) => handleInputChange("title", e.target.value)}
                                     placeholder="e.g. Senior Frontend Developer"
+                                    className={showValidationErrors && !formData.title ? "border-red-500" : ""}
                                 />
                             </div>
 
@@ -460,7 +451,7 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                                     value={formData.company}
                                     onValueChange={(value) => handleInputChange("company", value)}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className={showValidationErrors && !formData.company ? "border-red-500" : ""}>
                                         <SelectValue placeholder="Select Company" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -474,7 +465,7 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                                 </Select>
                                 {isNewCompany && (
                                     <Input
-                                        className="mt-2"
+                                        className={`mt-2 ${showValidationErrors && isNewCompany && !newCompanyName ? "border-red-500" : ""}`}
                                         placeholder="Enter new company name"
                                         value={newCompanyName}
                                         onChange={(e) => setNewCompanyName(e.target.value)}
@@ -488,7 +479,7 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                                     value={formData.industry}
                                     onValueChange={(value) => handleInputChange("industry", value)}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className={showValidationErrors && !formData.industry ? "border-red-500" : ""}>
                                         <SelectValue placeholder="Select Industry" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -508,7 +499,7 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                                     onValueChange={(value) => handleInputChange("category", value)}
                                     disabled={!formData.industry}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className={showValidationErrors && !formData.category ? "border-red-500" : ""}>
                                         <SelectValue placeholder="Select Category" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -522,7 +513,7 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                                 </Select>
                                 {isNewCategory && (
                                     <Input
-                                        className="mt-2"
+                                        className={`mt-2 ${showValidationErrors && isNewCategory && !newCategoryName ? "border-red-500" : ""}`}
                                         placeholder="Enter new category name"
                                         value={newCategoryName}
                                         onChange={(e) => setNewCategoryName(e.target.value)}
@@ -544,6 +535,7 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                                     value={formData.location}
                                     onChange={(e) => handleInputChange("location", e.target.value)}
                                     placeholder="e.g. San Francisco, CA"
+                                    className={showValidationErrors && !formData.location ? "border-red-500" : ""}
                                 />
                             </div>
 
@@ -677,7 +669,7 @@ export function PostJobDialog({ open, onOpenChange, onSuccess, jobToEdit, mode =
                                 value={formData.description}
                                 onChange={(e) => handleInputChange("description", e.target.value)}
                                 placeholder="Detailed description of the role..."
-                                className="min-h-[150px]"
+                                className={`min-h-[150px] ${showValidationErrors && !formData.description ? "border-red-500" : ""}`}
                             />
                         </div>
 

@@ -85,6 +85,15 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
   const [newLanguage, setNewLanguage] = useState("");
   const [newLanguageProficiency, setNewLanguageProficiency] = useState("");
 
+  const [newEducation, setNewEducation] = useState({
+    institution: "",
+    degree: "",
+    fieldOfStudy: "",
+    startDate: "",
+    endDate: "",
+    description: ""
+  });
+
   const handleInputChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -203,7 +212,7 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
     if (fetchedProfileData.jobSeekerProfile?.currentJobTitle) completedFields++; else missing.push('Job Title');
     if (fetchedProfileData.jobSeekerProfile?.company) completedFields++; else missing.push('Company');
     if (fetchedProfileData.jobSeekerProfile?.preferredWorkTypes?.length > 0) completedFields++; else missing.push('Work Types');
-    if (fetchedProfileData.jobSeekerProfile?.yearsOfExperience) completedFields++; else missing.push('Experience');
+    if (fetchedProfileData.jobSeekerProfile?.yearsOfExperience !== undefined && fetchedProfileData.jobSeekerProfile?.yearsOfExperience !== null) completedFields++; else missing.push('Experience');
     if (fetchedProfileData.education?.length > 0) completedFields++; else missing.push('Education');
 
     const completionPercentage = Math.round((completedFields / totalFields) * 100);
@@ -317,7 +326,7 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
                   <Mail className="h-3 w-3 mr-1.5" />
                   {formData.email}
                 </Badge>
-                <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 px-3 py-1">
+                <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 px-3 py-1 cursor-help" title={`Missing: ${missingFields.join(', ')}`}>
                   {profileCompletion}% Complete
                 </Badge>
               </div>
@@ -528,8 +537,8 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
                   {isEditing ? (
                     <Input value={formData.headline} onChange={(e) => handleInputChange("headline", e.target.value)} placeholder="e.g. Senior Product Designer" className="text-lg font-medium border-gray-200 focus:border-blue-500" />
                   ) : (
-                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-lg font-medium text-gray-800">
-                      {formData.headline || "No headline set"}
+                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-lg font-medium text-gray-500 italic">
+                      {formData.headline || "Add a professional headline..."}
                     </div>
                   )}
                 </div>
@@ -544,7 +553,7 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
                       </div>
                     ) : (
                       <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                        <p className="font-semibold text-gray-900">{formData.currentJobTitle || "Open to work"}</p>
+                        <p className="font-semibold text-gray-900">{formData.currentJobTitle || "Not specified"}</p>
                         <p className="text-gray-500 text-sm">{formData.company}</p>
                       </div>
                     )}
@@ -559,7 +568,7 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
                       </div>
                     ) : (
                       <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                        <p className="font-semibold text-gray-900 text-2xl">{formData.yearsOfExperience || 0} <span className="text-sm font-normal text-gray-500">Years</span></p>
+                        <p className="font-semibold text-gray-900 text-2xl">{formData.yearsOfExperience !== undefined && formData.yearsOfExperience !== "" ? formData.yearsOfExperience : 0} <span className="text-sm font-normal text-gray-500">Years</span></p>
                       </div>
                     )}
                   </div>
@@ -570,8 +579,8 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
                   {isEditing ? (
                     <Textarea value={formData.careerObjective} onChange={(e) => handleInputChange("careerObjective", e.target.value)} rows={4} className="resize-none border-gray-200" />
                   ) : (
-                    <div className="p-5 bg-gray-50 rounded-xl border border-gray-100 text-gray-600 leading-relaxed italic">
-                      "{formData.careerObjective || "No summary added yet."}"
+                    <div className="p-5 bg-gray-50 rounded-xl border border-gray-100 text-gray-500 leading-relaxed italic">
+                      "{formData.careerObjective || "Share your professional goals..."}"
                     </div>
                   )}
                 </div>
@@ -581,10 +590,143 @@ export function ProfileOverview({ user, onProfileUpdate }: ProfileOverviewProps)
 
           {/* Placeholder tabs for brevity, can be fully expanded similarly */}
           <TabsContent value="education" className="mt-0">
-            <Card className="p-12 text-center border-gray-100 shadow-xl bg-white/80 backdrop-blur rounded-2xl flex flex-col items-center justify-center text-gray-400">
-              <GraduationCap className="h-12 w-12 mb-4 opacity-50" />
-              <p className="text-lg font-medium">Education management Coming Soon</p>
-              <p className="text-sm">We are redesigning this section for you.</p>
+            <Card className="p-8 border-gray-100 shadow-xl shadow-gray-200/50 bg-white/80 backdrop-blur rounded-2xl">
+              <div className="flex items-center gap-3 mb-8 pb-4 border-b border-gray-100">
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <GraduationCap className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Education</h3>
+                  <p className="text-sm text-gray-500">Your academic background</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {/* List Existing Education */}
+                {formData.education.map((edu: any, index: number) => (
+                  <div key={index} className="flex gap-4 p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-colors group">
+                    <div className="mt-1">
+                      <div className="h-10 w-10 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0">
+                        <GraduationCap className="h-5 w-5 text-gray-400" />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-bold text-gray-900">{edu.institution}</h4>
+                          <p className="text-blue-600 font-medium">{edu.degree} {edu.fieldOfStudy ? `in ${edu.fieldOfStudy}` : ''}</p>
+                          <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                            <Calendar className="h-3 w-3" />
+                            <span>{edu.startDate ? new Date(edu.startDate).getFullYear() : '?'} - {edu.endDate ? new Date(edu.endDate).getFullYear() : 'Present'}</span>
+                          </div>
+                          {edu.description && <p className="text-sm text-gray-600 mt-2">{edu.description}</p>}
+                        </div>
+                        {isEditing && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              const newEduList = formData.education.filter((_, i) => i !== index);
+                              handleInputChange("education", newEduList);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {formData.education.length === 0 && !isEditing && (
+                  <div className="text-center py-8 text-gray-500">
+                    No education details added yet.
+                  </div>
+                )}
+
+                {/* Add New Education Form */}
+                {isEditing && (
+                  <div className="mt-6 p-6 border border-dashed border-gray-300 rounded-xl bg-gray-50/30">
+                    <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <Plus className="h-4 w-4" /> Add Education
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="space-y-2">
+                        <Label className="text-xs">Institution / School</Label>
+                        <Input
+                          value={newEducation.institution}
+                          onChange={(e) => setNewEducation({ ...newEducation, institution: e.target.value })}
+                          placeholder="University of ..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Degree</Label>
+                        <Input
+                          value={newEducation.degree}
+                          onChange={(e) => setNewEducation({ ...newEducation, degree: e.target.value })}
+                          placeholder="Bachelor's, Master's, etc."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Field of Study</Label>
+                        <Input
+                          value={newEducation.fieldOfStudy}
+                          onChange={(e) => setNewEducation({ ...newEducation, fieldOfStudy: e.target.value })}
+                          placeholder="Computer Science, Business, etc."
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-2">
+                          <Label className="text-xs">Start Date</Label>
+                          <Input
+                            type="date"
+                            value={newEducation.startDate}
+                            onChange={(e) => setNewEducation({ ...newEducation, startDate: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">End Date</Label>
+                          <Input
+                            type="date"
+                            value={newEducation.endDate}
+                            onChange={(e) => setNewEducation({ ...newEducation, endDate: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mb-4 space-y-2">
+                      <Label className="text-xs">Description (Optional)</Label>
+                      <Textarea
+                        value={newEducation.description}
+                        onChange={(e) => setNewEducation({ ...newEducation, description: e.target.value })}
+                        placeholder="Activities, societies, etc."
+                        className="h-20 resize-none"
+                      />
+                    </div>
+                    <Button
+                      onClick={() => {
+                        if (newEducation.institution && newEducation.degree) {
+                          handleInputChange("education", [...formData.education, newEducation]);
+                          setNewEducation({
+                            institution: "",
+                            degree: "",
+                            fieldOfStudy: "",
+                            startDate: "",
+                            endDate: "",
+                            description: ""
+                          });
+                        } else {
+                          alert("Please enter at least Institution and Degree.");
+                        }
+                      }}
+                      className="w-full bg-gray-900 text-white hover:bg-black"
+                    >
+                      Add Education
+                    </Button>
+                  </div>
+                )}
+              </div>
             </Card>
           </TabsContent>
           <TabsContent value="skills" className="mt-0">

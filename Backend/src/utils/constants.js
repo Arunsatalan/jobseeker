@@ -48,6 +48,7 @@ const SUBSCRIPTION_PLANS = {
   FREE: 'free',
   PRO: 'pro',
   ENTERPRISE: 'enterprise',
+  PAID: 'paid', // Legacy support
 };
 
 const SUBSCRIPTION_STATUS = {

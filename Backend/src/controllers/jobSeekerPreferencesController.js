@@ -2,11 +2,15 @@ const JobSeekerPreferences = require('../models/JobSeekerPreferences');
 const JobSeeker = require('../models/JobSeeker');
 const User = require('../models/User');
 
-// Get JobSeeker preferences
+/**
+ * Get JobSeeker preferences
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 exports.getPreferences = async (req, res) => {
   try {
     // Get user ID from token
-    const userId = req.user.id;
+    const userId = req.user.id; // @ts-ignore
 
     // Find JobSeeker by user ID
     const jobSeeker = await JobSeeker.findOne({ user: userId });
@@ -34,6 +38,10 @@ exports.getPreferences = async (req, res) => {
           experienceLevel: 'Mid-level',
           workType: [],
           availability: 'Immediately',
+          industries: [],
+          companySize: [],
+          benefits: [],
+          growthOpportunities: [],
           profileVisible: false,
         },
       });
@@ -48,15 +56,19 @@ exports.getPreferences = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch preferences',
-      error: error.message,
+      error: /** @type {Error} */ (error).message,
     });
   }
 };
 
-// Create or Update preferences
+/**
+ * Create or Update preferences
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 exports.savePreferences = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id; // @ts-ignore
     const {
       desiredRoles,
       locations,
@@ -66,6 +78,10 @@ exports.savePreferences = async (req, res) => {
       experienceLevel,
       workType,
       availability,
+      industries,
+      companySize,
+      benefits,
+      growthOpportunities,
       profileVisible,
     } = req.body;
 
@@ -92,6 +108,10 @@ exports.savePreferences = async (req, res) => {
       preferences.experienceLevel = experienceLevel || preferences.experienceLevel;
       preferences.workType = workType || preferences.workType;
       preferences.availability = availability || preferences.availability;
+      preferences.industries = industries || preferences.industries;
+      preferences.companySize = companySize || preferences.companySize;
+      preferences.benefits = benefits || preferences.benefits;
+      preferences.growthOpportunities = growthOpportunities || preferences.growthOpportunities;
       preferences.profileVisible = profileVisible !== undefined ? profileVisible : preferences.profileVisible;
     } else {
       // Create new
@@ -105,6 +125,10 @@ exports.savePreferences = async (req, res) => {
         experienceLevel: experienceLevel || 'Mid-level',
         workType: workType || [],
         availability: availability || 'Immediately',
+        industries: industries || [],
+        companySize: companySize || [],
+        benefits: benefits || [],
+        growthOpportunities: growthOpportunities || [],
         profileVisible: profileVisible || false,
       });
     }
@@ -121,15 +145,19 @@ exports.savePreferences = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to save preferences',
-      error: error.message,
+      error: /** @type {Error} */ (error).message,
     });
   }
 };
 
-// Update specific preference fields
+/**
+ * Update specific preference fields
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 exports.updatePreferences = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id; // @ts-ignore
 
     // Find JobSeeker
     const jobSeeker = await JobSeeker.findOne({ user: userId });
@@ -158,15 +186,19 @@ exports.updatePreferences = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update preferences',
-      error: error.message,
+      error: /** @type {Error} */ (error).message,
     });
   }
 };
 
-// Delete all preferences (reset to defaults)
+/**
+ * Delete all preferences (reset to defaults)
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 exports.deletePreferences = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.id; // @ts-ignore
 
     // Find JobSeeker
     const jobSeeker = await JobSeeker.findOne({ user: userId });
@@ -201,7 +233,7 @@ exports.deletePreferences = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete preferences',
-      error: error.message,
+      error: /** @type {Error} */ (error).message,
     });
   }
 };

@@ -20,6 +20,10 @@ interface JobPreferencesProps {
     experienceLevel?: string;
     workType: string[];
     availability: string;
+    industries?: string[];
+    companySize?: string[];
+    benefits?: string[];
+    growthOpportunities?: string[];
   };
   profileVisible?: boolean;
   onProfileVisibilityChange?: (visible: boolean) => void;
@@ -32,11 +36,15 @@ const SALARY_PERIOD_OPTIONS = ["yearly", "monthly", "weekly", "hourly"];
 const EXPERIENCE_LEVEL_OPTIONS = ["Entry Level", "Junior", "Mid-level", "Senior", "Lead", "Manager", "Director"];
 const WORK_TYPE_OPTIONS = ["Full-time", "Part-time", "Contract", "Temporary", "Remote", "Hybrid"];
 const AVAILABILITY_OPTIONS = ["Immediately", "2 weeks", "1 month", "2 months", "Not decided"];
+const INDUSTRY_OPTIONS = ["Technology", "Healthcare", "Finance", "Retail", "Education", "Real Estate", "Marketing", "Legal"];
+const COMPANY_SIZE_OPTIONS = ["Startups (1-50 employees)", "Medium-sized (51-500 employees)", "Large Corporations (500+ employees)"];
+const BENEFITS_OPTIONS = ["Health Insurance", "Flexible Hours", "Remote Work", "Stock Options", "Paid Time Off", "Parental Leave", "Wellness Programs"];
+const GROWTH_OPTIONS = ["Mentorship Programs", "Leadership Roles", "Skill Development Opportunities", "Tuition Reimbursement"];
 
 // Helper function to format salary based on period
 const formatSalaryDisplay = (min: number | undefined, max: number | undefined, period: string | undefined): string => {
   if (!min || !max) return "Not set";
-  
+
   const convertSalary = (amount: number, fromPeriod: string): number => {
     // Convert from yearly to other periods
     if (fromPeriod === "yearly") return amount;
@@ -47,11 +55,11 @@ const formatSalaryDisplay = (min: number | undefined, max: number | undefined, p
   };
 
   const displayPeriod = period || "yearly";
-  
+
   let minDisplay = min;
   let maxDisplay = max;
   let periodLabel = displayPeriod.charAt(0).toUpperCase() + displayPeriod.slice(1);
-  
+
   // If stored as yearly, convert to other formats for display
   if (displayPeriod !== "yearly") {
     minDisplay = convertSalary(min, displayPeriod);
@@ -111,6 +119,10 @@ export function JobPreferences({
     experienceLevel: initialPreferences?.experienceLevel || "Mid-level",
     workType: initialPreferences?.workType || [],
     availability: initialPreferences?.availability || "Immediately",
+    industries: initialPreferences?.industries || [],
+    companySize: initialPreferences?.companySize || [],
+    benefits: initialPreferences?.benefits || [],
+    growthOpportunities: initialPreferences?.growthOpportunities || [],
   });
 
   // Input State for new items
@@ -127,7 +139,7 @@ export function JobPreferences({
     const hasRoles = preferences.desiredRoles.length > 0;
     const hasLocations = preferences.locations.length > 0 || preferences.workType.includes('Remote');
     const hasSalary = preferences.salaryMin > 0 && preferences.salaryMax > 0;
-    
+
     setHasValidPreferences(hasRoles && (hasLocations || hasSalary));
   }, [preferences]);
 
@@ -152,6 +164,10 @@ export function JobPreferences({
           experienceLevel: data.experienceLevel || "Mid-level",
           workType: data.workType || [],
           availability: data.availability || "Immediately",
+          industries: data.industries || [],
+          companySize: data.companySize || [],
+          benefits: data.benefits || [],
+          growthOpportunities: data.growthOpportunities || [],
         });
         setProfileVisible(data.profileVisible ?? false);
       }
@@ -259,12 +275,12 @@ export function JobPreferences({
     console.log('Current desiredRoles:', preferences.desiredRoles);
     console.log('Role type:', typeof role, 'length:', role.length);
     console.log('Role trimmed:', role.trim());
-    
+
     const updated = preferences.desiredRoles.filter((r) => {
       console.log('Comparing:', r, 'with:', role, 'equal:', r === role);
       return r !== role;
     });
-    
+
     console.log('Updated roles:', updated);
     setPreferences((prev) => ({ ...prev, desiredRoles: updated }));
     updatePreferences({ desiredRoles: updated });
@@ -328,6 +344,42 @@ export function JobPreferences({
     updatePreferences({ availability });
   };
 
+  // Toggle Industry
+  const toggleIndustry = (industry: string) => {
+    const updated = preferences.industries.includes(industry)
+      ? preferences.industries.filter((i) => i !== industry)
+      : [...preferences.industries, industry];
+    setPreferences({ ...preferences, industries: updated });
+    updatePreferences({ industries: updated });
+  };
+
+  // Toggle Company Size
+  const toggleCompanySize = (size: string) => {
+    const updated = preferences.companySize.includes(size)
+      ? preferences.companySize.filter((s) => s !== size)
+      : [...preferences.companySize, size];
+    setPreferences({ ...preferences, companySize: updated });
+    updatePreferences({ companySize: updated });
+  };
+
+  // Toggle Benefit
+  const toggleBenefit = (benefit: string) => {
+    const updated = preferences.benefits.includes(benefit)
+      ? preferences.benefits.filter((b) => b !== benefit)
+      : [...preferences.benefits, benefit];
+    setPreferences({ ...preferences, benefits: updated });
+    updatePreferences({ benefits: updated });
+  };
+
+  // Toggle Growth Opportunity
+  const toggleGrowthOpportunity = (opp: string) => {
+    const updated = preferences.growthOpportunities.includes(opp)
+      ? preferences.growthOpportunities.filter((o) => o !== opp)
+      : [...preferences.growthOpportunities, opp];
+    setPreferences({ ...preferences, growthOpportunities: updated });
+    updatePreferences({ growthOpportunities: updated });
+  };
+
   // Handle Profile Visibility
   const handleVisibilityChange = async (visible: boolean) => {
     setProfileVisible(visible);
@@ -383,427 +435,557 @@ export function JobPreferences({
           </div>
         </div>
 
-      {/* Error & Success Messages */}
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg">
-          {success}
-        </div>
-      )}
-
-      {isEditing ? (
-        <div className="space-y-6">
-          {/* Edit Mode */}
-
-          {/* Desired Roles */}
-          <div>
-            <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
-              <Briefcase className="h-4 w-4" />
-              Desired Roles
-            </label>
-            <div className="flex gap-2 mb-3">
-              <Input
-                placeholder="Add a role (e.g., Software Engineer)"
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && addRole()}
-                className="flex-1"
-              />
-              <Button onClick={addRole} size="sm" className="bg-amber-700 hover:bg-amber-800">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {preferences.desiredRoles.map((role) => (
-                <Badge key={role} variant="secondary" className="flex items-center gap-1">
-                  {role}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('X clicked for role:', role);
-                      removeRole(role);
-                    }}
-                    className="ml-1 inline-flex items-center justify-center"
-                    aria-label={`Remove ${role}`}
-                  >
-                    <X className="h-3 w-3 cursor-pointer hover:text-red-500" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
+        {/* Error & Success Messages */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+            {error}
           </div>
-
-          {/* Locations */}
-          <div>
-            <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              Locations
-            </label>
-            <div className="flex gap-2 mb-3">
-              <Input
-                placeholder="Add a location (e.g., Toronto, ON)"
-                value={newLocation}
-                onChange={(e) => setNewLocation(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && addLocation()}
-                className="flex-1"
-              />
-              <Button onClick={addLocation} size="sm" className="bg-amber-700 hover:bg-amber-800">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {preferences.locations.map((location) => (
-                <Badge key={location} variant="secondary" className="flex items-center gap-1">
-                  {location}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log('X clicked for location:', location);
-                      removeLocation(location);
-                    }}
-                    className="ml-1 inline-flex items-center justify-center"
-                    aria-label={`Remove ${location}`}
-                  >
-                    <X className="h-3 w-3 cursor-pointer hover:text-red-500" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
+        )}
+        {success && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg">
+            {success}
           </div>
+        )}
 
-          {/* Salary Range */}
-          <div className="grid grid-cols-3 gap-3">
+        {isEditing ? (
+          <div className="space-y-6">
+            {/* Edit Mode */}
+
+            {/* Desired Roles */}
+            <div>
+              <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                Desired Roles
+              </label>
+              <div className="flex gap-2 mb-3">
+                <Input
+                  placeholder="Add a role (e.g., Software Engineer)"
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && addRole()}
+                  className="flex-1"
+                />
+                <Button onClick={addRole} size="sm" className="bg-amber-700 hover:bg-amber-800">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {preferences.desiredRoles.map((role) => (
+                  <Badge key={role} variant="secondary" className="flex items-center gap-1">
+                    {role}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('X clicked for role:', role);
+                        removeRole(role);
+                      }}
+                      className="ml-1 inline-flex items-center justify-center"
+                      aria-label={`Remove ${role}`}
+                    >
+                      <X className="h-3 w-3 cursor-pointer hover:text-red-500" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Locations */}
+            <div>
+              <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Locations
+              </label>
+              <div className="flex gap-2 mb-3">
+                <Input
+                  placeholder="Add a location (e.g., Toronto, ON)"
+                  value={newLocation}
+                  onChange={(e) => setNewLocation(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && addLocation()}
+                  className="flex-1"
+                />
+                <Button onClick={addLocation} size="sm" className="bg-amber-700 hover:bg-amber-800">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {preferences.locations.map((location) => (
+                  <Badge key={location} variant="secondary" className="flex items-center gap-1">
+                    {location}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('X clicked for location:', location);
+                        removeLocation(location);
+                      }}
+                      className="ml-1 inline-flex items-center justify-center"
+                      aria-label={`Remove ${location}`}
+                    >
+                      <X className="h-3 w-3 cursor-pointer hover:text-red-500" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Salary Range */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Salary Min
+                </label>
+                <select
+                  value={preferences.salaryMin}
+                  onChange={(e) => updateSalaryMin(parseInt(e.target.value))}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-700"
+                >
+                  {getSalaryOptions(preferences.salaryPeriod, true).map((salary) => (
+                    <option key={salary} value={salary}>
+                      ${salary.toLocaleString()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
+                  Salary Max
+                </label>
+                <select
+                  value={preferences.salaryMax}
+                  onChange={(e) => updateSalaryMax(parseInt(e.target.value))}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-700"
+                >
+                  {getSalaryOptions(preferences.salaryPeriod, false).map((salary) => (
+                    <option key={salary} value={salary}>
+                      ${salary.toLocaleString()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
+                  Period
+                </label>
+                <select
+                  value={preferences.salaryPeriod}
+                  onChange={(e) => updateSalaryPeriod(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-700"
+                >
+                  {SALARY_PERIOD_OPTIONS.map((period) => (
+                    <option key={period} value={period}>
+                      {period.charAt(0).toUpperCase() + period.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Experience Level */}
+            <div>
+              <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                Experience Level
+              </label>
+              <select
+                value={preferences.experienceLevel}
+                onChange={(e) => updateExperienceLevel(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-700"
+              >
+                {EXPERIENCE_LEVEL_OPTIONS.map((level) => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Work Type */}
+            <div>
+              <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                Work Type (Select all that apply)
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {WORK_TYPE_OPTIONS.map((type) => (
+                  <label key={type} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={preferences.workType.includes(type)}
+                      onChange={() => toggleWorkType(type)}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm text-gray-700">{type}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Availability */}
+            <div>
+              <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Availability
+              </label>
+              <select
+                value={preferences.availability}
+                onChange={(e) => updateAvailability(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-700"
+              >
+                {AVAILABILITY_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Industry Preferences */}
+            <div>
+              <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                Industry Preferences
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {INDUSTRY_OPTIONS.map((industry) => (
+                  <Badge
+                    key={industry}
+                    variant={preferences.industries.includes(industry) ? "default" : "outline"}
+                    className={`cursor-pointer ${preferences.industries.includes(industry) ? "bg-amber-700 hover:bg-amber-800" : "hover:bg-gray-100"}`}
+                    onClick={() => toggleIndustry(industry)}
+                  >
+                    {industry}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Company Size */}
+            <div>
+              <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                Preferred Company Size
+              </label>
+              <div className="space-y-2">
+                {COMPANY_SIZE_OPTIONS.map((size) => (
+                  <label key={size} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={preferences.companySize.includes(size)}
+                      onChange={() => toggleCompanySize(size)}
+                      className="rounded border-gray-300 text-amber-700 focus:ring-amber-700"
+                    />
+                    <span className="text-sm text-gray-700">{size}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Benefits */}
             <div>
               <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
                 <DollarSign className="h-4 w-4" />
-                Salary Min
+                Job Benefits
               </label>
-              <select
-                value={preferences.salaryMin}
-                onChange={(e) => updateSalaryMin(parseInt(e.target.value))}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-700"
-              >
-                {getSalaryOptions(preferences.salaryPeriod, true).map((salary) => (
-                  <option key={salary} value={salary}>
-                    ${salary.toLocaleString()}
-                  </option>
+              <div className="grid grid-cols-2 gap-2">
+                {BENEFITS_OPTIONS.map((benefit) => (
+                  <label key={benefit} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={preferences.benefits.includes(benefit)}
+                      onChange={() => toggleBenefit(benefit)}
+                      className="rounded border-gray-300 text-amber-700 focus:ring-amber-700"
+                    />
+                    <span className="text-sm text-gray-700">{benefit}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
 
+            {/* Growth Opportunities */}
             <div>
               <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
-                Salary Max
+                <Target className="h-4 w-4" />
+                Career Growth
               </label>
-              <select
-                value={preferences.salaryMax}
-                onChange={(e) => updateSalaryMax(parseInt(e.target.value))}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-700"
-              >
-                {getSalaryOptions(preferences.salaryPeriod, false).map((salary) => (
-                  <option key={salary} value={salary}>
-                    ${salary.toLocaleString()}
-                  </option>
+              <div className="space-y-2">
+                {GROWTH_OPTIONS.map((opp) => (
+                  <label key={opp} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={preferences.growthOpportunities.includes(opp)}
+                      onChange={() => toggleGrowthOpportunity(opp)}
+                      className="rounded border-gray-300 text-amber-700 focus:ring-amber-700"
+                    />
+                    <span className="text-sm text-gray-700">{opp}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
 
-            <div>
-              <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
-                Period
+            {/* Profile Visibility */}
+            <div className="border-t pt-4 flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                <Eye className="h-4 w-4" />
+                Make profile visible to employers
               </label>
-              <select
-                value={preferences.salaryPeriod}
-                onChange={(e) => updateSalaryPeriod(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-700"
-              >
-                {SALARY_PERIOD_OPTIONS.map((period) => (
-                  <option key={period} value={period}>
-                    {period.charAt(0).toUpperCase() + period.slice(1)}
-                  </option>
-                ))}
-              </select>
+              <Switch
+                checked={profileVisible}
+                onCheckedChange={handleVisibilityChange}
+              />
             </div>
-          </div>
 
-          {/* Experience Level */}
-          <div>
-            <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
-              <Briefcase className="h-4 w-4" />
-              Experience Level
-            </label>
-            <select
-              value={preferences.experienceLevel}
-              onChange={(e) => updateExperienceLevel(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-700"
-            >
-              {EXPERIENCE_LEVEL_OPTIONS.map((level) => (
-                <option key={level} value={level}>
-                  {level}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Work Type */}
-          <div>
-            <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
-              <Briefcase className="h-4 w-4" />
-              Work Type (Select all that apply)
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              {WORK_TYPE_OPTIONS.map((type) => (
-                <label key={type} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={preferences.workType.includes(type)}
-                    onChange={() => toggleWorkType(type)}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-sm text-gray-700">{type}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Availability */}
-          <div>
-            <label className="flex text-sm font-semibold text-gray-900 mb-2 items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Availability
-            </label>
-            <select
-              value={preferences.availability}
-              onChange={(e) => updateAvailability(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-700"
-            >
-              {AVAILABILITY_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Profile Visibility */}
-          <div className="border-t pt-4 flex items-center justify-between">
-            <label className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-              <Eye className="h-4 w-4" />
-              Make profile visible to employers
-            </label>
-            <Switch
-              checked={profileVisible}
-              onCheckedChange={handleVisibilityChange}
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4 border-t">
-            <Button
-              onClick={savePreferences}
-              disabled={saving}
-              className="flex-1 bg-amber-700 hover:bg-amber-800 text-white"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save All
-                </>
-              )}
-            </Button>
-            <Button
-              onClick={deletePreferences}
-              variant="destructive"
-              className="flex items-center gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              Reset All
-            </Button>
-          </div>
-        </div>
-      ) : (
-        // View Mode
-        <div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-            {/* Desired Roles */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
-                      <Briefcase className="h-3 w-3" />
-                      Desired Roles
-                    </label>
-                    <div className="flex gap-2 flex-wrap">
-                      {preferences.desiredRoles.length > 0 ? (
-                        preferences.desiredRoles.map((role) => (
-                          <Badge key={role} variant="secondary">
-                            {role}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-sm text-gray-500">Not set</span>
-                      )}
-                    </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Jobs matching these roles will be highlighted</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            {/* Locations */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      Locations
-                    </label>
-                    <div className="flex gap-2 flex-wrap">
-                      {preferences.locations.length > 0 ? (
-                        preferences.locations.map((location) => (
-                          <Badge key={location} variant="secondary">
-                            {location}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-sm text-gray-500">Not set</span>
-                      )}
-                    </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Where you're willing to work</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            {/* Salary Range */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
-                      <DollarSign className="h-3 w-3" />
-                      Salary Expectation
-                    </label>
-                    <div className="flex gap-2 flex-wrap items-center">
-                      <Badge variant="secondary">
-                        {formatSalaryDisplay(preferences.salaryMin, preferences.salaryMax, preferences.salaryPeriod)}
-                      </Badge>
-                    </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Expected salary range ({preferences.salaryPeriod || "yearly"})</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            {/* Experience Level */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
-                      <Briefcase className="h-3 w-3" />
-                      Experience Level
-                    </label>
-                    <Badge variant="secondary">{preferences.experienceLevel || "Not set"}</Badge>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Your professional experience level</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            {/* Work Type */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
-                      <Briefcase className="h-3 w-3" />
-                      Work Type
-                    </label>
-                    <div className="flex gap-2 flex-wrap">
-                      {preferences.workType.length > 0 ? (
-                        preferences.workType.map((type) => (
-                          <Badge key={type} variant="secondary">
-                            {type}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-sm text-gray-500">Not set</span>
-                      )}
-                    </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Full-time, Remote, Hybrid, etc.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            {/* Availability */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      Availability
-                    </label>
-                    <Badge variant="secondary">{preferences.availability}</Badge>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>When you're available to start</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-
-          {/* Profile Visibility */}
-          <div className="border-t pt-4 flex items-center justify-between">
-            <label className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-              <Eye className="h-4 w-4" />
-              Make profile visible to employers
-            </label>
-            <Switch checked={profileVisible} onCheckedChange={handleVisibilityChange} />
-          </div>
-
-          {/* Find Jobs Action */}
-          {hasValidPreferences && !showMatchedJobs && (
-            <div className="pt-4 border-t">
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4 border-t">
               <Button
-                onClick={() => setShowMatchedJobs(true)}
-                className="w-full bg-linear-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2"
+                onClick={savePreferences}
+                disabled={saving}
+                className="flex-1 bg-amber-700 hover:bg-amber-800 text-white"
               >
-                <Target className="h-5 w-5" />
-                Find Matching Jobs with AI
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save All
+                  </>
+                )}
+              </Button>
+              <Button
+                onClick={deletePreferences}
+                variant="destructive"
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Reset All
               </Button>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        ) : (
+          // View Mode
+          <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+              {/* Desired Roles */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
+                        <Briefcase className="h-3 w-3" />
+                        Desired Roles
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {preferences.desiredRoles.length > 0 ? (
+                          preferences.desiredRoles.map((role) => (
+                            <Badge key={role} variant="secondary">
+                              {role}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">Not set</span>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Jobs matching these roles will be highlighted</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Locations */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        Locations
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {preferences.locations.length > 0 ? (
+                          preferences.locations.map((location) => (
+                            <Badge key={location} variant="secondary">
+                              {location}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">Not set</span>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Where you're willing to work</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Salary Range */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
+                        <DollarSign className="h-3 w-3" />
+                        Salary Expectation
+                      </label>
+                      <div className="flex gap-2 flex-wrap items-center">
+                        <Badge variant="secondary">
+                          {formatSalaryDisplay(preferences.salaryMin, preferences.salaryMax, preferences.salaryPeriod)}
+                        </Badge>
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Expected salary range ({preferences.salaryPeriod || "yearly"})</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Experience Level */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
+                        <Briefcase className="h-3 w-3" />
+                        Experience Level
+                      </label>
+                      <Badge variant="secondary">{preferences.experienceLevel || "Not set"}</Badge>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Your professional experience level</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Work Type */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
+                        <Briefcase className="h-3 w-3" />
+                        Work Type
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                        {preferences.workType.length > 0 ? (
+                          preferences.workType.map((type) => (
+                            <Badge key={type} variant="secondary">
+                              {type}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">Not set</span>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Full-time, Remote, Hybrid, etc.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Availability */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Availability
+                      </label>
+                      <Badge variant="secondary">{preferences.availability}</Badge>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>When you're available to start</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Industries */}
+              {preferences.industries.length > 0 && (
+                <div className="col-span-full">
+                  <label className="flex text-xs font-semibold text-gray-700 mb-2 items-center gap-1">
+                    <Briefcase className="h-3 w-3" />
+                    Preferred Industries
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    {preferences.industries.map((i) => (
+                      <Badge key={i} variant="outline" className="border-amber-200 bg-amber-50">
+                        {i}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Additional Preferences Summary */}
+              {(preferences.companySize.length > 0 || preferences.benefits.length > 0 || preferences.growthOpportunities.length > 0) && (
+                <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4 mt-2 p-3 bg-gray-50 rounded-lg">
+                  {preferences.companySize.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase">Company Size</h4>
+                      <ul className="text-sm text-gray-700 list-disc list-inside">
+                        {preferences.companySize.map(s => <li key={s}>{s}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {preferences.benefits.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase">Benefits</h4>
+                      <ul className="text-sm text-gray-700 list-disc list-inside">
+                        {preferences.benefits.map(b => <li key={b}>{b}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {preferences.growthOpportunities.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-500 mb-2 uppercase">Growth</h4>
+                      <ul className="text-sm text-gray-700 list-disc list-inside">
+                        {preferences.growthOpportunities.map(g => <li key={g}>{g}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Profile Visibility */}
+            <div className="border-t pt-4 flex items-center justify-between">
+              <label className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                <Eye className="h-4 w-4" />
+                Make profile visible to employers
+              </label>
+              <Switch checked={profileVisible} onCheckedChange={handleVisibilityChange} />
+            </div>
+
+            {/* Find Jobs Action */}
+            {hasValidPreferences && !showMatchedJobs && (
+              <div className="pt-4 border-t">
+                <Button
+                  onClick={() => setShowMatchedJobs(true)}
+                  className="w-full bg-linear-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2"
+                >
+                  <Target className="h-5 w-5" />
+                  Find Matching Jobs with AI
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* AI-Matched Jobs Section */}
@@ -819,8 +1001,8 @@ export function JobPreferences({
               Hide Matches
             </Button>
           </div>
-          <MatchedJobs 
-            userPreferences={preferences} 
+          <MatchedJobs
+            userPreferences={preferences}
             onJobSelect={(job) => {
               console.log('Selected job:', job);
               // You can add job detail modal or navigation here

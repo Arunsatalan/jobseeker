@@ -29,7 +29,7 @@ interface Job {
   postedDate: string;
   expiryDate: string;
   applicantsCount: number;
-  status: "Open" | "Closed" | "Draft" | "Paused";
+  status: "Open" | "Closed" | "Draft" | "Paused" | "published" | "draft" | "paused" | "closed" | "expired";
 }
 
 interface JobManagementProps {
@@ -55,14 +55,16 @@ export function JobManagement({
   const [statusFilter, setStatusFilter] = useState("all");
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Open":
+    switch (status.toLowerCase()) {
+      case "open":
+      case "published":
         return "bg-green-100 text-green-700";
-      case "Paused":
+      case "paused":
         return "bg-yellow-100 text-yellow-700";
-      case "Closed":
+      case "closed":
+      case "expired":
         return "bg-gray-100 text-gray-700";
-      case "Draft":
+      case "draft":
         return "bg-slate-100 text-slate-900";
       default:
         return "bg-gray-100 text-gray-700";
@@ -72,16 +74,17 @@ export function JobManagement({
   const filteredJobs = jobs.filter((job) => {
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       job.department.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || job.status.toLowerCase() === statusFilter;
+    const matchesStatus = statusFilter === "all" ||
+      (statusFilter === 'open' ? (job.status === 'Open' || job.status === 'published') : job.status.toLowerCase() === statusFilter);
     return matchesSearch && matchesStatus;
   });
 
   const jobsByStatus = {
     all: jobs,
-    open: jobs.filter(job => job.status === "Open"),
-    paused: jobs.filter(job => job.status === "Paused"),
-    draft: jobs.filter(job => job.status === "Draft"),
-    closed: jobs.filter(job => job.status === "Closed"),
+    open: jobs.filter(job => job.status === "Open" || job.status === "published"),
+    paused: jobs.filter(job => job.status === "Paused" || job.status === "paused"),
+    draft: jobs.filter(job => job.status === "Draft" || job.status === "draft"),
+    closed: jobs.filter(job => job.status === "Closed" || job.status === "closed" || job.status === "expired"),
   };
 
   return (
@@ -233,14 +236,16 @@ function JobList({
   onDelete
 }: JobListProps) {
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Open":
+    switch (status.toLowerCase()) {
+      case "open":
+      case "published":
         return "bg-green-100 text-green-700";
-      case "Paused":
+      case "paused":
         return "bg-yellow-100 text-yellow-700";
-      case "Closed":
+      case "closed":
+      case "expired":
         return "bg-gray-100 text-gray-700";
-      case "Draft":
+      case "draft":
         return "bg-slate-100 text-slate-900";
       default:
         return "bg-gray-100 text-gray-700";
@@ -311,12 +316,12 @@ function JobList({
                 <Copy className="h-4 w-4 mr-1" />
                 Duplicate
               </Button>
-              {job.status === "Open" ? (
+              {job.status === "Open" || job.status === "published" ? (
                 <Button size="sm" variant="outline" className="text-yellow-600 hover:text-yellow-700" onClick={() => onToggleStatus(job)}>
                   <Pause className="h-4 w-4 mr-1" />
                   Pause
                 </Button>
-              ) : job.status === "Paused" ? (
+              ) : job.status === "Paused" || job.status === "paused" ? (
                 <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700" onClick={() => onToggleStatus(job)}>
                   <Play className="h-4 w-4 mr-1" />
                   Activate
