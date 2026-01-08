@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
-const User = require('./src/models/User');
-const Notification = require('./src/models/Notification');
+const User = require('../../src/models/User');
+const Notification = require('../../src/models/Notification');
 require('dotenv').config();
 
 async function checkDatabase() {

@@ -1,10 +1,9 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-const Category = require('./src/models/Category');
-const Subcategory = require('./src/models/Subcategory');
+const Category = require('../../src/models/Category');
 
-const seedSubcategories = async () => {
+const seedEmbeddedSubcategories = async () => {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
@@ -29,37 +28,35 @@ const seedSubcategories = async () => {
     for (const categoryData of subcategoriesData) {
       const category = categories.find(cat => cat.name === categoryData.categoryName);
       if (category) {
-        console.log(`Seeding subcategories for ${categoryData.categoryName}`);
+        console.log(`Adding subcategories to ${categoryData.categoryName}`);
+
+        // Clear existing subcategories first
+        category.subcategories = [];
 
         for (const subName of categoryData.subcategories) {
-          const existingSub = await Subcategory.findOne({
+          category.subcategories.push({
             name: subName,
-            category: category._id
+            description: '',
+            isActive: true,
+            createdAt: new Date(),
           });
-
-          if (!existingSub) {
-            await Subcategory.create({
-              name: subName,
-              category: category._id,
-              createdBy: category.createdBy // Use the same creator as the category
-            });
-            console.log(`  Created: ${subName}`);
-          } else {
-            console.log(`  Already exists: ${subName}`);
-          }
+          console.log(`  Added: ${subName}`);
         }
+
+        await category.save();
+        console.log(`  Saved ${categoryData.subcategories.length} subcategories for ${categoryData.categoryName}`);
       } else {
         console.log(`Category not found: ${categoryData.categoryName}`);
       }
     }
 
-    console.log('Subcategory seeding completed!');
+    console.log('Embedded subcategory seeding completed!');
     await mongoose.connection.close();
 
   } catch (error) {
-    console.error('Error seeding subcategories:', error);
+    console.error('Error seeding embedded subcategories:', error);
     process.exit(1);
   }
 };
 
-seedSubcategories();
+seedEmbeddedSubcategories();

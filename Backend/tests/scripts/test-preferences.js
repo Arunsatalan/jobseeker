@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
-const User = require('./src/models/User');
-const JobSeeker = require('./src/models/JobSeeker');
-const JobSeekerPreferences = require('./src/models/JobSeekerPreferences');
+const User = require('../../src/models/User');
+const JobSeeker = require('../../src/models/JobSeeker');
+const JobSeekerPreferences = require('../../src/models/JobSeekerPreferences');
 
 mongoose.connect('mongodb://localhost:27017/find_job')
   .then(async () => {

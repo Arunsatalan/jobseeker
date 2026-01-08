@@ -4,7 +4,7 @@
  */
 
 require('dotenv').config();
-const aiService = require('./src/services/aiService');
+const aiService = require('../../src/services/aiService');
 
 // Sample user profile data
 const sampleUserProfile = {

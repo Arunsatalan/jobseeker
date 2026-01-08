@@ -11,7 +11,7 @@ const connectDB = async () => {
   }
 };
 
-const Company = require('./src/models/Company');
+const Company = require('../../src/models/Company');
 
 const checkCompanyIDs = async () => {
   try {

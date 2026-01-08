@@ -11,9 +11,9 @@ const connectDB = async () => {
   }
 };
 
-const Company = require('./src/models/Company');
-const Job = require('./src/models/Job');
-const User = require('./src/models/User');
+const Company = require('../../src/models/Company');
+const Job = require('../../src/models/Job');
+const User = require('../../src/models/User');
 
 const checkData = async () => {
   try {

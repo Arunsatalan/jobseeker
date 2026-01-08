@@ -1,7 +1,7 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-const UserProfile = require('./src/models/UserProfile');
-const JobSeeker = require('./src/models/JobSeeker');
+const UserProfile = require('../../src/models/UserProfile');
+const JobSeeker = require('../../src/models/JobSeeker');
 
 async function checkUserData() {
   try {

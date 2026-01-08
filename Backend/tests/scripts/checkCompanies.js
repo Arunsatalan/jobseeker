@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
-const config = require('./src/config/environment');
-const Company = require('./src/models/Company');
-const logger = require('./src/utils/logger');
+const config = require('../../src/config/environment');
+const Company = require('../../src/models/Company');
+const logger = require('../../src/utils/logger');
 
 const checkCompanies = async () => {
   try {
