@@ -1,0 +1,173 @@
+\documentclass[a4paper,9pt]{article}
+\usepackage[a4paper,margin=0.7in]{geometry}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fontawesome5}
+\usepackage{parskip}
+\usepackage{changepage} % for adjustwidth
+\pagestyle{empty}
+
+% Tighter paragraph spacing
+\setlength{\parskip}{0.25em}
+\setlength{\parindent}{0pt}
+
+% Tighter list spacing
+\setlist[itemize]{leftmargin=1.5em, topsep=0.2em, itemsep=0.2em}
+
+% Define section formatting
+\titleformat{\section}{\large\bfseries\color{black}}{}{0em}{}[\titlerule]
+\titleformat{\subsection}[runin]{\bfseries}{}{0em}{}[:]
+
+% Set hyperlink style
+\hypersetup{
+    colorlinks=true,
+    urlcolor=blue,
+}
+
+\newcommand{\projectspace}{\vspace{0.5em}}
+
+\begin{document}
+\begin{center}
+    {\LARGE \textbf{@@USER_FULL_NAME@@}} \\[0.2em]
+    {\large @@USER_JOB_TITLE@@} \\[0.6em]
+    \faGlobe\ \href{@@USER_WEBSITE@@}{\texttt{@@USER_WEBSITE@@}} \quad
+    \faLinkedin\ \href{@@USER_LINKEDIN@@}{\texttt{@@USER_LINKEDIN@@}} \quad
+    \faGithub\ \href{@@USER_GITHUB@@}{\texttt{@@USER_GITHUB@@}} \\[0.2em]
+    \faEnvelope\ \href{mailto:@@USER_EMAIL@@}{\texttt{@@USER_EMAIL@@}} \quad
+    \faPhone\ @@USER_PHONE@@
+\end{center}
+
+\vspace{0.4em}
+
+\section*{PROFESSIONAL SUMMARY}
+@@USER_SUMMARY@@
+
+%==================
+% Skills Summary
+%==================
+\noindent
+\section*{\textbf{TECHNICALLLS}}
+
+\begin{minipage}{\textwidth}
+@@TECH_LANGUAGES@@
+\end{minipage}
+
+\vspace{0.3em}
+
+%==================
+% Experience
+%==================
+\section*{EXPERIENCE}
+
+\begin{adjustwidth}{}{}
+\noindent
+\textbf{@@EXP1_TITLE@@} \hfill \textbf{@@EXP1_START@@ -- @@EXP1_END@@} \\
+\textbf{@@EXP1_COMPANY@@} \\
+\textit{Tech Stack: @@EXP1_TECH@@}
+
+\begin{itemize}
+    \item @@EXP1_BULLET1@@
+    \item @@EXP1_BULLET2@@
+    \item @@EXP1_BULLET3@@
+    \item @@EXP1_BULLET4@@
+\end{itemize}
+\end{adjustwidth}
+
+\projectspace
+
+\noindent
+\textbf{@@EXP2_TITLE@@} \hfill \textbf{@@EXP2_DATE@@} \\
+\textit{Tech Stack: @@EXP2_TECH@@}
+
+\begin{itemize}
+    \item @@EXP2_BULLET1@@
+    \item @@EXP2_BULLET2@@
+    \item @@EXP2_BULLET3@@
+\end{itemize}
+
+%==================
+% Research Projects & Interests
+%==================
+
+\section*{RESEARCH PROJECT}
+
+\noindent
+\textbf{@@RESEARCH_TITLE@@} \hfill \textbf{@@RESEARCH_DATE@@} \\
+\textit{@@RESEARCH_INSTITUTION@@}
+
+\begin{itemize}
+    \item @@RESEARCH_DESC1@@
+    \item @@RESEARCH_DESC2@@
+    \item @@RESEARCH_DESC3@@
+    \item @@RESEARCH_DESC4@@
+    \item @@RESEARCH_DESC5@@
+\end{itemize}
+
+\projectspace
+
+%==================
+% Projects
+%==================
+\section*{PROJECTS}
+
+\begin{adjustwidth}{}{}
+
+\noindent
+\textbf{@@PROJECT1_NAME@@} \hfill \textbf{@@PROJECT1_DATE@@} \\
+\textit{Tech Stack: @@PROJECT1_TECH@@}
+
+\begin{itemize}
+    \item @@PROJECT1_DESCRIPTION@@
+\end{itemize}
+
+\textbf{GitHub:} \url{@@PROJECT1_GITHUB@@}
+
+\projectspace
+
+\noindent
+\textbf{@@PROJECT2_NAME@@} \hfill \textbf{@@PROJECT2_DATE@@} \\
+\textit{Tech Stack: @@PROJECT2_TECH@@}
+
+\begin{itemize}
+    \item @@PROJECT2_DESCRIPTION@@
+\end{itemize}
+
+\textbf{GitHub:} \url{@@PROJECT2_GITHUB@@}
+
+\end{adjustwidth}
+
+%==================
+% Education
+%==================
+% \section*{EDUCATION}
+% \textbf{@@EDU1_INSTITUTION@@}, @@EDU1_LOCATION@@ \\
+% \textit{@@EDU1_DEGREE@@} \hfill @@EDU1_START@@ -- @@EDU1_END@@ \\
+% (Expected Graduation: @@EDU1_GRADUATION@@)
+
+%==================
+% Certificates
+%==================
+\section*{CERTIFICATES}
+\textbf{@@CERT1_NAME@@} -- \href{@@CERT1_LINK@@}{Certificate} \hfill @@CERT1_DATE@@ \\[0.15em]
+\textbf{@@CERT2_NAME@@} -- \href{@@CERT2_LINK@@}{Certificate} \hfill @@CERT2_DATE@@ \\[0.15em]
+\textbf{@@CERT3_NAME@@} -- \href{@@CERT3_LINK@@}{Certificate} \hfill @@CERT3_DATE@@ \\[0.15em]
+\textbf{@@CERT4_NAME@@} -- \href{@@CERT4_LINK@@}{Certificate} \hfill @@CERT4_DATE@@
+
+\vspace{0.3em}
+\section*{ONLINE COURSES (ONGOING)}
+
+\textbf{@@COURSE1_NAME@@} -- @@COURSE1_PROVIDER@@ \hfill @@COURSE1_STATUS@@ \\
+\textit{@@COURSE1_DESCRIPTION@@} \\[0.15em]
+
+\textbf{@@COURSE2_NAME@@} -- @@COURSE2_PROVIDER@@ \hfill @@COURSE2_STATUS@@ \\
+\textit{@@COURSE2_DESCRIPTION@@} \\[0.15em]
+
+%==================
+% References
+%==================
+\section*{REFERENCES}
+Available upon request.
+
+\end{document}

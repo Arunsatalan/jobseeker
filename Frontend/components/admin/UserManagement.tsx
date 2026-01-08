@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CompaniesTable } from "./CompaniesTable";
 import {
   Table,
   TableBody,
@@ -47,6 +49,7 @@ import {
   CheckCircle,
   XCircle,
   Building2,
+  Building,
   FileText,
   Mail,
   Phone,
@@ -65,184 +68,6 @@ import {
   DollarSign,
 } from "lucide-react";
 
-// Mock data for job seekers
-const jobSeekersData = [
-  {
-    id: "js_001",
-    name: "Sarah Johnson",
-    email: "sarah.j@email.com",
-    phone: "+1 (555) 123-4567",
-    avatar: "https://ui-avatars.com/api/?name=Sarah+Johnson&background=02243b&color=fff",
-    location: "Toronto, ON",
-    resumeCount: 3,
-    atsScore: 87.5,
-    plan: "Pro",
-    status: "Active",
-    verified: true,
-    joinDate: "2024-11-15",
-    lastLogin: "2025-12-16 14:30",
-    totalApplications: 12,
-  },
-  {
-    id: "js_002", 
-    name: "Michael Chen",
-    email: "m.chen@email.com",
-    phone: "+1 (555) 234-5678",
-    avatar: "https://ui-avatars.com/api/?name=Michael+Chen&background=10b981&color=fff",
-    location: "Vancouver, BC",
-    resumeCount: 2,
-    atsScore: 92.0,
-    plan: "Free",
-    status: "Active",
-    verified: true,
-    joinDate: "2024-10-20",
-    lastLogin: "2025-12-15 09:15",
-    totalApplications: 8,
-  },
-  {
-    id: "js_003",
-    name: "Emma Wilson",
-    email: "emma.w@email.com",
-    phone: "+1 (555) 345-6789",
-    avatar: "https://ui-avatars.com/api/?name=Emma+Wilson&background=f59e0b&color=fff",
-    location: "Montreal, QC",
-    resumeCount: 1,
-    atsScore: 76.5,
-    plan: "Pro",
-    status: "Pending",
-    verified: false,
-    joinDate: "2025-12-10",
-    lastLogin: "2025-12-16 11:45",
-    totalApplications: 15,
-  },
-  {
-    id: "js_004",
-    name: "David Kim",
-    email: "d.kim@email.com",
-    phone: "+1 (555) 456-7890",
-    avatar: "https://ui-avatars.com/api/?name=David+Kim&background=8b5cf6&color=fff",
-    location: "Calgary, AB",
-    resumeCount: 4,
-    atsScore: 89.2,
-    plan: "Free",
-    status: "Active",
-    verified: true,
-    joinDate: "2024-09-12",
-    lastLogin: "2025-12-14 16:20",
-    totalApplications: 23,
-  },
-  {
-    id: "js_005",
-    name: "Lisa Rodriguez",
-    email: "l.rodriguez@email.com",
-    phone: "+1 (555) 567-8901",
-    avatar: "https://ui-avatars.com/api/?name=Lisa+Rodriguez&background=ef4444&color=fff",
-    location: "Ottawa, ON",
-    resumeCount: 2,
-    atsScore: 81.7,
-    plan: "Pro",
-    status: "Suspended",
-    verified: true,
-    joinDate: "2024-08-05",
-    lastLogin: "2025-12-12 13:30",
-    totalApplications: 18,
-  }
-];
-
-// Mock data for employers
-const employersData = [
-  {
-    id: "emp_001",
-    logo: "https://ui-avatars.com/api/?name=TechCorp&background=02243b&color=fff",
-    companyName: "TechCorp Solutions",
-    adminContact: "John Smith",
-    email: "hr@techcorp.com",
-    jobsPosted: 25,
-    lastJobPosted: "2025-12-15",
-    plan: "Enterprise",
-    status: "Active",
-    verified: true,
-    kyc: "Verified",
-    location: "Toronto, ON",
-    industry: "Technology",
-    companySize: "51-200",
-    activeJobs: 5,
-    joinDate: "2024-08-15",
-  },
-  {
-    id: "emp_002",
-    logo: "https://ui-avatars.com/api/?name=HealthPlus&background=8a4b04&color=fff",
-    companyName: "HealthCare Plus",
-    adminContact: "Dr. Lisa Brown",
-    email: "contact@healthplus.ca",
-    jobsPosted: 8,
-    lastJobPosted: "2025-12-12",
-    plan: "Professional",
-    status: "Active",
-    verified: false,
-    kyc: "Pending",
-    location: "Calgary, AB",
-    industry: "Healthcare",
-    companySize: "11-50",
-    activeJobs: 3,
-    joinDate: "2025-01-05",
-  },
-  {
-    id: "emp_003",
-    logo: "https://ui-avatars.com/api/?name=Creative&background=10b981&color=fff",
-    companyName: "Creative Agency",
-    adminContact: "Alex Rodriguez",
-    email: "admin@creative.agency",
-    jobsPosted: 2,
-    lastJobPosted: "2025-11-28",
-    plan: "Basic",
-    status: "Paused",
-    verified: true,
-    kyc: "Verified",
-    location: "Vancouver, BC",
-    industry: "Design",
-    companySize: "1-10",
-    activeJobs: 0,
-    joinDate: "2024-12-01",
-  },
-  {
-    id: "emp_004",
-    logo: "https://ui-avatars.com/api/?name=FinTech&background=8b5cf6&color=fff",
-    companyName: "FinTech Innovations",
-    adminContact: "Rachel Green",
-    email: "hr@fintech.com",
-    jobsPosted: 15,
-    lastJobPosted: "2025-12-14",
-    plan: "Professional",
-    status: "Needs Review",
-    verified: false,
-    kyc: "Pending",
-    location: "Montreal, QC",
-    industry: "Finance",
-    companySize: "201-500",
-    activeJobs: 8,
-    joinDate: "2024-06-20",
-  },
-  {
-    id: "emp_005",
-    logo: "https://ui-avatars.com/api/?name=GreenTech&background=22c55e&color=fff",
-    companyName: "GreenTech Solutions",
-    adminContact: "Mark Thompson",
-    email: "careers@greentech.ca",
-    jobsPosted: 12,
-    lastJobPosted: "2025-12-16",
-    plan: "Enterprise",
-    status: "Active",
-    verified: true,
-    kyc: "Verified",
-    location: "Edmonton, AB",
-    industry: "Clean Energy",
-    companySize: "51-200",
-    activeJobs: 6,
-    joinDate: "2024-04-10",
-  }
-];
-
 export function UserManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTab, setSelectedTab] = useState("seekers");
@@ -253,6 +78,400 @@ export function UserManagement() {
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(false);
+  const [showCompanyDetails, setShowCompanyDetails] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
+  const [loadingCompany, setLoadingCompany] = useState(false);
+  const [jobSeekersData, setJobSeekersData] = useState<any[]>([]);
+  const [employersData, setEmployersData] = useState<any[]>([]);
+  const [companiesData, setCompaniesData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Company ID to name mapping (temporary solution until backend populates company data)
+  // WHY THIS IS NEEDED:
+  // - API returns employer users with 'company' field containing company ID only
+  // - Company name "spyboy3" is stored in separate company collection
+  // - Backend should populate company data but currently doesn't
+  // - User ID is different from company ID - user ID is for the employer user, company ID is for the company they represent
+  const companyMapping: { [key: string]: string } = {
+    '694981060212935e26201eb6': 'spyboy3',
+    // Add more company mappings as needed
+  };
+
+  // Fetch company details by ID or name
+  const fetchCompanyDetails = async (companyId: string | undefined, companyName?: string) => {
+    try {
+      setLoadingCompany(true);
+      console.log('Fetching company details for ID:', companyId, 'or name:', companyName);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No auth token found');
+        return;
+      }
+      
+      let companyData = null;
+      
+      // If we have a company ID, try to fetch by ID first
+      if (companyId) {
+        try {
+          console.log('Trying to fetch by ID:', companyId);
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/companies/${companyId}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.data.success && response.data.data) {
+            companyData = response.data.data;
+            console.log('Found company by ID:', companyData);
+          }
+        } catch (idError) {
+          console.log('Company not found by ID, trying by name...');
+        }
+      }
+      
+      // If no company found by ID, or no ID provided, search by name
+      if (!companyData && companyName) {
+        try {
+          console.log('Fetching all companies to find by name:', companyName);
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/companies`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.data.success && response.data.data) {
+            const companies = response.data.data;
+            companyData = companies.find((company: any) => 
+              company.name?.toLowerCase() === companyName.toLowerCase()
+            );
+            console.log('Found company by name:', companyData);
+          }
+        } catch (nameError) {
+          console.log('Error searching companies by name:', nameError);
+        }
+      }
+      
+      if (companyData) {
+        setSelectedCompany(companyData);
+        setShowCompanyDetails(true);
+      } else {
+        console.error('Company not found by ID or name');
+        alert('Company details could not be loaded. The company may not exist in the database.');
+      }
+    } catch (error: any) {
+      console.error('Error fetching company details:', error);
+      console.error('Error response:', error.response?.data);
+      
+      // Show user-friendly error message
+      if (error.response?.status === 404) {
+        alert('Company not found. The company may not exist in the database or the backend server needs to be restarted.');
+      } else {
+        alert('Failed to load company details. Please try again later.');
+      }
+    } finally {
+      setLoadingCompany(false);
+    }
+  };
+
+  // Fetch job seekers data from database
+  const fetchJobSeekers = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching job seekers...');
+      
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token');
+      console.log('Auth token available:', !!token);
+      
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/users`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Users API response:', response.data);
+      
+      // Filter for job seekers and transform the data
+      const allUsers = response.data.data || response.data || [];
+      console.log('All users count:', allUsers.length);
+      
+      const jobSeekers = allUsers.filter((user: any) => {
+        const role = user.role;
+        console.log(`User ${user.email} has role: ${role}`);
+        return role === 'jobseeker' || role === 'user' || !role;
+      });
+      
+      console.log('Job seekers found:', jobSeekers.length);
+      
+      const transformedData = jobSeekers.map((user: any) => ({
+        id: user._id || user.id,
+        name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Unknown User',
+        email: user.email,
+        phone: user.phone || 'N/A',
+        avatar: user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.username || 'User')}&background=02243b&color=fff`,
+        location: user.location || 'N/A',
+        resumeCount: user.resumeCount || 0,
+        atsScore: user.atsScore || Math.floor(Math.random() * 40) + 60, // Random score if not available
+        plan: user.subscriptionPlan || 'Free',
+        status: user.isActive === false ? 'Suspended' : (user.isEmailVerified ? 'Active' : 'Pending'),
+        verified: user.isEmailVerified || false,
+        joinDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        lastLogin: user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never',
+        totalApplications: user.applications?.length || 0,
+      }));
+      
+      console.log('Transformed job seekers:', transformedData);
+      setJobSeekersData(transformedData);
+    } catch (error: any) {
+      console.error('Error fetching job seekers:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      setJobSeekersData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch employers data from database
+  const fetchEmployers = async () => {
+    try {
+      setLoading(true);
+      console.log('Fetching employers...');
+      
+      // Get auth token from localStorage
+      const token = localStorage.getItem('token');
+      console.log('Auth token available:', !!token);
+      
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/users`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Users API response for employers:', response.data);
+      
+      // Filter for employers and transform the data
+      const allUsers = response.data.data || response.data || [];
+      console.log('All users count:', allUsers.length);
+      console.log('All users sample:', allUsers.slice(0, 2)); // Show first 2 users for debugging
+      
+      const employers = allUsers.filter((user: any) => {
+        const role = user.role;
+        console.log(`User ${user.email} has role: ${role}`);
+        return role === 'employer';
+      });
+      
+      console.log('Employers found:', employers.length);
+      console.log('Employer sample data:', employers.slice(0, 1)); // Show first employer for debugging
+
+      // Fetch all jobs to match with employers
+      let allJobs = [];
+      try {
+        console.log('Fetching jobs data...');
+        const jobsResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/jobs`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        allJobs = jobsResponse.data.data || jobsResponse.data || [];
+        console.log('Found jobs in DB:', allJobs.length);
+      } catch (error) {
+        console.log("Jobs endpoint not available, proceeding without job data:", error.message);
+        allJobs = [];
+      }
+      
+      const transformedData = employers.map((user: any) => {
+        // Get company name from mapping or fallback
+        const companyName = companyMapping[user.company] || user.companyName || user.name || 'Unknown Company';
+        
+        // Find jobs for this employer
+        const employerJobs = allJobs.filter((job: any) =>
+          job.employer === user._id ||
+          job.employer?._id === user._id ||
+          (typeof job.employer === 'string' && job.employer === user._id.toString())
+        );
+
+        console.log(`Employer ${user.email}: Found ${employerJobs.length} jobs`);
+
+        // Sort jobs by creation date (newest first)
+        employerJobs.sort((a: any, b: any) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+
+        const lastJob = employerJobs.length > 0 ? new Date(employerJobs[0].createdAt) : null;
+        const lastJobPostedDate = lastJob && !isNaN(lastJob.getTime())
+          ? lastJob.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            })
+          : "Never";
+        
+        console.log(`Employer ${user.email}: company field = ${user.company}, companyName = ${user.companyName}, phone = ${user.phone}, mapped companyName = ${companyName}`);
+        
+        return {
+        id: user._id || user.id,
+        companyId: user.company, // Store the company ID separately
+        logo: user.profilePicture || user.companyLogo || `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName || 'Company')}&background=02243b&color=fff`,
+        companyName: companyName,
+        adminContact: user.phone || user.contactPerson || user.name || 'N/A',
+        email: user.email,
+        jobsPosted: employerJobs.length,
+        lastJobPosted: lastJobPostedDate,
+        plan: user.subscriptionPlan || 'Basic',
+        status: user.isActive === false ? 'Suspended' : (user.isEmailVerified ? 'Active' : 'Pending'),
+        verified: user.isEmailVerified || false,
+        kyc: user.kycStatus || (user.isVerified ? 'Verified' : 'Pending'),
+        location: user.location || user.address || 'N/A',
+        industry: user.industry || 'Not specified',
+        companySize: user.companySize || 'Not specified',
+        activeJobs: employerJobs.filter((job: any) => job.status === "published").length,
+        joinDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        };
+      });
+      
+      console.log('Transformed employers:', transformedData);
+      setEmployersData(transformedData);
+    } catch (error: any) {
+      console.error('Error fetching employers:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      setEmployersData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Try to fetch from admin endpoint first
+        await fetchJobSeekers();
+        await fetchEmployers();
+      } catch (error) {
+        console.error('Failed to fetch from admin endpoint, trying fallback...');
+        // Fallback: try to fetch from regular users endpoint if admin fails
+        try {
+          const token = localStorage.getItem('token');
+          const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/users/admin/list`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          console.log('Fallback API response:', response.data);
+          const allUsers = response.data.data || response.data || [];
+          
+          // Split users by role
+          const jobSeekers = allUsers.filter((user: any) => 
+            user.role === 'jobseeker' || user.role === 'user' || !user.role
+          );
+          const employers = allUsers.filter((user: any) => user.role === 'employer');
+          
+          // Fetch all jobs to match with employers (fallback)
+          let allJobsFallback = [];
+          try {
+            console.log('Fetching jobs data (fallback)...');
+            const jobsResponse = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/jobs`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            allJobsFallback = jobsResponse.data.data || jobsResponse.data || [];
+            console.log('Found jobs in DB (fallback):', allJobsFallback.length);
+          } catch (error) {
+            console.log("Jobs endpoint not available in fallback, proceeding without job data:", error.message);
+            allJobsFallback = [];
+          }
+          
+          // Transform and set data
+          const transformedJobSeekers = jobSeekers.map((user: any) => ({
+            id: user._id || user.id,
+            name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Unknown User',
+            email: user.email,
+            phone: user.phone || 'N/A',
+            avatar: user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || user.username || 'User')}&background=02243b&color=fff`,
+            location: user.location || 'N/A',
+            resumeCount: user.resumeCount || 0,
+            atsScore: user.atsScore || Math.floor(Math.random() * 40) + 60,
+            plan: user.subscriptionPlan || 'Free',
+            status: user.isActive === false ? 'Suspended' : (user.isEmailVerified ? 'Active' : 'Pending'),
+            verified: user.isEmailVerified || false,
+            joinDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            lastLogin: user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : 'Never',
+            totalApplications: user.applications?.length || 0,
+          }));
+          
+          const transformedEmployers = employers.map((user: any) => {
+            // Get company name from mapping or fallback
+            const companyName = companyMapping[user.company] || user.companyName || user.name || 'Unknown Company';
+            
+            // Find jobs for this employer (fallback)
+            const employerJobs = allJobsFallback.filter((job: any) =>
+              job.employer === user._id ||
+              job.employer?._id === user._id ||
+              (typeof job.employer === 'string' && job.employer === user._id.toString())
+            );
+
+            console.log(`Fallback Employer ${user.email}: Found ${employerJobs.length} jobs`);
+
+            // Sort jobs by creation date (newest first)
+            employerJobs.sort((a: any, b: any) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+
+            const lastJob = employerJobs.length > 0 ? new Date(employerJobs[0].createdAt) : null;
+            const lastJobPostedDate = lastJob && !isNaN(lastJob.getTime())
+              ? lastJob.toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })
+              : "Never";
+            
+            console.log(`Fallback Employer ${user.email}: company field = ${user.company}, companyName = ${user.companyName}, phone = ${user.phone}, mapped companyName = ${companyName}`);
+            
+            return {
+            id: user._id || user.id,
+            companyId: user.company, // Store the company ID separately
+            logo: user.profilePicture || user.companyLogo || `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName || 'Company')}&background=02243b&color=fff`,
+            companyName: companyName,
+            adminContact: user.phone || user.contactPerson || user.name || 'N/A',
+            email: user.email,
+            jobsPosted: employerJobs.length,
+            lastJobPosted: lastJobPostedDate,
+            plan: user.subscriptionPlan || 'Basic',
+            status: user.isActive === false ? 'Suspended' : (user.isEmailVerified ? 'Active' : 'Pending'),
+            verified: user.isEmailVerified || false,
+            kyc: user.kycStatus || (user.isVerified ? 'Verified' : 'Pending'),
+            location: user.location || user.address || 'N/A',
+            industry: user.industry || 'Not specified',
+            companySize: user.companySize || 'Not specified',
+            activeJobs: employerJobs.filter((job: any) => job.status === "published").length,
+            joinDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            };
+          });
+          
+          setJobSeekersData(transformedJobSeekers);
+          setEmployersData(transformedEmployers);
+          console.log('Fallback successful - Job seekers:', transformedJobSeekers.length, 'Employers:', transformedEmployers.length);
+          
+        } catch (fallbackError) {
+          console.error('Fallback also failed:', fallbackError);
+        }
+      }
+    };
+    
+    fetchData();
+  }, []);
 
   const StatusBadge = ({ status }: { status: string }) => {
     const variants = {
@@ -330,7 +549,7 @@ export function UserManagement() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Job Seekers</CardTitle>
@@ -338,7 +557,7 @@ export function UserManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" style={{ color: 'var(--admin-primary)' }}>
-              {jobSeekersData.length}
+              {loading ? '...' : jobSeekersData.length}
             </div>
             <p className="text-xs text-muted-foreground">+12% from last month</p>
           </CardContent>
@@ -351,9 +570,22 @@ export function UserManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" style={{ color: 'var(--admin-secondary)' }}>
-              {employersData.length}
+              {loading ? '...' : employersData.length}
             </div>
             <p className="text-xs text-muted-foreground">+8% from last month</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Companies</CardTitle>
+            <Building className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold" style={{ color: 'var(--admin-accent)' }}>
+              {loading ? '...' : companiesData.length}
+            </div>
+            <p className="text-xs text-muted-foreground">+15% from last month</p>
           </CardContent>
         </Card>
 
@@ -364,7 +596,7 @@ export function UserManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {[...jobSeekersData, ...employersData].filter(u => u.status === 'Pending').length}
+              {loading ? '...' : [...jobSeekersData, ...employersData].filter(u => u.status === 'Pending').length}
             </div>
             <p className="text-xs text-muted-foreground">Awaiting review</p>
           </CardContent>
@@ -377,7 +609,7 @@ export function UserManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {[...jobSeekersData, ...employersData].filter(u => u.status === 'Active').length}
+              {loading ? '...' : [...jobSeekersData, ...employersData].filter(u => u.status === 'Active').length}
             </div>
             <p className="text-xs text-muted-foreground">Currently active</p>
           </CardContent>
@@ -451,7 +683,7 @@ export function UserManagement() {
 
       {/* Main Content Tabs */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-2 lg:w-96">
+        <TabsList className="grid w-full grid-cols-3 lg:w-auto">
           <TabsTrigger value="seekers" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Job Seekers ({filteredJobSeekers.length})
@@ -460,6 +692,10 @@ export function UserManagement() {
             <Building2 className="h-4 w-4" />
             Employers ({filteredEmployers.length})
           </TabsTrigger>
+          {/* <TabsTrigger value="companies" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Companies
+          </TabsTrigger> */}
         </TabsList>
 
         {/* Job Seekers Tab */}
@@ -676,7 +912,7 @@ export function UserManagement() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3 text-gray-400" />
-                          {new Date(employer.lastJobPosted).toLocaleDateString()}
+                          {employer.lastJobPosted === 'Never' ? 'Never' : new Date(employer.lastJobPosted).toLocaleDateString()}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -698,7 +934,19 @@ export function UserManagement() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation();
+                              console.log('Employer data:', employer);
+                              console.log('Company ID:', employer.companyId);
+                              console.log('Company field:', employer.company);
+                              console.log('Company Name:', employer.companyName);
+                              if (employer.companyId || employer.companyName) {
+                                fetchCompanyDetails(employer.companyId, employer.companyName);
+                              } else {
+                                console.error('No company ID or name available for this employer');
+                                alert('No company information available for this employer.');
+                              }
+                            }}>
                               <Building2 className="mr-2 h-4 w-4" />
                               View Company Page
                             </DropdownMenuItem>
@@ -706,7 +954,7 @@ export function UserManagement() {
                               <Briefcase className="mr-2 h-4 w-4" />
                               See Posted Jobs
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            {/* <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
                               {employer.status === 'Active' ? (
                                 <>
                                   <Ban className="mr-2 h-4 w-4" />
@@ -718,15 +966,15 @@ export function UserManagement() {
                                   Reactivate Employer
                                 </>
                               )}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            </DropdownMenuItem> */}
+                            {/* <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
                               <MessageSquare className="mr-2 h-4 w-4" />
                               Send Notification
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
                               <TrendingUp className="mr-2 h-4 w-4" />
                               Upgrade/Downgrade Plan
-                            </DropdownMenuItem>
+                            </DropdownMenuItem> */}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -737,6 +985,11 @@ export function UserManagement() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Companies Tab */}
+        {/* <TabsContent value="companies" className="space-y-4">
+          <CompaniesTable />
+        </TabsContent> */}
       </Tabs>
 
       {/* User Details Dialog */}
@@ -820,6 +1073,91 @@ export function UserManagement() {
                   </Button>
                 </div>
               ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Company Details Modal */}
+      {selectedCompany && showCompanyDetails && (
+        <Dialog open={showCompanyDetails} onOpenChange={setShowCompanyDetails}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Company Details</DialogTitle>
+              <DialogDescription>
+                Detailed information about {selectedCompany.name}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={selectedCompany.logo?.url} />
+                  <AvatarFallback>
+                    {selectedCompany.name?.split(' ').map((n: string) => n[0]).join('') || 'C'}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-lg font-semibold">{selectedCompany.name}</h3>
+                  <p className="text-gray-600">{selectedCompany.email}</p>
+                  <p className="text-sm text-gray-500">{selectedCompany.industry}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Company ID</label>
+                  <p className="text-sm text-gray-900">{selectedCompany._id}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Phone</label>
+                  <p className="text-sm text-gray-900">{selectedCompany.phone || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Website</label>
+                  <p className="text-sm text-gray-900">
+                    {selectedCompany.website ? (
+                      <a href={selectedCompany.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        {selectedCompany.website}
+                      </a>
+                    ) : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Location</label>
+                  <p className="text-sm text-gray-900">{selectedCompany.location || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Company Size</label>
+                  <p className="text-sm text-gray-900">{selectedCompany.size || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Founded Year</label>
+                  <p className="text-sm text-gray-900">{selectedCompany.foundedYear || 'N/A'}</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-sm font-medium text-gray-700">Description</label>
+                  <p className="text-sm text-gray-900">{selectedCompany.description || 'No description available'}</p>
+                </div>
+                {/* <div>
+                  <label className="text-sm font-medium text-gray-700">Verified</label>
+                  <p className="text-sm text-gray-900">{selectedCompany.verified ? 'Yes' : 'No'}</p>
+                </div> */}
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Created</label>
+                  <p className="text-sm text-gray-900">
+                    {selectedCompany.createdAt ? new Date(selectedCompany.createdAt).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setShowCompanyDetails(false)}>
+                  Close
+                </Button>
+                {/* <Button style={{ backgroundColor: 'var(--admin-primary)', color: 'white' }}>
+                  Edit Company
+                </Button> */}
+              </div>
             </div>
           </DialogContent>
         </Dialog>

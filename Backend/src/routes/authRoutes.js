@@ -7,6 +7,9 @@ const authController = require('../controllers/authController');
 
 // Public routes
 router.post('/register', authLimiter, validate(validateUserRegistration), authController.register);
+router.post('/register/job-seeker', authLimiter, authController.registerJobSeeker);
+router.post('/register/company', authLimiter, authController.registerCompany);
+router.post('/send-otp', authLimiter, authController.sendOTP);
 router.post('/login', authLimiter, validate(validateUserLogin), authController.login);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password/:token', authController.resetPassword);
@@ -14,5 +17,7 @@ router.post('/reset-password/:token', authController.resetPassword);
 // Protected routes
 router.get('/verify-email/:token', authController.verifyEmail);
 router.post('/resend-verification', protect, authController.resendVerification);
+router.put('/profile/complete', protect, authController.completeProfile);
+router.get('/verify-token', protect, authController.verifyToken);
 
 module.exports = router;

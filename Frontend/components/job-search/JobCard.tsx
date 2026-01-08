@@ -19,15 +19,22 @@ export interface Job {
   id: string
   title: string
   company: string
-  companyLogo?: string
   location: string
-  postedTime: string
-  jobType: 'Full-time' | 'Part-time' | 'Contract' | 'Internship' | 'Temporary'
-  salary?: string
+  employmentType: string
+  experience: string
+  salaryMin?: number
+  salaryMax?: number
+  salaryPeriod?: string
+  postedTime?: string
+  expiryDate?: string
   description: string
   requirements: string[]
   benefits: string[]
   badges: string[]
+  skills: string[]
+  customSections: { title: string; content: string; _id: string }[]
+  industry?: string
+  category?: string
   isRemote: boolean
   hasVisaSupport: boolean
   isEntryLevel: boolean
@@ -106,15 +113,7 @@ export default function JobCard({ job, isSelected, onClick, onBookmark, onViewDe
             </h3>
             
             <div className="flex items-center gap-2 text-gray-600 mb-2">
-              {job.companyLogo ? (
-                <img 
-                  src={job.companyLogo} 
-                  alt={job.company} 
-                  className="h-5 w-5 rounded object-cover"
-                />
-              ) : (
-                <Building2 className="h-5 w-5" />
-              )}
+              <Building2 className="h-5 w-5" />
               <span className="font-medium hover:text-primary-600 transition-colors">
                 {job.company}
               </span>
@@ -147,19 +146,21 @@ export default function JobCard({ job, isSelected, onClick, onBookmark, onViewDe
             <span>{job.location}</span>
           </div>
           
-          <div className="flex items-center gap-1">
-            <Clock className="h-4 w-4 text-gray-400" />
-            <span>{job.postedTime}</span>
-          </div>
+          <Badge variant="outline" className="text-xs capitalize">
+            {job.employmentType}
+          </Badge>
           
-          <Badge variant="outline" className="text-xs">
-            {job.jobType}
+          <Badge variant="outline" className="text-xs capitalize">
+            {job.experience} Level
           </Badge>
 
-          {job.salary && (
+          {job.salaryMin && job.salaryMax && (
             <div className="flex items-center gap-1">
               <DollarSign className="h-4 w-4 text-green-500" />
-              <span className="font-medium text-green-600">{job.salary}</span>
+              <span className="font-medium text-green-600">
+                ${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}
+                {job.salaryPeriod && `/${job.salaryPeriod}`}
+              </span>
             </div>
           )}
         </div>
@@ -184,6 +185,27 @@ export default function JobCard({ job, isSelected, onClick, onBookmark, onViewDe
             {job.badges.length > 3 && (
               <Badge variant="outline" className="text-xs text-gray-500">
                 +{job.badges.length - 3} more
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Skills Preview */}
+        {job.skills && job.skills.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            <span className="text-xs font-medium text-gray-500 mr-2">Skills:</span>
+            {job.skills.slice(0, 3).map((skill, index) => (
+              <Badge
+                key={index}
+                variant="outline"
+                className="text-xs bg-blue-50 text-blue-600 border-blue-200"
+              >
+                {skill}
+              </Badge>
+            ))}
+            {job.skills.length > 3 && (
+              <Badge variant="outline" className="text-xs text-gray-500">
+                +{job.skills.length - 3} more
               </Badge>
             )}
           </div>

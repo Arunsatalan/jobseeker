@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
@@ -11,12 +12,24 @@ const { limiter } = require('./middleware/rateLimit');
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const userProfileRoutes = require('./routes/userProfileRoutes');
 const jobRoutes = require('./routes/jobRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
 const resumeRoutes = require('./routes/resumeRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const companyRoutes = require('./routes/companyRoutes');
+const debugRoutes = require('./routes/debugRoutes');
+const jobSeekerPreferencesRoutes = require('./routes/jobSeekerPreferencesRoutes');
+const cvRoutes = require('./routes/cvRoutes');
+const aiRoutes = require('./routes/aiRoutes');
+const interviewRoutes = require('./routes/interviewRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const billingRoutes = require('./routes/billingRoutes');
+const adminStatsRoutes = require('./routes/adminStatsRoutes');
 
 const app = express();
 
@@ -45,15 +58,30 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Debug test page
+app.use('/test', express.static(path.join(__dirname, '..')));
+
 // API Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/user-profiles', userProfileRoutes);
 app.use('/api/v1/jobs', jobRoutes);
+app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/applications', applicationRoutes);
 app.use('/api/v1/resumes', resumeRoutes);
 app.use('/api/v1/messages', messageRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/companies', companyRoutes);
+app.use('/api/v1/jobseeker', jobSeekerPreferencesRoutes);
+app.use('/api/v1/cv', cvRoutes);
+app.use('/api/v1/ai', aiRoutes);
+app.use('/api/v1/interviews', interviewRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/billing', billingRoutes);
+app.use('/api/v1/admin/stats', adminStatsRoutes);
+app.use('/api/v1/debug', debugRoutes);
 
 // 404 handler
 app.use((req, res) => {

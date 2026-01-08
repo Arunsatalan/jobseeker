@@ -1,16 +1,17 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
-const config = require('../config/environment');
-const User = require('../models/User');
-const Job = require('../models/Job');
-const Company = require('../models/Company');
-const logger = require('../utils/logger');
+const config = require('../src/config/environment');
+const User = require('../src/models/User');
+const Job = require('../src/models/Job');
+const Company = require('../src/models/Company');
+const Category = require('../src/models/Category');
+const logger = require('../src/utils/logger');
 
 const seedDatabase = async () => {
   try {
     // Connect to MongoDB
-    await mongoose.connect(config.MONGODB_URI, {
+    await mongoose.connect('mongodb://localhost:27017/find_job', {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
@@ -21,8 +22,39 @@ const seedDatabase = async () => {
     await User.deleteMany({});
     await Job.deleteMany({});
     await Company.deleteMany({});
+    await Category.deleteMany({});
 
     logger.info('Cleared existing data');
+
+    // Create admin user
+    const admin = await User.create({
+      firstName: 'Admin',
+      lastName: 'User',
+      email: 'admin@findjob.com',
+      password: await bcrypt.hash('Admin123!', 10),
+      role: 'admin',
+      isEmailVerified: true,
+    });
+
+    logger.info('Created admin user');
+
+    // Create sample categories
+    const categories = await Category.create([
+      { name: 'Technology', description: 'Software, IT, and tech-related jobs', createdBy: admin._id },
+      { name: 'Healthcare', description: 'Medical, nursing, and healthcare positions', createdBy: admin._id },
+      { name: 'Finance', description: 'Banking, accounting, and financial services', createdBy: admin._id },
+      { name: 'Marketing', description: 'Marketing, advertising, and brand management', createdBy: admin._id },
+      { name: 'Education', description: 'Teaching, training, and educational roles', createdBy: admin._id },
+      { name: 'Manufacturing', description: 'Production, engineering, and manufacturing jobs', createdBy: admin._id },
+      { name: 'Retail', description: 'Sales, customer service, and retail positions', createdBy: admin._id },
+      { name: 'Construction', description: 'Building, architecture, and construction work', createdBy: admin._id },
+      { name: 'Legal', description: 'Law, legal services, and compliance roles', createdBy: admin._id },
+      { name: 'Design', description: 'Graphic design, UX/UI, and creative positions', createdBy: admin._id },
+      { name: 'Data Science', description: 'Data analysis, machine learning, and analytics', createdBy: admin._id },
+      { name: 'Human Resources', description: 'HR, recruitment, and people management', createdBy: admin._id },
+    ]);
+
+    logger.info(`Created ${categories.length} categories`);
 
     // Create sample companies
     const companies = await Company.create([
@@ -41,6 +73,19 @@ const seedDatabase = async () => {
         location: 'Vancouver, BC',
         website: 'https://financeplus.com',
         description: 'Financial services provider',
+      },
+      {
+        name: 'vinasai',
+        industry: 'Technology',
+        size: 'startup',
+        location: 'Remote',
+        website: 'https://vinasai.com',
+        description: 'AI-powered job matching platform',
+        foundedYear: 2023,
+        socialLinks: {
+          linkedin: 'https://linkedin.com/company/vinasai',
+          twitter: 'https://twitter.com/vinasai'
+        }
       },
     ]);
 
@@ -101,7 +146,7 @@ const seedDatabase = async () => {
       {
         title: 'Senior Software Engineer',
         description: 'Looking for experienced software engineer',
-        company: 'Tech Corp',
+        company: companies[0]._id,
         employer: employers[0]._id,
         location: 'Toronto, ON',
         employmentType: 'full-time',
@@ -110,12 +155,13 @@ const seedDatabase = async () => {
         salaryMax: 150000,
         skills: ['JavaScript', 'React', 'Node.js'],
         industry: 'Technology',
+        category: 'Technology',
         status: 'published',
       },
       {
         title: 'Financial Analyst',
         description: 'Join our finance team',
-        company: 'Finance Plus',
+        company: companies[1]._id,
         employer: employers[1]._id,
         location: 'Vancouver, BC',
         employmentType: 'full-time',
@@ -124,6 +170,22 @@ const seedDatabase = async () => {
         salaryMax: 90000,
         skills: ['Excel', 'Financial Analysis', 'SQL'],
         industry: 'Finance',
+        category: 'Finance',
+        status: 'published',
+      },
+      {
+        title: 'AI/ML Engineer',
+        description: 'Build the future of job matching with AI',
+        company: companies[2]._id,
+        employer: employers[0]._id,
+        location: 'Remote',
+        employmentType: 'full-time',
+        experience: 'mid',
+        salaryMin: 90000,
+        salaryMax: 130000,
+        skills: ['Python', 'Machine Learning', 'TensorFlow'],
+        industry: 'Technology',
+        category: 'Data Science',
         status: 'published',
       },
     ]);

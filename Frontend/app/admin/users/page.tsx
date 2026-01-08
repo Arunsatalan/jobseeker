@@ -5,6 +5,7 @@ import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { UserManagement } from "@/components/admin/UserManagement";
 
+
 // Mock admin user data
 const mockAdmin = {
   name: "Admin User",
@@ -19,9 +20,15 @@ import { adminNavItems } from "../overview/page";
 export default function UsersPage() {
   const [activeSection, setActiveSection] = useState("users");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleRefresh = () => {
+    // Trigger a refresh by updating the key, which will cause components to re-render
+    setRefreshKey(prev => prev + 1);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50">
       {/* Custom CSS Variables for Admin Theme */}
       <style jsx global>{`
         :root {
@@ -61,11 +68,12 @@ export default function UsersPage() {
           admin={mockAdmin}
           activeSection={activeSection}
           navItems={adminNavItems}
+          onRefresh={handleRefresh}
         />
 
         {/* Page Content */}
         <main className="p-6">
-          <UserManagement />
+          <UserManagement key={`users-${refreshKey}`} />
         </main>
       </div>
     </div>

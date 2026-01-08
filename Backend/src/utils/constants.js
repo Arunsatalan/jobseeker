@@ -48,6 +48,7 @@ const SUBSCRIPTION_PLANS = {
   FREE: 'free',
   PRO: 'pro',
   ENTERPRISE: 'enterprise',
+  PAID: 'paid', // Legacy support
 };
 
 const SUBSCRIPTION_STATUS = {
@@ -61,6 +62,7 @@ const MESSAGE_TYPE = {
   TEXT: 'text',
   DOCUMENT: 'document',
   IMAGE: 'image',
+  SUPPORT: 'support',
 };
 
 const PAYMENT_STATUS = {

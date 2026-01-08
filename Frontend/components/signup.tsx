@@ -20,6 +20,7 @@ import {
   Sparkles,
   X,
   Check,
+  AlertCircle,
 } from "lucide-react"
 
 interface SignUpProps {
@@ -30,10 +31,15 @@ interface SignUpProps {
 export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
   const [activeTab, setActiveTab] = useState("job-seeker")
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [otp, setOtp] = useState("")
+  const [otpSent, setOtpSent] = useState(false)
+  const [passwordStrength, setPasswordStrength] = useState("")
 
   // Job Seeker form state
   const [jobSeekerData, setJobSeekerData] = useState({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
     password: "",
@@ -70,39 +76,185 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
     confirmPassword: "",
   })
 
+  const checkPasswordStrength = (password: string) => {
+    if (password.length < 8) return "Weak (Too short)";
+    if (!/[A-Z]/.test(password)) return "Weak (Need uppercase)";
+    if (!/[0-9]/.test(password)) return "Weak (Need number)";
+    if (!/[^A-Za-z0-9]/.test(password)) return "Medium (Add special char)";
+    return "Strong";
+  }
+
   // Validation functions
   const isJobSeekerValid = () => {
-    return jobSeekerData.fullName && jobSeekerData.email && jobSeekerData.phone && 
-           jobSeekerData.city && jobSeekerData.province && jobSeekerData.password && 
-           jobSeekerData.confirmPassword
+    return jobSeekerData.firstName && jobSeekerData.lastName && jobSeekerData.email && jobSeekerData.phone &&
+      jobSeekerData.city && jobSeekerData.province && jobSeekerData.password &&
+      jobSeekerData.confirmPassword && jobSeekerData.password === jobSeekerData.confirmPassword
   }
 
   const isCompanyValid = () => {
-    return companyData.companyName && companyData.companyEmail && companyData.contactName && 
-           companyData.city && companyData.province && companyData.password && 
-           companyData.confirmPassword && companyData.agreeToTerms
+    return companyData.companyName && companyData.companyEmail && companyData.contactName &&
+      companyData.city && companyData.province && companyData.password &&
+      companyData.confirmPassword && companyData.agreeToTerms &&
+      companyData.password === companyData.confirmPassword
   }
 
   const isAgencyValid = () => {
-    return agencyData.agencyName && agencyData.registrationNo && agencyData.contactName && 
-           agencyData.email && agencyData.phone && agencyData.city && agencyData.province && 
-           agencyData.password && agencyData.confirmPassword
+    return agencyData.agencyName && agencyData.registrationNo && agencyData.contactName &&
+      agencyData.email && agencyData.phone && agencyData.city && agencyData.province &&
+      agencyData.password && agencyData.confirmPassword
   }
+
+  const sendOTP = async (email: string) => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setOtpSent(true);
+        setError("");
+      } else {
+        setError(data.message || 'Failed to send OTP');
+      }
+    } catch (error) {
+      setError('Network error sending OTP');
+    }
+  };
 
   const handleJobSeekerSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
+
+    if (jobSeekerData.password !== jobSeekerData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (checkPasswordStrength(jobSeekerData.password).startsWith("Weak")) {
+      setError("Password is too weak. Please use a stronger password.");
+      return;
+    }
+
+    if (!otpSent) {
+      setIsLoading(true);
+      await sendOTP(jobSeekerData.email);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!otp) {
+      setError("Please enter the verification code sent to your email.");
+      return;
+    }
+
     setIsLoading(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setIsLoading(false)
-    // Handle signup logic
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/register/job-seeker`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: jobSeekerData.firstName,
+          lastName: jobSeekerData.lastName,
+          email: jobSeekerData.email,
+          phone: jobSeekerData.phone,
+          city: jobSeekerData.city,
+          province: jobSeekerData.province,
+          isNewcomer: jobSeekerData.isNewcomer,
+          password: jobSeekerData.password,
+          otp: otp,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Store token and user
+        localStorage.setItem('token', data.data.token)
+        localStorage.setItem('user', JSON.stringify(data.data.user))
+        console.log('Job seeker registered:', data)
+        // Redirect to profile page for completion
+        window.location.href = '/profile'
+      } else {
+        setError(data.message || 'Registration failed')
+      }
+    } catch (error) {
+      console.error('Network error:', error)
+      setError('Network error. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError("")
+
+    if (companyData.password !== companyData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    if (checkPasswordStrength(companyData.password).startsWith("Weak")) {
+      setError("Password is too weak. Please use a stronger password.");
+      return;
+    }
+
+    if (!otpSent) {
+      setIsLoading(true);
+      await sendOTP(companyData.companyEmail);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!otp) {
+      setError("Please enter the verification code sent to your email.");
+      return;
+    }
+
     setIsLoading(true)
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setIsLoading(false)
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/register/company`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyName: companyData.companyName,
+          companyEmail: companyData.companyEmail,
+          contactName: companyData.contactName,
+          contactPhone: companyData.contactPhone,
+          city: companyData.city,
+          province: companyData.province,
+          website: companyData.website,
+          password: companyData.password,
+          otp: otp,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Store token and user
+        localStorage.setItem('token', data.data.token)
+        localStorage.setItem('user', JSON.stringify(data.data.user))
+        console.log('Company registered:', data)
+        // Redirect to profile page for completion
+        window.location.href = '/profile'
+      } else {
+        setError(data.message || 'Registration failed')
+      }
+    } catch (error) {
+      console.error('Network error:', error)
+      setError('Network error. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleAgencySubmit = async (e: React.FormEvent) => {
@@ -115,7 +267,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
   const provinces = [
     "Alberta", "British Columbia", "Manitoba", "New Brunswick", "Newfoundland and Labrador",
     "Northwest Territories", "Nova Scotia", "Nunavut", "Ontario", "Prince Edward Island",
-    "Quebec", "Saskatchewan", "Yukon"
+    "Quebec", "Saskatchewan", "Yukon", "Other"
   ]
 
   return (
@@ -148,32 +300,63 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
               <Building2 className="h-4 w-4" />
               Company
             </TabsTrigger>
-            <TabsTrigger value="agency" className="flex items-center gap-2">
+            {/* <TabsTrigger value="agency" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Temp Agency
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
 
           <TabsContent value="job-seeker">
             <form onSubmit={handleJobSeekerSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="js-fullName">Full Name *</Label>
+                  <Label htmlFor="js-firstName">First Name *</Label>
                   <Input
-                    id="js-fullName"
-                    value={jobSeekerData.fullName}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, fullName: e.target.value})}
+                    id="js-firstName"
+                    value={jobSeekerData.firstName}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, firstName: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="js-lastName">Last Name *</Label>
+                  <Input
+                    id="js-lastName"
+                    value={jobSeekerData.lastName}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, lastName: e.target.value })}
+                    className="h-12 rounded-xl"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="js-email">Email *</Label>
                   <Input
                     id="js-email"
                     type="email"
                     value={jobSeekerData.email}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, email: e.target.value})}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, email: e.target.value })}
+                    className="h-12 rounded-xl"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="js-phone">Phone *</Label>
+                  <Input
+                    id="js-phone"
+                    type="tel"
+                    value={jobSeekerData.phone}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, phone: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
@@ -182,47 +365,35 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="js-phone">Phone *</Label>
+                  <Label htmlFor="js-city">City *</Label>
                   <Input
-                    id="js-phone"
-                    type="tel"
-                    value={jobSeekerData.phone}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, phone: e.target.value})}
+                    id="js-city"
+                    value={jobSeekerData.city}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, city: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="js-city">City *</Label>
-                  <Input
-                    id="js-city"
-                    value={jobSeekerData.city}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, city: e.target.value})}
-                    className="h-12 rounded-xl"
-                    required
-                  />
+                  <Label htmlFor="js-province">Province *</Label>
+                  <Select value={jobSeekerData.province} onValueChange={(value) => setJobSeekerData({ ...jobSeekerData, province: value })}>
+                    <SelectTrigger className="h-12 rounded-xl">
+                      <SelectValue placeholder="Select province" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[70]">
+                      {provinces.map((province) => (
+                        <SelectItem key={province} value={province}>{province}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="js-province">Province *</Label>
-                <Select value={jobSeekerData.province} onValueChange={(value) => setJobSeekerData({...jobSeekerData, province: value})}>
-                  <SelectTrigger className="h-12 rounded-xl">
-                    <SelectValue placeholder="Select province" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {provinces.map((province) => (
-                      <SelectItem key={province} value={province}>{province}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
 
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="js-newcomer"
                   checked={jobSeekerData.isNewcomer}
-                  onCheckedChange={(checked) => setJobSeekerData({...jobSeekerData, isNewcomer: checked as boolean})}
+                  onCheckedChange={(checked) => setJobSeekerData({ ...jobSeekerData, isNewcomer: checked as boolean })}
                 />
                 <Label htmlFor="js-newcomer">I am a newcomer to Canada</Label>
               </div>
@@ -234,10 +405,29 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="js-password"
                     type="password"
                     value={jobSeekerData.password}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, password: e.target.value})}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, password: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="js-password">Password *</Label>
+                  <Input
+                    id="js-password"
+                    type="password"
+                    value={jobSeekerData.password}
+                    onChange={(e) => {
+                      setJobSeekerData({ ...jobSeekerData, password: e.target.value });
+                      setPasswordStrength(checkPasswordStrength(e.target.value));
+                    }}
+                    className="h-12 rounded-xl"
+                    required
+                  />
+                  {jobSeekerData.password && (
+                    <p className={`text-xs ${passwordStrength.startsWith("Weak") ? "text-red-500" : "text-green-500"}`}>
+                      Strength: {passwordStrength}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="js-confirmPassword">Confirm Password *</Label>
@@ -245,19 +435,36 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="js-confirmPassword"
                     type="password"
                     value={jobSeekerData.confirmPassword}
-                    onChange={(e) => setJobSeekerData({...jobSeekerData, confirmPassword: e.target.value})}
+                    onChange={(e) => setJobSeekerData({ ...jobSeekerData, confirmPassword: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
+                  {jobSeekerData.confirmPassword && jobSeekerData.password !== jobSeekerData.confirmPassword && (
+                    <p className="text-xs text-red-500">Passwords do not match</p>
+                  )}
                 </div>
               </div>
+
+              {otpSent && (
+                <div className="space-y-2 animate-fade-in-up">
+                  <Label htmlFor="otp">Verification Code *</Label>
+                  <Input
+                    id="otp"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="h-12 rounded-xl"
+                    placeholder="Enter 6-digit code sent to your email"
+                    required
+                  />
+                </div>
+              )}
 
               <Button
                 type="submit"
                 disabled={isLoading || !isJobSeekerValid()}
                 className="w-full h-12 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-400 text-white font-semibold shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105"
               >
-                {isLoading ? "Creating Account..." : "Create Job Seeker Account"}
+                {isLoading ? "Processing..." : (otpSent ? "Verify & Create Account" : "Send Verification Code")}
               </Button>
             </form>
           </TabsContent>
@@ -270,7 +477,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   <Input
                     id="company-name"
                     value={companyData.companyName}
-                    onChange={(e) => setCompanyData({...companyData, companyName: e.target.value})}
+                    onChange={(e) => setCompanyData({ ...companyData, companyName: e.target.value })}
                     className="h-12 rounded-xl"
                     placeholder="e.g., Shopify, RBC"
                     required
@@ -282,7 +489,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="company-email"
                     type="email"
                     value={companyData.companyEmail}
-                    onChange={(e) => setCompanyData({...companyData, companyEmail: e.target.value})}
+                    onChange={(e) => setCompanyData({ ...companyData, companyEmail: e.target.value })}
                     className="h-12 rounded-xl"
                     placeholder="hr@company.com"
                     pattern=".+@.+\..+"
@@ -298,7 +505,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   <Input
                     id="company-contactName"
                     value={companyData.contactName}
-                    onChange={(e) => setCompanyData({...companyData, contactName: e.target.value})}
+                    onChange={(e) => setCompanyData({ ...companyData, contactName: e.target.value })}
                     className="h-12 rounded-xl"
                     placeholder="HR Manager or Recruiter"
                     required
@@ -310,7 +517,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="company-contactPhone"
                     type="tel"
                     value={companyData.contactPhone}
-                    onChange={(e) => setCompanyData({...companyData, contactPhone: e.target.value})}
+                    onChange={(e) => setCompanyData({ ...companyData, contactPhone: e.target.value })}
                     className="h-12 rounded-xl"
                     placeholder="+1 (416) 123-4567"
                   />
@@ -323,7 +530,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   <Input
                     id="company-city"
                     value={companyData.city}
-                    onChange={(e) => setCompanyData({...companyData, city: e.target.value})}
+                    onChange={(e) => setCompanyData({ ...companyData, city: e.target.value })}
                     className="h-12 rounded-xl"
                     placeholder="Toronto"
                     required
@@ -331,11 +538,11 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="company-province">Province *</Label>
-                  <Select value={companyData.province} onValueChange={(value) => setCompanyData({...companyData, province: value})}>
+                  <Select value={companyData.province} onValueChange={(value) => setCompanyData({ ...companyData, province: value })}>
                     <SelectTrigger className="h-12 rounded-xl">
                       <SelectValue placeholder="Select province" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[70]">
                       {provinces.map((province) => (
                         <SelectItem key={province} value={province}>{province}</SelectItem>
                       ))}
@@ -350,7 +557,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   id="company-website"
                   type="url"
                   value={companyData.website}
-                  onChange={(e) => setCompanyData({...companyData, website: e.target.value})}
+                  onChange={(e) => setCompanyData({ ...companyData, website: e.target.value })}
                   className="h-12 rounded-xl"
                   placeholder="https://www.company.com"
                 />
@@ -363,12 +570,20 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="company-password"
                     type="password"
                     value={companyData.password}
-                    onChange={(e) => setCompanyData({...companyData, password: e.target.value})}
+                    onChange={(e) => {
+                      setCompanyData({ ...companyData, password: e.target.value });
+                      setPasswordStrength(checkPasswordStrength(e.target.value));
+                    }}
                     className="h-12 rounded-xl"
                     placeholder="8+ characters"
                     minLength={8}
                     required
                   />
+                  {companyData.password && (
+                    <p className={`text-xs ${passwordStrength.startsWith("Weak") ? "text-red-500" : "text-green-500"}`}>
+                      Strength: {passwordStrength}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="company-confirmPassword">Confirm Password *</Label>
@@ -376,18 +591,35 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                     id="company-confirmPassword"
                     type="password"
                     value={companyData.confirmPassword}
-                    onChange={(e) => setCompanyData({...companyData, confirmPassword: e.target.value})}
+                    onChange={(e) => setCompanyData({ ...companyData, confirmPassword: e.target.value })}
                     className="h-12 rounded-xl"
                     required
                   />
+                  {companyData.confirmPassword && companyData.password !== companyData.confirmPassword && (
+                    <p className="text-xs text-red-500">Passwords do not match</p>
+                  )}
                 </div>
               </div>
+
+              {otpSent && (
+                <div className="space-y-2 animate-fade-in-up">
+                  <Label htmlFor="company-otp">Verification Code *</Label>
+                  <Input
+                    id="company-otp"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="h-12 rounded-xl"
+                    placeholder="Enter 6-digit code sent to your email"
+                    required
+                  />
+                </div>
+              )}
 
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="company-terms"
                   checked={companyData.agreeToTerms}
-                  onCheckedChange={(checked) => setCompanyData({...companyData, agreeToTerms: checked as boolean})}
+                  onCheckedChange={(checked) => setCompanyData({ ...companyData, agreeToTerms: checked as boolean })}
                   required
                 />
                 <Label htmlFor="company-terms">I agree to the <a href="#" className="text-primary-500 hover:underline">Terms & Conditions</a> *</Label>
@@ -398,12 +630,12 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                 disabled={isLoading || !isCompanyValid()}
                 className="w-full h-12 rounded-xl bg-gradient-to-r from-primary-500 to-secondary-400 text-white font-semibold shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-105"
               >
-                {isLoading ? "Creating Account..." : "Create Company Account"}
+                {isLoading ? "Processing..." : (otpSent ? "Verify & Create Account" : "Send Verification Code")}
               </Button>
             </form>
           </TabsContent>
 
-          <TabsContent value="agency">
+          {/* <TabsContent value="agency">
             <form onSubmit={handleAgencySubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -482,7 +714,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                   <SelectTrigger className="h-12 rounded-xl">
                     <SelectValue placeholder="Select province" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[70]">
                     {provinces.map((province) => (
                       <SelectItem key={province} value={province}>{province}</SelectItem>
                     ))}
@@ -523,7 +755,7 @@ export default function SignUp({ onClose, onSwitchToSignIn }: SignUpProps) {
                 {isLoading ? "Creating Account..." : "Create Agency Account"}
               </Button>
             </form>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
 
         <div className="mt-8 text-center">

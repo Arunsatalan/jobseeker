@@ -32,6 +32,47 @@ const messageSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Job',
     },
+    // Moderation fields
+    flagged: {
+      type: Boolean,
+      default: false,
+    },
+    moderationScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: null,
+    },
+    moderationReason: {
+      type: String,
+      default: null,
+    },
+    moderatedAt: Date,
+    moderatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    // Channel tracking
+    channels: [{
+      type: {
+        type: String,
+        enum: ['email', 'sms', 'push', 'in-app'],
+        default: 'in-app',
+      },
+      sentAt: Date,
+      delivered: Boolean,
+      deliveredAt: Date,
+      opened: Boolean,
+      openedAt: Date,
+      clicked: Boolean,
+      clickedAt: Date,
+      error: String,
+    }],
+    // Template reference
+    templateId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'MessageTemplate',
+    },
   },
   { timestamps: true }
 );
@@ -40,5 +81,8 @@ const messageSchema = new mongoose.Schema(
 messageSchema.index({ sender: 1, recipient: 1 });
 messageSchema.index({ isRead: 1 });
 messageSchema.index({ createdAt: -1 });
+messageSchema.index({ flagged: 1 });
+messageSchema.index({ moderationScore: 1 });
+messageSchema.index({ relatedJob: 1 });
 
 module.exports = mongoose.model('Message', messageSchema);

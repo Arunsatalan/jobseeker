@@ -15,9 +15,9 @@ const jobSchema = new mongoose.Schema(
     requirements: [String],
     skills: [String],
     company: {
-      type: String,
-      required: [true, 'Company name is required'],
-      trim: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Company',
+      required: [true, 'Company is required'],
     },
     employer: {
       type: mongoose.Schema.Types.ObjectId,
@@ -48,6 +48,11 @@ const jobSchema = new mongoose.Schema(
       type: Number,
       min: 0,
     },
+    salaryPeriod: {
+      type: String,
+      enum: ['hourly', 'monthly', 'yearly'],
+      default: 'yearly',
+    },
     currency: {
       type: String,
       default: 'CAD',
@@ -55,6 +60,11 @@ const jobSchema = new mongoose.Schema(
     industry: {
       type: String,
       required: [true, 'Industry is required'],
+      trim: true,
+    },
+    category: {
+      type: String,
+      required: [true, 'Category is required'],
       trim: true,
     },
     status: {
@@ -72,6 +82,12 @@ const jobSchema = new mongoose.Schema(
     },
     expiresAt: Date,
     tags: [String],
+    benefits: [String],
+    growthOpportunities: [String],
+    customSections: [{
+      title: { type: String, required: true },
+      content: { type: String, required: true }
+    }],
   },
   { timestamps: true }
 );
@@ -81,6 +97,7 @@ jobSchema.index({ employer: 1 });
 jobSchema.index({ status: 1 });
 jobSchema.index({ createdAt: -1 });
 jobSchema.index({ industry: 1 });
+jobSchema.index({ category: 1 });
 jobSchema.index({ title: 'text', description: 'text', company: 'text' });
 
 module.exports = mongoose.model('Job', jobSchema);

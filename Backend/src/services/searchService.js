@@ -23,7 +23,6 @@ class SearchService {
         query.$or = [
           { title: new RegExp(keyword, 'i') },
           { description: new RegExp(keyword, 'i') },
-          { company: new RegExp(keyword, 'i') },
         ];
       }
 
@@ -55,12 +54,45 @@ class SearchService {
       query.status = 'published';
 
       const skip = (page - 1) * limit;
-      const jobs = await Job.find(query)
+      let jobsQuery = Job.find(query)
+        .populate('company', 'name logo industry size location description website socialLinks foundedYear')
         .skip(skip)
         .limit(parseInt(limit))
         .sort({ createdAt: -1 });
 
-      const total = await Job.countDocuments(query);
+      // If keyword search includes company names, we need to handle it differently
+      let jobs = [];
+      if (keyword) {
+        // First get all jobs with populated companies
+        const allJobs = await jobsQuery;
+        // Filter jobs where company name matches keyword
+        jobs = allJobs.filter(job =>
+          job.company && job.company.name && new RegExp(keyword, 'i').test(job.company.name)
+        );
+
+        // If we don't have enough results from company name search, get additional jobs from title/description
+        if (jobs.length < limit) {
+          const additionalJobs = await Job.find({
+            ...query,
+            $or: [
+              { title: new RegExp(keyword, 'i') },
+              { description: new RegExp(keyword, 'i') },
+            ]
+          })
+          .populate('company', 'name logo industry size location description website socialLinks foundedYear')
+          .skip(skip)
+          .limit(parseInt(limit) - jobs.length)
+          .sort({ createdAt: -1 });
+
+          jobs = [...jobs, ...additionalJobs];
+        }
+      } else {
+        jobs = await jobsQuery;
+      }
+
+      const total = keyword ?
+        await this.getTotalCountWithKeyword(query, keyword) :
+        await Job.countDocuments(query);
 
       logger.info(`Search executed: ${total} jobs found`);
 
@@ -76,6 +108,35 @@ class SearchService {
     } catch (error) {
       logger.error(`Job search failed: ${error.message}`);
       throw error;
+    }
+  }
+
+  async getTotalCountWithKeyword(baseQuery, keyword) {
+    try {
+      // Count jobs that match the base query
+      const baseCount = await Job.countDocuments(baseQuery);
+
+      // Count jobs where company name matches keyword
+      const companyJobs = await Job.find(baseQuery)
+        .populate('company', 'name')
+        .then(jobs => jobs.filter(job =>
+          job.company && job.company.name && new RegExp(keyword, 'i').test(job.company.name)
+        ));
+
+      // Count jobs where title or description matches keyword
+      const textMatchCount = await Job.countDocuments({
+        ...baseQuery,
+        $or: [
+          { title: new RegExp(keyword, 'i') },
+          { description: new RegExp(keyword, 'i') },
+        ]
+      });
+
+      // Return the combined count (avoiding double counting)
+      return Math.max(companyJobs.length, textMatchCount);
+    } catch (error) {
+      logger.error(`Failed to get total count with keyword: ${error.message}`);
+      return 0;
     }
   }
 

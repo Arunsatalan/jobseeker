@@ -1,8 +1,16 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+console.log('=== SERVER.JS ENV DEBUG ===');
+console.log('CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME);
+console.log('CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY);
+console.log('CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? 'SET' : 'MISSING');
+console.log('==========================');
 
 const app = require('./src/app');
 const connectDB = require('./src/config/database');
 const logger = require('./src/utils/logger');
+const websocketService = require('./src/services/websocketService');
 
 const PORT = process.env.PORT || 5000;
 
@@ -19,6 +27,10 @@ const server = app.listen(PORT, () => {
   ║   URL: http://localhost:${PORT}${' '.repeat(18 - PORT.toString().length)}║
   ╚════════════════════════════════════════╝
   `);
+  
+  // Initialize WebSocket server
+  websocketService.initialize(server);
+  logger.info('WebSocket server initialized');
 });
 
 // Handle unhandled promise rejections

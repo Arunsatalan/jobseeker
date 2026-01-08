@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notification System Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin-bottom: 30px; padding: 20px; border: 1px solid #ccc; }
+        button { padding: 10px 20px; margin: 10px 0; cursor: pointer; }
+        .result { background: #f5f5f5; padding: 10px; margin: 10px 0; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Notification System Diagnostic</h1>
+    
+    <div class="test-section">
+        <h2>1. Admin Login Test</h2>
+        <button onclick="testLogin()">Login as Admin</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Get Notifications Test</h2>
+        <button onclick="testNotifications()">Fetch Notifications</button>
+        <div id="notificationResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Full Test</h2>
+        <button onclick="runFullTest()">Run Complete Test</button>
+        <div id="fullTestResult" class="result"></div>
+    </div>
+
+    <script>
+        let adminToken = null;
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.innerHTML = 'Testing login...';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'spyboy000008@gmail.com',
+                        password: 'admin123'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Login failed: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                adminToken = data.data.token;
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = \`
+                    ✅ Login Successful!<br>
+                    User ID: \${data.data.user.id}<br>
+                    Email: \${data.data.user.email}<br>
+                    Role: \${data.data.user.role}<br>
+                    Token: \${adminToken.substring(0, 30)}...<br>
+                \`;
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = \`❌ Login Error: \${error.message}\`;
+            }
+        }
+
+        async function testNotifications() {
+            const resultDiv = document.getElementById('notificationResult');
+            
+            if (!adminToken) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ Please login first!';
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Fetching notifications...';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/v1/notifications?limit=10', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': \`Bearer \${adminToken}\`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(\`API Error: \${response.status} - \${errorText}\`);
+                }
+                
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                const notifications = data.data?.notifications || [];
+                const count = notifications.length;
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = \`
+                    ✅ Notifications Fetched!<br>
+                    <strong>Count: \${count}</strong><br>
+                    Success: \${data.success}<br>
+                    Message: \${data.message}<br><br>
+                    \${count > 0 ? '<strong>Notifications:</strong><br>' + 
+                        notifications.map((n, i) => 
+                            \`\${i+1}. \${n.title} (\${n.isRead ? 'Read' : 'Unread'})\`
+                        ).join('<br>') 
+                    : 'No notifications found'}
+                \`;
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = \`❌ Notification Error: \${error.message}\`;
+                console.error('Error:', error);
+            }
+        }
+
+        async function runFullTest() {
+            const resultDiv = document.getElementById('fullTestResult');
+            resultDiv.innerHTML = 'Running full test...';
+            
+            try {
+                // Step 1: Login
+                resultDiv.innerHTML += '<br>Step 1: Logging in...';
+                await testLogin();
+                
+                if (!adminToken) {
+                    throw new Error('Login failed');
+                }
+                
+                // Step 2: Get notifications
+                resultDiv.innerHTML += '<br>Step 2: Getting notifications...';
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+                await testNotifications();
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML += '<br><br>✅ Full test completed! Check results above.';
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML += \`<br><br>❌ Full test failed: \${error.message}\`;
+            }
+        }
+    </script>
+</body>
+</html>

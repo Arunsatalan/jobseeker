@@ -1,9 +1,14 @@
 const User = require('../models/User');
+const JobSeeker = require('../models/JobSeeker');
+const Company = require('../models/Company');
+const OTP = require('../models/OTP');
 const asyncHandler = require('../middleware/async');
 const emailService = require('../services/emailService');
+const notificationService = require('../services/notificationService');
 const config = require('../config/environment');
 const logger = require('../utils/logger');
 const { sendSuccess, sendError } = require('../utils/response');
+const constants = require('../utils/constants');
 
 // @desc Register user
 // @route POST /api/v1/auth/register
@@ -79,8 +84,15 @@ exports.login = asyncHandler(async (req, res, next) => {
     return sendSuccess(res, 200, 'Login successful', {
       user: {
         id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
         email: user.email,
         role: user.role,
+        profilePic: user.profilePic,
+        subscription: user.subscription,
+        accountType: user.accountType,
+        profileCompleted: user.profileCompleted,
+        isEmailVerified: user.isEmailVerified,
       },
       token,
     });
@@ -199,5 +211,326 @@ exports.resendVerification = asyncHandler(async (req, res, next) => {
   } catch (error) {
     logger.error(`Resend verification error: ${error.message}`);
     return sendError(res, 500, 'Error resending verification email');
+  }
+});
+
+// @desc Send OTP
+// @route POST /api/v1/auth/send-otp
+// @access Public
+exports.sendOTP = asyncHandler(async (req, res, next) => {
+  const { email } = req.body;
+  if (!email) return sendError(res, 400, 'Email is required');
+
+  // Check if user already exists
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    return sendError(res, 400, 'Email already registered');
+  }
+
+  // Generate 6 digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // Save/Update OTP
+  await OTP.findOneAndUpdate(
+    { email },
+    { otp, createdAt: Date.now() },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  // Send Email
+  await emailService.sendOTP(email, otp);
+
+  return sendSuccess(res, 200, 'OTP sent to email');
+});
+
+// @desc Register job seeker
+// @route POST /api/v1/auth/register/job-seeker
+// @access Public
+exports.registerJobSeeker = asyncHandler(async (req, res, next) => {
+  try {
+    const { firstName, lastName, email, phone, city, province, isNewcomer, password, otp } = req.body;
+
+    // Verify OTP
+    if (!otp) {
+      return sendError(res, 400, 'OTP is required');
+    }
+    const otpRecord = await OTP.findOne({ email, otp });
+    if (!otpRecord) {
+      return sendError(res, 400, 'Invalid or expired OTP');
+    }
+
+    // Check if user already exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return sendError(res, 400, 'Email already registered');
+    }
+
+    // Check if job seeker profile already exists
+    const jobSeekerExists = await JobSeeker.findOne({ email });
+    if (jobSeekerExists) {
+      return sendError(res, 400, 'Email already registered');
+    }
+
+    // Create user
+    const user = await User.create({
+      firstName,
+      lastName,
+      email,
+      phone,
+      location: `${city}, ${province}`,
+      password,
+      role: constants.ROLES.JOB_SEEKER,
+    });
+
+    // Create job seeker profile
+    const jobSeeker = await JobSeeker.create({
+      user: user._id,
+      firstName,
+      lastName,
+      email,
+      phone,
+      city,
+      province,
+      isNewcomer,
+    });
+
+    const token = user.getSignedJwt();
+
+    logger.info(`New job seeker registered: ${user._id}`);
+
+    // Create welcome notification for the new job seeker
+    try {
+      await notificationService.createNotification(
+        user._id,
+        'welcome',
+        'Welcome to CanadaJobs!',
+        `Welcome ${firstName}! Your job seeker profile has been created successfully. Start exploring job opportunities and build your career in Canada.`,
+        {
+          userType: 'job_seeker',
+          registrationDate: new Date(),
+          location: `${city}, ${province}`,
+        }
+      );
+      logger.info(`Welcome notification created for job seeker: ${user._id}`);
+    } catch (notificationError) {
+      logger.error(`Failed to create welcome notification for job seeker: ${notificationError.message}`);
+    }
+
+    // Create notification for admins
+    try {
+      const admins = await User.find({ role: constants.ROLES.ADMIN });
+      for (const admin of admins) {
+        await notificationService.createNotification(
+          admin._id,
+          'admin_notification',
+          'New Job Seeker Registered',
+          `${firstName} ${lastName} has registered as a job seeker`,
+          {
+            userId: user._id,
+            userType: 'job_seeker',
+            userEmail: email,
+            location: `${city}, ${province}`,
+          }
+        );
+      }
+      logger.info(`Admin notification created for new job seeker: ${user._id}`);
+    } catch (notificationError) {
+      logger.error(`Failed to create admin notification: ${notificationError.message}`);
+    }
+
+    // Delete OTP after successful registration
+    await OTP.deleteOne({ _id: otpRecord._id });
+
+    return sendSuccess(res, 201, 'Job seeker registered successfully', {
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+      },
+      profile: jobSeeker,
+      token,
+    });
+  } catch (error) {
+    logger.error(`Job seeker registration error: ${error.message}`);
+    return sendError(res, 500, 'Registration failed', { error: error.message });
+  }
+});
+
+// @desc Register company
+// @route POST /api/v1/auth/register/company
+// @access Public
+exports.registerCompany = asyncHandler(async (req, res, next) => {
+  try {
+    const { companyName, companyEmail, contactName, contactPhone, city, province, website, password, otp } = req.body;
+
+    // Verify OTP
+    if (!otp) {
+      return sendError(res, 400, 'OTP is required. Please verify your email.');
+    }
+    const otpRecord = await OTP.findOne({ email: companyEmail, otp });
+    if (!otpRecord) {
+      return sendError(res, 400, 'Invalid or expired OTP');
+    }
+
+    // Check if company email already exists
+    const companyExists = await Company.findOne({ email: companyEmail });
+    if (companyExists) {
+      return sendError(res, 400, 'Company email already registered');
+    }
+
+    // Check if user already exists
+    const userExists = await User.findOne({ email: companyEmail });
+    if (userExists) {
+      return sendError(res, 400, 'Email already registered');
+    }
+
+    // Create company
+    const company = await Company.create({
+      name: companyName,
+      email: companyEmail,
+      phone: contactPhone,
+      website,
+      location: `${city}, ${province}`,
+    });
+
+    // Create user account for company contact
+    const firstName = contactName.split(' ')[0] || contactName;
+    const lastName = contactName.split(' ').slice(1).join(' ') || 'N/A';
+
+    const user = await User.create({
+      firstName,
+      lastName,
+      email: companyEmail,
+      phone: contactPhone,
+      location: `${city}, ${province}`,
+      password,
+      role: constants.ROLES.EMPLOYER,
+      company: company._id,
+    });
+
+    // Add user to company employees
+    company.employees.push(user._id);
+    await company.save();
+
+    const token = user.getSignedJwt();
+
+    logger.info(`New company registered: ${company._id}, user: ${user._id}`);
+
+    // Create welcome notification for the new company/employer
+    try {
+      await notificationService.createNotification(
+        user._id,
+        'welcome',
+        'Welcome to CanadaJobs!',
+        `Welcome ${contactName}! Your company profile for ${companyName} has been created successfully. Start posting jobs and find the best talent in Canada.`,
+        {
+          userType: 'company',
+          companyId: company._id,
+          companyName: companyName,
+          registrationDate: new Date(),
+          location: `${city}, ${province}`,
+        }
+      );
+      logger.info(`Welcome notification created for company: ${user._id}`);
+    } catch (notificationError) {
+      logger.error(`Failed to create welcome notification for company: ${notificationError.message}`);
+    }
+
+    // Create notification for admins
+    try {
+      const admins = await User.find({ role: constants.ROLES.ADMIN });
+      for (const admin of admins) {
+        await notificationService.createNotification(
+          admin._id,
+          'admin_notification',
+          'New Company Registered',
+          `${companyName} has registered as a company`,
+          {
+            userId: user._id,
+            companyId: company._id,
+            userType: 'company',
+            companyName: companyName,
+            userEmail: companyEmail,
+            location: `${city}, ${province}`,
+          }
+        );
+      }
+      logger.info(`Admin notification created for new company: ${user._id}`);
+    } catch (notificationError) {
+      logger.error(`Failed to create admin notification: ${notificationError.message}`);
+    }
+
+    // Delete OTP after successful registration
+    await OTP.deleteOne({ _id: otpRecord._id });
+
+    return sendSuccess(res, 201, 'Company registered successfully', {
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+      },
+      company,
+      token,
+    });
+  } catch (error) {
+    logger.error(`Company registration error: ${error.message}`);
+    return sendError(res, 500, 'Registration failed', { error: error.message });
+  }
+});
+
+// @desc Verify token
+// @route GET /api/v1/auth/verify-token
+// @access Private
+exports.verifyToken = asyncHandler(async (req, res, next) => {
+  try {
+    // If middleware passed, token is valid
+    return sendSuccess(res, 200, 'Token is valid', {
+      user: {
+        id: req.user._id,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        email: req.user.email,
+        role: req.user.role,
+        profilePic: req.user.profilePic,
+        subscription: req.user.subscription,
+        accountType: req.user.accountType,
+        profileCompleted: req.user.profileCompleted,
+        isEmailVerified: req.user.isEmailVerified,
+      },
+    });
+  } catch (error) {
+    logger.error(`Token verification error: ${error.message}`);
+    return sendError(res, 500, 'Token verification failed');
+  }
+});
+
+// @desc Complete user profile
+// @route PUT /api/v1/auth/profile/complete
+// @access Private
+exports.completeProfile = asyncHandler(async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return sendError(res, 404, 'User not found');
+    }
+
+    // Update profile completion status
+    user.profileCompleted = true;
+    await user.save();
+
+    logger.info(`Profile completed for user: ${user._id}`);
+
+    return sendSuccess(res, 200, 'Profile completed successfully', {
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        profileCompleted: user.profileCompleted,
+      },
+    });
+  } catch (error) {
+    logger.error(`Profile completion error: ${error.message}`);
+    return sendError(res, 500, 'Profile completion failed');
   }
 });

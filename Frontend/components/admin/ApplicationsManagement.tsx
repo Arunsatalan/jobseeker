@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import {
   AreaChart,
   Area,
@@ -60,159 +59,14 @@ import {
   XCircle,
   Clock,
   User,
-  Building2,
-  Calendar,
-  Filter,
   TrendingUp,
   AlertTriangle,
   Download,
   Flag,
   ThumbsUp,
   ThumbsDown,
+  Filter
 } from "lucide-react";
-
-// Mock data for applications
-const applicationData = [
-  {
-    id: "app_001",
-    applicantId: "user_001",
-    applicantName: "Sarah Johnson",
-    applicantAvatar: "https://ui-avatars.com/api/?name=Sarah+Johnson&background=02243b&color=fff",
-    applicantEmail: "sarah.j@email.com",
-    jobId: "job_001",
-    jobTitle: "Senior Full Stack Developer",
-    company: "TechCorp Solutions",
-    companyLogo: "https://ui-avatars.com/api/?name=TechCorp&background=02243b&color=fff",
-    status: "Interview",
-    appliedDate: "2025-12-10",
-    lastUpdate: "2025-12-16",
-    resumeAttached: true,
-    coverLetter: true,
-    experience: "5 years",
-    salaryExpectation: "$120,000 - $140,000",
-    location: "Toronto, ON",
-    employerNotes: "Strong candidate, excellent React skills. Scheduled for technical interview on Dec 18.",
-    stage: "Technical Interview",
-    rating: 4.5,
-    flagged: false,
-    matchScore: 92,
-  },
-  {
-    id: "app_002",
-    applicantId: "user_002",
-    applicantName: "Michael Chen",
-    applicantAvatar: "https://ui-avatars.com/api/?name=Michael+Chen&background=8a4b04&color=fff",
-    applicantEmail: "m.chen@email.com",
-    jobId: "job_002",
-    jobTitle: "UX/UI Designer",
-    company: "Creative Studio Inc",
-    companyLogo: "https://ui-avatars.com/api/?name=Creative+Studio&background=8a4b04&color=fff",
-    status: "Reviewed",
-    appliedDate: "2025-12-12",
-    lastUpdate: "2025-12-15",
-    resumeAttached: true,
-    coverLetter: false,
-    experience: "3 years",
-    salaryExpectation: "$75,000 - $90,000",
-    location: "Vancouver, BC",
-    employerNotes: "Good portfolio, but lacks experience with Figma. Under consideration.",
-    stage: "Portfolio Review",
-    rating: 3.0,
-    flagged: false,
-    matchScore: 78,
-  },
-  {
-    id: "app_003",
-    applicantId: "user_003",
-    applicantName: "Emma Wilson",
-    applicantAvatar: "https://ui-avatars.com/api/?name=Emma+Wilson&background=10b981&color=fff",
-    applicantEmail: "emma.w@email.com",
-    jobId: "job_003",
-    jobTitle: "Data Scientist",
-    company: "Analytics Pro",
-    companyLogo: "https://ui-avatars.com/api/?name=Analytics+Pro&background=10b981&color=fff",
-    status: "Rejected",
-    appliedDate: "2025-12-08",
-    lastUpdate: "2025-12-14",
-    resumeAttached: false,
-    coverLetter: true,
-    experience: "2 years",
-    salaryExpectation: "$85,000 - $100,000",
-    location: "Montreal, QC",
-    employerNotes: "Insufficient Python experience for senior role requirements.",
-    stage: "Initial Review",
-    rating: 2.0,
-    flagged: false,
-    matchScore: 45,
-  },
-  {
-    id: "app_004",
-    applicantId: "user_004",
-    applicantName: "David Kim",
-    applicantAvatar: "https://ui-avatars.com/api/?name=David+Kim&background=f59e0b&color=fff",
-    applicantEmail: "d.kim@email.com",
-    jobId: "job_001",
-    jobTitle: "Senior Full Stack Developer",
-    company: "TechCorp Solutions",
-    companyLogo: "https://ui-avatars.com/api/?name=TechCorp&background=02243b&color=fff",
-    status: "Applied",
-    appliedDate: "2025-12-16",
-    lastUpdate: "2025-12-16",
-    resumeAttached: true,
-    coverLetter: true,
-    experience: "4 years",
-    salaryExpectation: "$110,000 - $130,000",
-    location: "Toronto, ON",
-    employerNotes: null,
-    stage: "Pending Review",
-    rating: null,
-    flagged: true,
-    flagReason: "Duplicate application with different email",
-    matchScore: 88,
-  },
-  {
-    id: "app_005",
-    applicantId: "user_005",
-    applicantName: "Lisa Rodriguez",
-    applicantAvatar: "https://ui-avatars.com/api/?name=Lisa+Rodriguez&background=ef4444&color=fff",
-    applicantEmail: "l.rodriguez@email.com",
-    jobId: "job_004",
-    jobTitle: "Marketing Manager",
-    company: "Growth Marketing Co",
-    companyLogo: "https://ui-avatars.com/api/?name=Growth&background=f59e0b&color=fff",
-    status: "Hired",
-    appliedDate: "2025-11-28",
-    lastUpdate: "2025-12-10",
-    resumeAttached: true,
-    coverLetter: true,
-    experience: "6 years",
-    salaryExpectation: "$80,000 - $95,000",
-    location: "Calgary, AB",
-    employerNotes: "Excellent candidate, great cultural fit. Start date: January 8, 2026.",
-    stage: "Onboarding",
-    rating: 5.0,
-    flagged: false,
-    matchScore: 96,
-  },
-];
-
-// Chart data
-const applicationTrendsData = [
-  { month: 'Jul', applied: 450, reviewed: 380, interviewed: 120, hired: 45 },
-  { month: 'Aug', applied: 520, reviewed: 440, interviewed: 145, hired: 52 },
-  { month: 'Sep', applied: 680, reviewed: 590, interviewed: 180, hired: 68 },
-  { month: 'Oct', applied: 750, reviewed: 650, interviewed: 210, hired: 75 },
-  { month: 'Nov', applied: 820, reviewed: 720, interviewed: 240, hired: 82 },
-  { month: 'Dec', applied: 890, reviewed: 780, interviewed: 265, hired: 89 },
-];
-
-const statusDistributionData = [
-  { status: 'Applied', count: 2840, color: '#3b82f6' },
-  { status: 'Reviewed', count: 1650, color: '#f59e0b' },
-  { status: 'Interview', count: 420, color: '#8b5cf6' },
-  { status: 'Rejected', count: 890, color: '#ef4444' },
-  { status: 'Hired', count: 180, color: '#10b981' },
-];
 
 export function ApplicationsManagement() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -222,26 +76,106 @@ export function ApplicationsManagement() {
   const [showApplicationDetails, setShowApplicationDetails] = useState(false);
   const [selectedTab, setSelectedTab] = useState("all");
 
+  // State for fetched data
+  const [applications, setApplications] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    inReview: 0,
+    hired: 0,
+    flagged: 0
+  });
+  const [trendsData, setTrendsData] = useState<any[]>([]);
+  const [statusDistribution, setStatusDistribution] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchApplications = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      // Construct query
+      const queryParams = new URLSearchParams();
+      if (filterStatus !== 'all') queryParams.append('status', filterStatus);
+
+      const response = await fetch(`${apiUrl}/api/v1/admin/stats/applications?${queryParams.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setApplications(data.data.applications);
+        setStats(data.data.stats);
+        setTrendsData(data.data.trends);
+        setStatusDistribution(data.data.distribution);
+      }
+    } catch (error) {
+      console.error("Failed to fetch application stats", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchApplications();
+  }, [filterStatus, selectedTab]);
+
+  const filteredApplications = applications.filter(app => {
+    const matchesSearch =
+      (app.applicantName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (app.jobTitle || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (app.company || "").toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Client-side filtering for demonstration, ideally server-side for large datasets
+    const matchesStatus = filterStatus === "all" || (app.status || "").toLowerCase() === filterStatus;
+    const matchesCompany = filterCompany === "all" || app.company === filterCompany;
+    const matchesTab = selectedTab === "all" ||
+      (selectedTab === "flagged" && app.flagged) ||
+      (selectedTab === "active" && ["Applied", "Reviewing", "Shortlisted", "Interview", "Offered"].includes(app.status));
+
+    return matchesSearch && matchesStatus && matchesCompany && matchesTab;
+  });
+
+  const companies = [...new Set(applications.map(app => app.company))];
+
+  const handleStatusUpdate = (appId: string, newStatus: string) => {
+    console.log(`Update application ${appId} to ${newStatus}`);
+    // Implementation for status update
+  };
+
+  const handleFlagApplication = (appId: string) => {
+    console.log(`Flag application ${appId}`);
+    // Implementation for flagging
+  };
+
   const StatusBadge = ({ status }: { status: string }) => {
-    const variants = {
+    const variants: Record<string, string> = {
       Applied: "bg-blue-100 text-blue-800 border-blue-200",
-      Reviewed: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      Reviewing: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      Shortlisted: "bg-yellow-100 text-yellow-800 border-yellow-200",
       Interview: "bg-purple-100 text-purple-800 border-purple-200",
+      Offered: "bg-purple-100 text-purple-800 border-purple-200",
       Rejected: "bg-red-100 text-red-800 border-red-200",
-      Hired: "bg-green-100 text-green-800 border-green-200",
+      Accepted: "bg-green-100 text-green-800 border-green-200",
+      Hired: "bg-green-100 text-green-800 border-green-200", // Fallback
     };
 
-    const icons = {
+    const icons: Record<string, any> = {
       Applied: <Clock className="w-3 h-3" />,
-      Reviewed: <Eye className="w-3 h-3" />,
+      Reviewing: <Eye className="w-3 h-3" />,
+      Shortlisted: <Eye className="w-3 h-3" />,
       Interview: <MessageSquare className="w-3 h-3" />,
+      Offered: <ThumbsUp className="w-3 h-3" />,
       Rejected: <XCircle className="w-3 h-3" />,
+      Accepted: <CheckCircle className="w-3 h-3" />,
       Hired: <CheckCircle className="w-3 h-3" />,
     };
 
     return (
-      <Badge className={`${variants[status as keyof typeof variants]} flex items-center gap-1 font-medium border`}>
-        {icons[status as keyof typeof icons]}
+      <Badge className={`${variants[status] || variants.Applied} flex items-center gap-1 font-medium border`}>
+        {icons[status] || icons.Applied}
         {status}
       </Badge>
     );
@@ -263,15 +197,14 @@ export function ApplicationsManagement() {
 
   const RatingStars = ({ rating }: { rating: number | null }) => {
     if (!rating) return <span className="text-gray-400 text-sm">Not rated</span>;
-    
+
     return (
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
           <div
             key={star}
-            className={`w-3 h-3 rounded-full ${
-              star <= rating ? 'bg-yellow-400' : 'bg-gray-200'
-            }`}
+            className={`w-3 h-3 rounded-full ${star <= rating ? 'bg-yellow-400' : 'bg-gray-200'
+              }`}
           />
         ))}
         <span className="text-sm text-gray-600 ml-1">{rating.toFixed(1)}</span>
@@ -279,40 +212,7 @@ export function ApplicationsManagement() {
     );
   };
 
-  const filteredApplications = applicationData.filter(app => {
-    const matchesSearch = 
-      app.applicantName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.jobTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      app.company.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesStatus = filterStatus === "all" || app.status.toLowerCase() === filterStatus;
-    const matchesCompany = filterCompany === "all" || app.company === filterCompany;
-    const matchesTab = selectedTab === "all" || 
-                      (selectedTab === "flagged" && app.flagged) ||
-                      (selectedTab === "active" && ["Applied", "Reviewed", "Interview"].includes(app.status));
-    
-    return matchesSearch && matchesStatus && matchesCompany && matchesTab;
-  });
 
-  const stats = {
-    total: applicationData.length,
-    pending: applicationData.filter(a => a.status === "Applied").length,
-    inReview: applicationData.filter(a => ["Reviewed", "Interview"].includes(a.status)).length,
-    hired: applicationData.filter(a => a.status === "Hired").length,
-    flagged: applicationData.filter(a => a.flagged).length,
-  };
-
-  const companies = [...new Set(applicationData.map(app => app.company))];
-
-  const handleStatusUpdate = (appId: string, newStatus: string) => {
-    console.log(`Update application ${appId} to ${newStatus}`);
-    // Implementation for status update
-  };
-
-  const handleFlagApplication = (appId: string) => {
-    console.log(`Flag application ${appId}`);
-    // Implementation for flagging
-  };
 
   return (
     <div className="space-y-6">
@@ -329,7 +229,7 @@ export function ApplicationsManagement() {
             <Download className="h-4 w-4 mr-2" />
             Export Applications
           </Button>
-          <Button 
+          <Button
             size="sm"
             className="shadow-sm bg-gradient-to-r from-slate-900 to-slate-700 hover:from-slate-800 hover:to-slate-600"
           >
@@ -423,7 +323,7 @@ export function ApplicationsManagement() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
-              <AreaChart data={applicationTrendsData}>
+              <AreaChart data={trendsData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" />
                 <YAxis />
@@ -448,7 +348,7 @@ export function ApplicationsManagement() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={statusDistributionData} layout="horizontal">
+              <BarChart data={statusDistribution} layout="horizontal">
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
                 <YAxis dataKey="status" type="category" width={80} />
@@ -484,7 +384,7 @@ export function ApplicationsManagement() {
                     />
                   </div>
                 </div>
-                
+
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                   <SelectTrigger className="w-40 border-gray-200">
                     <SelectValue placeholder="Status" />
@@ -492,10 +392,12 @@ export function ApplicationsManagement() {
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="applied">Applied</SelectItem>
-                    <SelectItem value="reviewed">Reviewed</SelectItem>
+                    <SelectItem value="reviewing">Reviewing</SelectItem>
+                    <SelectItem value="shortlisted">Shortlisted</SelectItem>
                     <SelectItem value="interview">Interview</SelectItem>
+                    <SelectItem value="offered">Offered</SelectItem>
+                    <SelectItem value="accepted">Hired</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
-                    <SelectItem value="hired">Hired</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -525,7 +427,7 @@ export function ApplicationsManagement() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg font-semibold">Applications</CardTitle>
                 <div className="text-sm text-gray-500">
-                  Showing {filteredApplications.length} of {applicationData.length} applications
+                  Showing {filteredApplications.length} of {applications.length} applications
                 </div>
               </div>
             </CardHeader>
@@ -546,8 +448,8 @@ export function ApplicationsManagement() {
                   </TableHeader>
                   <TableBody>
                     {filteredApplications.map((application) => (
-                      <TableRow 
-                        key={application.id} 
+                      <TableRow
+                        key={application.id}
                         className="border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer"
                         onClick={() => {
                           setSelectedApplication(application);
@@ -558,7 +460,7 @@ export function ApplicationsManagement() {
                           <div className="flex items-center gap-3">
                             <Avatar className="h-10 w-10 border border-gray-200">
                               <AvatarImage src={application.applicantAvatar} alt={application.applicantName} />
-                              <AvatarFallback>{application.applicantName.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                              <AvatarFallback>{application.applicantName.split(' ').map((n: string) => n[0]).join('')}</AvatarFallback>
                             </Avatar>
                             <div>
                               <div className="font-semibold text-gray-900">{application.applicantName}</div>
@@ -567,7 +469,7 @@ export function ApplicationsManagement() {
                             </div>
                           </div>
                         </TableCell>
-                        
+
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8 border border-gray-200">
@@ -580,7 +482,7 @@ export function ApplicationsManagement() {
                             </div>
                           </div>
                         </TableCell>
-                        
+
                         <TableCell>
                           <div className="space-y-1">
                             <StatusBadge status={application.status} />
@@ -592,11 +494,11 @@ export function ApplicationsManagement() {
                             )}
                           </div>
                         </TableCell>
-                        
+
                         <TableCell>
                           <MatchScore score={application.matchScore} />
                         </TableCell>
-                        
+
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <div className="flex items-center gap-1">
@@ -617,20 +519,20 @@ export function ApplicationsManagement() {
                             </div>
                           </div>
                         </TableCell>
-                        
+
                         <TableCell className="text-sm text-gray-600">
                           {new Date(application.appliedDate).toLocaleDateString()}
                         </TableCell>
-                        
+
                         <TableCell>
                           <RatingStars rating={application.rating} />
                         </TableCell>
-                        
+
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button 
-                                variant="ghost" 
+                              <Button
+                                variant="ghost"
                                 className="h-8 w-8 p-0 hover:bg-gray-100"
                                 onClick={(e) => e.stopPropagation()}
                               >
@@ -652,7 +554,7 @@ export function ApplicationsManagement() {
                                 Contact Applicant
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleStatusUpdate(application.id, "Interview");
@@ -662,7 +564,7 @@ export function ApplicationsManagement() {
                                 <ThumbsUp className="mr-2 h-4 w-4" />
                                 Move to Interview
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleStatusUpdate(application.id, "Rejected");
@@ -673,7 +575,7 @@ export function ApplicationsManagement() {
                                 Reject Application
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleFlagApplication(application.id);
@@ -707,7 +609,7 @@ export function ApplicationsManagement() {
                   Application from {selectedApplication.applicantName} • ID: {selectedApplication.id}
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="space-y-6">
                 {/* Application Overview */}
                 <div className="grid grid-cols-2 gap-6">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,119 +64,9 @@ import {
   Download,
   Upload,
   Settings,
+  Plus,
+  X,
 } from "lucide-react";
-
-// Mock data for jobs
-const mockJobs = [
-  {
-    id: "1",
-    title: "Senior Full Stack Developer",
-    company: "TechCorp Solutions",
-    companyLogo: "https://ui-avatars.com/api/?name=TechCorp&background=02243b&color=fff",
-    location: "Toronto, ON",
-    type: "Full-time",
-    category: "Technology",
-    subcategory: "Software Development",
-    status: "Live",
-    priority: "Featured",
-    postedDate: "2025-12-15",
-    expiryDate: "2026-01-15",
-    applicants: 45,
-    views: 1250,
-    salary: "$120,000 - $150,000",
-    remote: true,
-    urgent: false,
-    sponsored: true,
-    tags: ["React", "Node.js", "TypeScript", "Remote"],
-    approvedBy: "Admin User",
-    approvedDate: "2025-12-15",
-  },
-  {
-    id: "2",
-    title: "UX/UI Designer",
-    company: "Creative Studio Inc",
-    companyLogo: "https://ui-avatars.com/api/?name=Creative+Studio&background=8a4b04&color=fff",
-    location: "Vancouver, BC",
-    type: "Full-time",
-    category: "Design",
-    subcategory: "User Experience",
-    status: "Pending",
-    priority: "Normal",
-    postedDate: "2025-12-16",
-    expiryDate: "2026-01-16",
-    applicants: 0,
-    views: 0,
-    salary: "$80,000 - $100,000",
-    remote: true,
-    urgent: true,
-    sponsored: false,
-    tags: ["Figma", "Adobe XD", "Prototyping", "Remote"],
-    approvedBy: null,
-    approvedDate: null,
-  },
-  {
-    id: "3",
-    title: "Data Scientist",
-    company: "Analytics Pro",
-    companyLogo: "https://ui-avatars.com/api/?name=Analytics+Pro&background=10b981&color=fff",
-    location: "Montreal, QC",
-    type: "Contract",
-    category: "Data Science",
-    subcategory: "Machine Learning",
-    status: "Expired",
-    priority: "Normal",
-    postedDate: "2025-11-01",
-    expiryDate: "2025-12-01",
-    applicants: 23,
-    views: 890,
-    salary: "$90,000 - $110,000",
-    remote: false,
-    urgent: false,
-    sponsored: false,
-    tags: ["Python", "ML", "TensorFlow"],
-    approvedBy: "Admin User",
-    approvedDate: "2025-11-01",
-  },
-  {
-    id: "4",
-    title: "Marketing Manager",
-    company: "Growth Marketing Co",
-    companyLogo: "https://ui-avatars.com/api/?name=Growth&background=f59e0b&color=fff",
-    location: "Calgary, AB",
-    type: "Full-time",
-    category: "Marketing",
-    subcategory: "Digital Marketing",
-    status: "Rejected",
-    priority: "Normal",
-    postedDate: "2025-12-10",
-    expiryDate: "2026-01-10",
-    applicants: 0,
-    views: 156,
-    salary: "$70,000 - $85,000",
-    remote: false,
-    urgent: false,
-    sponsored: false,
-    tags: ["SEO", "PPC", "Analytics"],
-    approvedBy: null,
-    approvedDate: null,
-    rejectionReason: "Incomplete job description",
-  },
-];
-
-const categories = [
-  "Technology",
-  "Healthcare",
-  "Finance",
-  "Marketing",
-  "Education",
-  "Manufacturing",
-  "Retail",
-  "Construction",
-  "Legal",
-  "Design",
-  "Data Science",
-  "Human Resources",
-];
 
 export function JobManagement() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -185,6 +75,92 @@ export function JobManagement() {
   const [filterType, setFilterType] = useState("all");
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [showJobDetails, setShowJobDetails] = useState(false);
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<{id: string, name: string} | null>(null);
+  const [newSubcategoryName, setNewSubcategoryName] = useState("");
+  const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setCategoriesList(data.data);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        // Keep fallback categories if API fails
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Fetch jobs from API
+  useEffect(() => {
+    const fetchJobs = async () => {
+      setJobsLoading(true);
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/jobs`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            // Transform API data to match component expectations
+            const transformedJobs = data.data.map((job: any) => ({
+              id: job._id,
+              title: job.title,
+              company: job.company,
+              companyLogo: `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company)}&background=02243b&color=fff`,
+              location: job.location,
+              type: job.employmentType,
+              category: job.category,
+              subcategory: job.industry,
+              status: job.status === 'published' ? 'Live' : 
+                     job.status === 'draft' ? 'Pending' : 
+                     job.status === 'expired' ? 'Expired' : 
+                     job.status === 'rejected' ? 'Rejected' : job.status,
+              priority: 'Normal', // Default, could be enhanced later
+              postedDate: job.createdAt,
+              expiryDate: job.expiresAt,
+              applicants: job.stats?.applications || 0,
+              views: job.stats?.views || 0,
+              salary: job.salaryMin && job.salaryMax ? 
+                `$${job.salaryMin.toLocaleString()} - $${job.salaryMax.toLocaleString()}` : 
+                'Salary not specified',
+              remote: job.remote || false,
+              urgent: false, // Default, could be enhanced later
+              sponsored: false, // Default, could be enhanced later
+              tags: job.tags || [],
+              approvedBy: null, // Not available in current API
+              approvedDate: null, // Not available in current API
+            }));
+            setJobs(transformedJobs);
+          }
+        } else {
+          console.error('Failed to fetch jobs');
+        }
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+      } finally {
+        setJobsLoading(false);
+      }
+    };
+
+    fetchJobs();
+  }, []);
 
   const StatusBadge = ({ status }: { status: string }) => {
     const variants = {
@@ -225,7 +201,7 @@ export function JobManagement() {
     );
   };
 
-  const filteredJobs = mockJobs.filter(job => {
+  const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          job.company.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = filterStatus === "all" || job.status.toLowerCase() === filterStatus;
@@ -236,11 +212,11 @@ export function JobManagement() {
   });
 
   const jobStats = {
-    total: mockJobs.length,
-    live: mockJobs.filter(j => j.status === "Live").length,
-    pending: mockJobs.filter(j => j.status === "Pending").length,
-    rejected: mockJobs.filter(j => j.status === "Rejected").length,
-    expired: mockJobs.filter(j => j.status === "Expired").length,
+    total: jobs.length,
+    live: jobs.filter(j => j.status === "Live").length,
+    pending: jobs.filter(j => j.status === "Pending").length,
+    rejected: jobs.filter(j => j.status === "Rejected").length,
+    expired: jobs.filter(j => j.status === "Expired").length,
   };
 
   const handleApproveJob = (jobId: string) => {
@@ -258,6 +234,224 @@ export function JobManagement() {
     // Implementation for toggling featured status
   };
 
+  const handleDeleteJob = async (jobId: string) => {
+    const reason = prompt('Please provide a reason for deleting this job (optional):', '');
+    
+    if (reason === null) {
+      return; // User cancelled
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/jobs/${jobId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reason: reason || 'Administrative action',
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh jobs list
+        const jobsResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/jobs`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+        });
+        if (jobsResponse.ok) {
+          const data = await jobsResponse.json();
+          if (data.success && data.data) {
+            const transformedJobs = data.data.map((job: any) => ({
+              id: job._id,
+              title: job.title,
+              company: job.company,
+              companyLogo: `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company)}&background=02243b&color=fff`,
+              location: job.location,
+              type: job.employmentType,
+              category: job.category,
+              subcategory: job.industry,
+              status: job.status === 'published' ? 'Live' : 
+                     job.status === 'draft' ? 'Pending' : 
+                     job.status === 'expired' ? 'Expired' : 
+                     job.status === 'rejected' ? 'Rejected' : job.status,
+              priority: 'Normal',
+              postedDate: job.createdAt,
+              expiryDate: job.expiresAt,
+              applicants: job.stats?.applications || 0,
+              views: job.stats?.views || 0,
+              salary: job.salaryMin && job.salaryMax ? 
+                `$${job.salaryMin.toLocaleString()} - $${job.salaryMax.toLocaleString()}` : 
+                'Salary not specified',
+              remote: job.remote || false,
+              urgent: false,
+              sponsored: false,
+              tags: job.tags || [],
+              approvedBy: null,
+              approvedDate: null,
+            }));
+            setJobs(transformedJobs);
+          }
+        }
+        alert('Job deleted successfully. Notifications have been sent to the company and admin.');
+      } else {
+        console.error('Failed to delete job');
+        alert('Failed to delete job');
+      }
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      alert('Error deleting job');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          name: newCategoryName.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          await fetchCategories(); // Refresh categories from database
+          setNewCategoryName("");
+        }
+      } else {
+        console.error('Failed to add category');
+      }
+    } catch (error) {
+      console.error('Error adding category:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryToDelete: string) => {
+    setLoading(true);
+    try {
+      // First get the category ID by name (this is a simplified approach)
+      const categoriesResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      if (categoriesResponse.ok) {
+        const categoriesData = await categoriesResponse.json();
+        const category = categoriesData.data.find((cat: any) => cat.name === categoryToDelete);
+
+        if (category) {
+          const deleteResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories/${category._id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+          });
+
+          if (deleteResponse.ok) {
+            await fetchCategories(); // Refresh categories from database
+          } else {
+            console.error('Failed to delete category');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCategoryClick = async (category: any) => {
+    setSelectedCategory({ id: category._id, name: category.name });
+    setLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories/${category._id}/subcategories`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setSubcategories(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch subcategories:', error);
+      setSubcategories([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddSubcategory = async () => {
+    if (!newSubcategoryName.trim() || !selectedCategory) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories/${selectedCategory.id}/subcategories`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          name: newSubcategoryName.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Refresh subcategories
+          await handleCategoryClick({ _id: selectedCategory.id, name: selectedCategory.name });
+          setNewCategoryName("");
+        }
+      } else {
+        console.error('Failed to add subcategory');
+      }
+    } catch (error) {
+      console.error('Error adding subcategory:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSubcategory = async (subcategoryId: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/categories/${selectedCategory?.id}/subcategories/${subcategoryId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (response.ok) {
+        // Refresh subcategories
+        if (selectedCategory) {
+          await handleCategoryClick({ _id: selectedCategory.id, name: selectedCategory.name });
+        }
+      } else {
+        console.error('Failed to delete subcategory');
+      }
+    } catch (error) {
+      console.error('Error deleting subcategory:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -272,6 +466,15 @@ export function JobManagement() {
           <Button variant="outline" size="sm" className="shadow-sm">
             <Download className="h-4 w-4 mr-2" />
             Export Jobs
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="shadow-sm"
+            onClick={() => setShowCategoriesModal(true)}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Manage Categories
           </Button>
           <Button 
             size="sm"
@@ -374,8 +577,8 @@ export function JobManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                {categoriesList.map(cat => (
+                  <SelectItem key={cat._id} value={cat.name}>{cat.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -407,7 +610,7 @@ export function JobManagement() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold">Job Listings</CardTitle>
             <div className="text-sm text-gray-500">
-              Showing {filteredJobs.length} of {mockJobs.length} jobs
+              Showing {filteredJobs.length} of {jobs.length} jobs
             </div>
           </div>
         </CardHeader>
@@ -522,15 +725,19 @@ export function JobManagement() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedJob(job);
+                            setShowJobDetails(true);
+                          }}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                          {/* <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit Job
-                          </DropdownMenuItem>
-                          {job.status === "Pending" && (
+                          </DropdownMenuItem> */}
+                          {/* {job.status === "Pending" && (
                             <>
                               <DropdownMenuItem 
                                 onClick={(e) => {
@@ -558,9 +765,12 @@ export function JobManagement() {
                             <Star className="mr-2 h-4 w-4" />
                             Toggle Featured
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
+                          <DropdownMenuSeparator /> */}
                           <DropdownMenuItem 
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteJob(job.id);
+                            }}
                             className="text-red-600"
                           >
                             <Ban className="mr-2 h-4 w-4" />
@@ -728,6 +938,138 @@ export function JobManagement() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Categories Management Modal */}
+      <Dialog open={showCategoriesModal} onOpenChange={setShowCategoriesModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Manage Categories</DialogTitle>
+            <DialogDescription>
+              View and manage all job categories available on the platform.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            {/* Add New Category Section */}
+            <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+              <h3 className="text-sm font-semibold text-slate-900 mb-3">Add New Category</h3>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter category name..."
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="flex-1"
+                  onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+                />
+                <Button 
+                  onClick={handleAddCategory}
+                  disabled={!newCategoryName.trim()}
+                  className="bg-slate-600 hover:bg-slate-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add
+                </Button>
+              </div>
+            </div>
+
+            {/* Subcategories Section */}
+            {selectedCategory && (
+              <div className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    Subcategories for "{selectedCategory.name}"
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedCategory(null)}
+                    className="text-slate-700 hover:text-slate-900"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Add Subcategory */}
+                <div className="flex gap-2 mb-3">
+                  <Input
+                    placeholder="Enter subcategory name..."
+                    value={newSubcategoryName}
+                    onChange={(e) => setNewSubcategoryName(e.target.value)}
+                    className="flex-1"
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddSubcategory()}
+                  />
+                  <Button 
+                    onClick={handleAddSubcategory}
+                    disabled={!newSubcategoryName.trim() || loading}
+                    className="bg-slate-600 hover:bg-slate-700"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Sub
+                  </Button>
+                </div>
+
+                {/* Subcategories List */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {subcategories.map((subcategory) => (
+                    <div
+                      key={subcategory._id}
+                      className="flex items-center justify-between p-2 bg-white rounded border border-slate-200"
+                    >
+                      <span className="text-sm text-gray-900">{subcategory.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteSubcategory(subcategory._id)}
+                        disabled={loading}
+                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Categories Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {categoriesList.map((category) => (
+                <div
+                  key={category._id}
+                  className={`flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors group cursor-pointer ${
+                    selectedCategory?.id === category._id ? 'ring-2 ring-slate-500 bg-slate-50' : ''
+                  }`}
+                  onClick={() => handleCategoryClick(category)}
+                >
+                  <span className="text-sm font-medium text-gray-900">{category.name}</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs">
+                      {category.subcategories?.length || 0} sub
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCategory(category.name);
+                      }}
+                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCategoriesModal(false)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

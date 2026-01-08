@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { ProtectedLayout } from "@/components/ProtectedLayout";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { OverviewDashboard } from "@/components/admin/OverviewDashboard";
@@ -13,11 +14,12 @@ import { PaymentsAndBilling } from "@/components/admin/PaymentsAndBilling";
 import { PlatformSettings } from "@/components/admin/PlatformSettings";
 import { ContentManagement } from "@/components/admin/ContentManagement";
 import { ModerationTools } from "@/components/admin/ModerationTools";
-import { 
-  BarChart3, 
-  Users, 
-  Briefcase, 
-  FileText, 
+
+import {
+  BarChart3,
+  Users,
+  Briefcase,
+  FileText,
   MessageSquare,
   CreditCard,
   Settings,
@@ -87,13 +89,13 @@ export const adminNavItems = [
     href: "/admin/billing",
     badge: null,
   },
-//   {
-//     id: "platform",
-//     label: "Platform Settings",
-//     icon: Settings,
-//     href: "/admin/platform",
-//     badge: null,
-//   },
+  //   {
+  //     id: "platform",
+  //     label: "Platform Settings",
+  //     icon: Settings,
+  //     href: "/admin/platform",
+  //     badge: null,
+  //   },
   {
     id: "content",
     label: "Content Management",
@@ -108,30 +110,82 @@ export const adminNavItems = [
     href: "/admin/moderation",
     badge: "8",
   },
-//   {
-//     id: "ai-features",
-//     label: "AI Features",
-//     icon: Brain,
-//     href: "/admin/ai-features",
-//     badge: null,
-//   },
-//   {
-//     id: "team-access",
-//     label: "Team Access",
-//     icon: UserCog,
-//     href: "/admin/team",
-//     badge: null,
-//   },
+  //   {
+  //     id: "ai-features",
+  //     label: "AI Features",
+  //     icon: Brain,
+  //     href: "/admin/ai-features",
+  //     badge: null,
+  //   },
+  //   {
+  //     id: "team-access",
+  //     label: "Team Access",
+  //     icon: UserCog,
+  //     href: "/admin/team",
+  //     badge: null,
+  //   },
 ];
 
 export default function AdminDashboardLayout() {
   const [activeSection, setActiveSection] = useState("overview");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Initialize nav items with default/loading badges
+  const [navItems, setNavItems] = useState(adminNavItems);
+
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
+    fetchSidebarStats(); // Refresh sidebar stats too
+  };
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+    return num.toString();
+  };
+
+  const fetchSidebarStats = async () => {
+    try {
+      // Check for token
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/v1/admin/stats/overview`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        const { userStats, jobStats, adminStats } = data.data;
+
+        setNavItems(prevItems => prevItems.map(item => {
+          let badge = item.badge;
+
+          if (item.id === 'users') badge = formatNumber(userStats.totalUsers);
+          if (item.id === 'jobs') badge = formatNumber(jobStats.activeJobs);
+          if (item.id === 'applications') badge = formatNumber(jobStats.totalApplications);
+          if (item.id === 'messaging') badge = adminStats?.unreadMessages > 0 ? adminStats.unreadMessages.toString() : null;
+          if (item.id === 'moderation') badge = adminStats?.flaggedContent > 0 ? adminStats.flaggedContent.toString() : null;
+
+          return { ...item, badge };
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to fetch sidebar stats:", error);
+    }
+  };
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchSidebarStats();
+  }, [refreshKey]); // Refetch if refreshKey changes
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Custom CSS Variables for Admin Theme */}
-      <style jsx global>{`
+    <ProtectedLayout requiredRole="admin">
+      <div className="min-h-screen bg-gray-50">
+        {/* Custom CSS Variables for Admin Theme */}
+        <style jsx global>{`
         :root {
           --admin-primary: #02243b;
           --admin-secondary: #8a4b04;
@@ -152,39 +206,41 @@ export default function AdminDashboardLayout() {
         }
       `}</style>
 
-      {/* Sidebar */}
-      <AdminSidebar
-        admin={mockAdmin}
-        navItems={adminNavItems}
-        activeSection={activeSection}
-        collapsed={sidebarCollapsed}
-        onNavigate={setActiveSection}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
-
-      {/* Main Content Area */}
-      <div className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
-        {/* Header */}
-        <AdminHeader
+        {/* Sidebar */}
+        <AdminSidebar
           admin={mockAdmin}
+          navItems={navItems}
           activeSection={activeSection}
-          navItems={adminNavItems}
+          collapsed={sidebarCollapsed}
+          onNavigate={setActiveSection}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
 
-        {/* Page Content */}
-        <main className="p-6">
-          {activeSection === "overview" && <OverviewDashboard />}
-          {activeSection === "users" && <UserManagement />}
-          {activeSection === "jobs" && <JobManagement />}
-          {activeSection === "resumes" && <ResumeInsights />}
-          {activeSection === "applications" && <ApplicationsManagement />}
-          {activeSection === "messaging" && <MessagingAndNotifications />}
-          {activeSection === "billing" && <PaymentsAndBilling />}
-          {activeSection === "platform" && <PlatformSettings />}
-          {activeSection === "content" && <ContentManagement />}
-          {activeSection === "moderation" && <ModerationTools />}
-        </main>
+        {/* Main Content Area */}
+        <div className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
+          {/* Header */}
+          <AdminHeader
+            admin={mockAdmin}
+            activeSection={activeSection}
+            navItems={navItems}
+            onRefresh={handleRefresh}
+          />
+
+          {/* Page Content */}
+          <main className="p-6">
+            {activeSection === "overview" && <OverviewDashboard key={`overview-${refreshKey}`} />}
+            {activeSection === "users" && <UserManagement key={`users-${refreshKey}`} />}
+            {activeSection === "jobs" && <JobManagement key={`jobs-${refreshKey}`} />}
+            {activeSection === "resumes" && <ResumeInsights key={`resumes-${refreshKey}`} />}
+            {activeSection === "applications" && <ApplicationsManagement key={`applications-${refreshKey}`} />}
+            {activeSection === "messaging" && <MessagingAndNotifications key={`messaging-${refreshKey}`} />}
+            {activeSection === "billing" && <PaymentsAndBilling key={`billing-${refreshKey}`} />}
+            {activeSection === "platform" && <PlatformSettings key={`platform-${refreshKey}`} />}
+            {activeSection === "content" && <ContentManagement key={`content-${refreshKey}`} />}
+            {activeSection === "moderation" && <ModerationTools key={`moderation-${refreshKey}`} />}
+          </main>
+        </div>
       </div>
-    </div>
+    </ProtectedLayout>
   );
 }

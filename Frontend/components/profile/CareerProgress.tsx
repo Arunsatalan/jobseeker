@@ -1,7 +1,38 @@
 "use client";
-import { Card } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Briefcase,
+  MapPin,
+  Clock,
+  Calendar as CalendarIcon,
+  CheckCircle,
+  AlertCircle,
+  XCircle,
+  Video,
+  Loader2,
+  BrainCircuit,
+  MessageSquare,
+  Mic,
+  RefreshCw,
+  Building2
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, TrendingUp, BookmarkCheck, FileText, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/components/ui/use-toast";
+import { InterviewSlotVoting } from "../jobseeker/InterviewSlotVoting";
+import { CalendarSyncButton } from "../jobseeker/CalendarSyncButton";
+import { SmartReminders } from "../jobseeker/SmartReminders";
+import { AICoachDialog } from "../jobseeker/AICoachDialog";
+import { formatTimeInTimezone, getTimezoneAbbreviation, type CalendarEvent } from "@/utils/calendarIntegration";
+import axios from "axios";
 
 interface CareerProgressProps {
   jobMatchScore: number;
@@ -16,61 +47,423 @@ export function CareerProgress({
   applications,
   skillGaps,
 }: CareerProgressProps) {
+  const [pendingInterviews, setPendingInterviews] = useState<any[]>([]);
+  const [confirmedInterviews, setConfirmedInterviews] = useState<any[]>([]);
+  const [selectedInterview, setSelectedInterview] = useState<string | null>(null);
+  const [showVotingDialog, setShowVotingDialog] = useState(false);
+  const [cancellingInterview, setCancellingInterview] = useState<string | null>(null);
+  const [coachDialog, setCoachDialog] = useState<{ open: boolean, interview: any | null, mode?: 'voice' | 'chat' }>({ open: false, interview: null, mode: 'chat' });
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  useEffect(() => {
+    loadPendingInterviews();
+    loadConfirmedInterviews();
+  }, []);
+
+
+  const loadPendingInterviews = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await axios.get(`${apiUrl}/api/v1/interviews/candidate/slots`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { status: 'voting' },
+      });
+
+      if (response.data.success) {
+        setPendingInterviews(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to load pending interviews:', error);
+    }
+  };
+
+  const loadConfirmedInterviews = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await axios.get(`${apiUrl}/api/v1/interviews/candidate/slots`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { status: 'confirmed' },
+      });
+
+      if (response.data.success) {
+        setConfirmedInterviews(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to load confirmed interviews:', error);
+    }
+  };
+
+  const handleCancelInterview = async (interviewSlotId: string, reason?: string) => {
+    if (!confirm('Are you sure you want to cancel this interview? This action cannot be undone.')) {
+      return;
+    }
+
+    setCancellingInterview(interviewSlotId);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${apiUrl}/api/v1/interviews/cancel`,
+        {
+          interviewSlotId,
+          reason: reason || 'No reason provided',
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.data.success) {
+        // Reload confirmed interviews
+        loadConfirmedInterviews();
+        alert('Interview cancelled successfully. Both parties have been notified.');
+      }
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to cancel interview. Please try again.');
+    } finally {
+      setCancellingInterview(null);
+    }
+  };
+
+  const canCancelInterview = (interview: any): boolean => {
+    if (!interview.confirmedSlot?.startTime) return false;
+    const interviewTime = new Date(interview.confirmedSlot.startTime);
+    const now = new Date();
+    const hoursUntilInterview = (interviewTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    return hoursUntilInterview >= 4;
+  };
+
+  // Helper function to extract application ID (handles both string and object)
+  const getApplicationId = (application: any): string => {
+    if (typeof application === 'string') {
+      return application;
+    }
+    if (application?._id) {
+      return application._id.toString();
+    }
+    if (application?.id) {
+      return application.id.toString();
+    }
+    return '';
+  };
+
   return (
-    <Card className="p-6 mb-6 bg-white border-0 shadow-md">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">
-        Career Progress & Recommendations
-      </h3>
+    <>
+      <Card className="p-6 mb-6 bg-white border-0 shadow-md">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">
+          Interview Management
+        </h3>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        {/* Job Match Score */}
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 text-center">
-          <p className="text-xs font-semibold text-green-700 mb-1">Job Match Score</p>
-          <p className="text-2xl font-bold text-green-600">{jobMatchScore}%</p>
-          <div className="w-full bg-green-200 rounded-full h-1 mt-2"></div>
-        </div>
+        {/* Interview Scheduling Section - All Interviews */}
+        {(pendingInterviews.length > 0 || confirmedInterviews.length > 0) && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Video className="h-5 w-5" style={{ color: '#02243b' }} />
+                Interview Schedules
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  loadPendingInterviews();
+                  loadConfirmedInterviews();
+                }}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
 
-        {/* Saved Jobs */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 text-center">
-          <BookmarkCheck className="h-4 w-4 text-blue-600 mx-auto mb-1" />
-          <p className="text-xs font-semibold text-blue-700 mb-1">Saved Jobs</p>
-          <p className="text-2xl font-bold text-blue-600">{savedJobs}</p>
-        </div>
+            {/* Pending Interviews (Need Voting) */}
+            {pendingInterviews.length > 0 && (
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">Pending - Vote for Your Preferred Time</h4>
+                <div className="space-y-3">
+                  {pendingInterviews.map((interview: any) => {
+                    const applicationId = getApplicationId(interview.application);
+                    const jobTitle = typeof interview.job === 'object' ? interview.job.title : 'Position';
+                    const companyName = typeof interview.job === 'object' ? interview.job.company : 'Company';
 
-        {/* Applications */}
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 text-center">
-          <FileText className="h-4 w-4 text-purple-600 mx-auto mb-1" />
-          <p className="text-xs font-semibold text-purple-700 mb-1">Applications</p>
-          <p className="text-2xl font-bold text-purple-600">{applications}</p>
-        </div>
+                    return (
+                      <div
+                        key={interview._id}
+                        className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Building2 className="h-4 w-4 text-amber-600" />
+                              <span className="font-semibold text-gray-900">{jobTitle}</span>
+                              <span className="text-sm text-gray-600">at {companyName}</span>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-2">
+                              {interview.proposedSlots?.length || 0} time slot{interview.proposedSlots?.length !== 1 ? 's' : ''} available
+                            </p>
+                            {interview.votingDeadline && (
+                              <p className="text-xs text-amber-700">
+                                Voting deadline: {new Date(interview.votingDeadline).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            className="text-white"
+                            style={{ backgroundColor: '#02243b' }}
+                            onClick={() => {
+                              setSelectedInterview(applicationId);
+                              setShowVotingDialog(true);
+                            }}
+                          >
+                            <CalendarIcon className="h-3 w-3 mr-1" />
+                            Vote Now
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-        {/* Skill Gaps */}
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-4 text-center">
-          <AlertTriangle className="h-4 w-4 text-amber-600 mx-auto mb-1" />
-          <p className="text-xs font-semibold text-amber-700 mb-1">Skill Gaps</p>
-          <p className="text-xl font-bold text-amber-600">{skillGaps.length}</p>
-        </div>
-      </div>
+            {/* Confirmed Interviews */}
+            {confirmedInterviews.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">Confirmed Interviews</h4>
+                <div className="space-y-3">
+                  {confirmedInterviews.map((interview: any) => {
+                    const jobTitle = typeof interview.job === 'object' ? interview.job.title : 'Position';
+                    const companyName = typeof interview.job === 'object' ? interview.job.company : 'Company';
+                    const confirmedSlot = interview.confirmedSlot;
 
-      {/* Skill Gap Alerts */}
-      {skillGaps.length > 0 && (
-        <div className="border-t pt-4">
-          <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-amber-600" />
-            Recommended Skills to Learn
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {skillGaps.map((skill) => (
-              <Badge key={skill} variant="outline" className="border-amber-200 text-amber-700">
-                {skill}
-              </Badge>
-            ))}
+                    return (
+                      <div
+                        key={interview._id}
+                        className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                              <span className="font-semibold text-gray-900">{jobTitle}</span>
+                              <span className="text-sm text-gray-600">at {companyName}</span>
+                            </div>
+                            {confirmedSlot?.startTime && (
+                              <div className="space-y-2">
+                                <div className="space-y-1">
+                                  <p className="text-sm text-gray-700">
+                                    <CalendarIcon className="h-3 w-3 inline mr-1" />
+                                    {formatTimeInTimezone(confirmedSlot.startTime, confirmedSlot.timezone, {
+                                      weekday: 'long',
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                    })}
+                                  </p>
+                                  <p className="text-sm text-gray-700">
+                                    <Clock className="h-3 w-3 inline mr-1" />
+                                    {formatTimeInTimezone(confirmedSlot.startTime, confirmedSlot.timezone || undefined, {
+                                      hour: 'numeric',
+                                      minute: '2-digit',
+                                    })} - {confirmedSlot.endTime ? formatTimeInTimezone(confirmedSlot.endTime, confirmedSlot.timezone || undefined, {
+                                      hour: 'numeric',
+                                      minute: '2-digit',
+                                    }) : 'N/A'}
+                                    <span className="text-xs text-gray-500 ml-1">
+                                      ({getTimezoneAbbreviation(confirmedSlot.timezone || undefined)})
+                                    </span>
+                                  </p>
+                                </div>
+
+                                {/* Smart Reminders */}
+                                <SmartReminders startTime={confirmedSlot.startTime} />
+
+                                {/* Calendar Sync & Actions */}
+                                <div className="flex items-center gap-2 mt-2">
+                                  <CalendarSyncButton
+                                    event={{
+                                      title: `${jobTitle} Interview`,
+                                      description: `Interview with ${companyName} `,
+                                      startTime: new Date(confirmedSlot.startTime),
+                                      endTime: confirmedSlot.endTime ? new Date(confirmedSlot.endTime) : new Date(new Date(confirmedSlot.startTime).getTime() + 60 * 60 * 1000),
+                                      location: confirmedSlot.location,
+                                      meetingLink: confirmedSlot.meetingLink,
+                                      timezone: confirmedSlot.timezone,
+                                    }}
+                                    variant="outline"
+                                    size="sm"
+                                  />
+                                  {confirmedSlot.meetingLink && (
+                                    <Button
+                                      size="sm"
+                                      className="text-white"
+                                      style={{ backgroundColor: '#02243b' }}
+                                      onClick={() => window.open(confirmedSlot.meetingLink, '_blank')}
+                                    >
+                                      <Video className="h-3 w-3 mr-1" />
+                                      Join Meeting
+                                    </Button>
+                                  )}
+
+                                  {/* AI Interview Coach Button */}
+                                  {/* AI Interview Coach Button */}
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        className="bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200"
+                                      >
+                                        <BrainCircuit className="h-3 w-3 mr-1" />
+                                        AI Coach
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => setCoachDialog({ open: true, interview, mode: 'chat' })}>
+                                        <MessageSquare className="mr-2 h-4 w-4" />
+                                        <span>Start Chat Session</span>
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => setCoachDialog({ open: true, interview, mode: 'voice' })}>
+                                        <Mic className="mr-2 h-4 w-4" />
+                                        <span>Start Voice Session</span>
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                  {canCancelInterview(interview) && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="border-red-300 text-red-700 hover:bg-red-50"
+                                      onClick={() => {
+                                        const reason = prompt('Please provide a reason for cancellation:');
+                                        if (reason) {
+                                          handleCancelInterview(interview._id, reason);
+                                        }
+                                      }}
+                                      disabled={cancellingInterview === interview._id}
+                                    >
+                                      {cancellingInterview === interview._id ? (
+                                        <>
+                                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                          Cancelling...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <XCircle className="h-3 w-3 mr-1" />
+                                          Cancel
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-          <p className="text-xs text-gray-600 mt-2">
-            Adding these skills would improve your job match score by up to 15%
-          </p>
-        </div>
+        )}
+
+        {/* Interview Scheduling Notifications - Legacy (keep for backward compatibility) */}
+        {pendingInterviews.length > 0 && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Video className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-purple-900">
+                    Interview Time Slots Available
+                  </p>
+                  <p className="text-sm text-purple-700">
+                    {pendingInterviews.length} job{pendingInterviews.length > 1 ? 's' : ''} have proposed interview times. Please vote for your preferred slots.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => {
+                  if (pendingInterviews[0]?.application) {
+                    const appId = getApplicationId(pendingInterviews[0].application);
+                    if (appId) {
+                      setSelectedInterview(appId);
+                      setShowVotingDialog(true);
+                    }
+                  }
+                }}
+                className="bg-purple-600 hover:bg-purple-700"
+                size="sm"
+              >
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                View Slots
+              </Button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {pendingInterviews.map((interview, idx) => (
+                <div key={idx} className="flex items-center justify-between p-2 bg-white rounded border border-purple-100">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{interview.job?.title}</p>
+                    <p className="text-xs text-gray-600">
+                      {interview.proposedSlots?.length || 0} time slot{interview.proposedSlots?.length !== 1 ? 's' : ''} available
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      const appId = getApplicationId(interview.application);
+                      if (appId) {
+                        setSelectedInterview(appId);
+                        setShowVotingDialog(true);
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Vote Now
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Confirmed Interviews - Enhanced 2025 Design */}
+      </Card>
+
+      {/* Interview Voting Dialog */}
+      {showVotingDialog && selectedInterview && (
+        <InterviewSlotVoting
+          applicationId={selectedInterview}
+          open={showVotingDialog}
+          onOpenChange={(open) => {
+            setShowVotingDialog(open);
+            if (!open) {
+              loadPendingInterviews(); // Refresh after voting
+            }
+          }}
+          onSuccess={() => {
+            loadPendingInterviews();
+          }}
+        />
       )}
-    </Card>
+      {/* AI Coach Dialog */}
+      {coachDialog.open && coachDialog.interview && (
+        <AICoachDialog
+          interviewId={coachDialog.interview._id}
+          jobId={typeof coachDialog.interview.job === 'object' ? coachDialog.interview.job._id : coachDialog.interview.job}
+          jobTitle={typeof coachDialog.interview.job === 'object' ? coachDialog.interview.job.title : 'Position'}
+          companyName={typeof coachDialog.interview.job === 'object' ? coachDialog.interview.job.company : 'Company'}
+          open={coachDialog.open}
+          onOpenChange={(open) => setCoachDialog(prev => ({ ...prev, open }))}
+          initialMode={coachDialog.mode}
+        />
+      )}
+    </>
   );
 }

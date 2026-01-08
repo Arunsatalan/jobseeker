@@ -146,7 +146,6 @@ export default function Home() {
   ]
   return (
     <div className="min-h-screen bg-gradient-to-br from-secondary-50 via-white to-accent-50">
-
       {/* Navigation */}
         <nav className="fixed top-0 left-0 right-0 z-50 bg-white/50 backdrop-blur-2xl">
         <div className="container mx-auto px-4">

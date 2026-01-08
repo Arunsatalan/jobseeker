@@ -2,25 +2,36 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { 
-  useScrollIntoView, 
-  useBodyScrollLock, 
+import axios from 'axios'
+import {
+  useScrollIntoView,
+  useBodyScrollLock,
   useFocusTrap,
   useScrollPositionMemory,
-  useJobListKeyboardNav 
+  useJobListKeyboardNav
 } from '@/hooks/useScrollBehavior'
+import { useAuth } from '@/contexts/AuthContext'
+import SignIn from '@/components/signin'
+import SignUp from '@/components/signup'
+import ApplicationModal from './ApplicationModal'
+import ApplicationDashboard from './ApplicationDashboard'
+import GamificationSystem from './GamificationSystem'
+
+// Configure axios base URL
+axios.defaults.baseURL = 'http://localhost:5000'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Search, 
-  MapPin, 
-  Clock, 
-  Building2, 
-  DollarSign, 
-  X, 
-  Eye, 
+import {
+  Search,
+  MapPin,
+  Clock,
+  Building2,
+  DollarSign,
+  X,
+  Eye,
   LogIn,
   Heart,
   Share2,
@@ -36,24 +47,71 @@ import {
   CheckCircle2,
   AlertCircle,
   TrendingUp,
-  ArrowRight
+  ArrowRight,
+  Award,
+  Trophy,
+  BarChart3,
+  Zap,
+  Target,
+  Brain,
+  Volume2,
+  VolumeX
 } from 'lucide-react'
+import { useMobileEnhancements, useHaptic, useVoiceGuidance, useAccessibility } from './hooks/useMobileEnhancements'
 import { MOCK_SOFTWARE_ENGINEER_JOBS } from './mockSoftwareEngineerJobs'
+
+// API Job interface from backend
+interface ApiJob {
+  _id: string
+  title: string
+  company: string | { _id: string; name: string; logo?: string; industry?: string; size?: string; location?: string; description?: string; website?: string; socialLinks?: { linkedin?: string; twitter?: string; facebook?: string }; foundedYear?: number }
+  location: string
+  employmentType: string
+  experience: string
+  salaryMin?: number
+  salaryMax?: number
+  salaryPeriod?: string
+  description: string
+  requirements: string[]
+  skills: string[]
+  remote: boolean
+  status: string
+  employer?: { firstName: string; lastName: string; company: string }
+  stats?: { views: number; applications: number }
+  tags?: string[]
+  customSections?: { title: string; content: string; _id: string }[]
+  industry?: string
+  category?: string
+  currency?: string
+  expiresAt?: string
+  createdAt: string
+  updatedAt: string
+}
 
 interface Job {
   id: string
   title: string
   company: string
-  companyLogo?: string
+  companyId?: string
   location: string
+  employmentType: string
+  experience: string
+  salaryMin?: number
+  salaryMax?: number
+  salaryPeriod?: string
   postedTime: string
-  jobType: 'Full-time' | 'Part-time' | 'Contract' | 'Internship' | 'Temporary'
+  expiryDate?: string
+  jobType: string
   salary?: string
   description: string
   fullDescription?: string
   requirements: string[]
   benefits: string[]
   badges: string[]
+  skills: string[]
+  customSections: { title: string; content: string; _id: string }[]
+  industry?: string
+  category?: string
   isRemote: boolean
   hasVisaSupport: boolean
   isEntryLevel: boolean
@@ -87,11 +145,99 @@ const LOCATION_SUGGESTIONS: LocationSuggestion[] = [
   { city: 'Quebec City', province: 'QC' },
 ]
 
-const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship', 'Temporary']
+const JOB_TYPES = ['full-time', 'part-time', 'contract', 'internship', 'temporary']
+
+// Convert API job to frontend Job interface
+const convertApiJobToJob = (apiJob: ApiJob): Job => {
+  console.log('Converting API job:', apiJob)
+  console.log('Skills:', apiJob.skills)
+  console.log('Custom sections:', apiJob.customSections)
+  console.log('Tags:', apiJob.tags)
+
+  // Calculate days since posted
+  const createdDate = new Date(apiJob.createdAt)
+  const now = new Date()
+  const diffTime = Math.abs(now.getTime() - createdDate.getTime())
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  let postedTimeText = ''
+  if (diffDays === 0) {
+    postedTimeText = 'today'
+  } else if (diffDays === 1) {
+    postedTimeText = '1 day ago'
+  } else {
+    postedTimeText = `${diffDays} days ago`
+  }
+
+  // Create badges based on job properties
+  const badges: string[] = []
+  if (apiJob.remote) badges.push('Remote')
+  if (apiJob.experience === 'entry') badges.push('Entry-level')
+  if (diffDays <= 3) badges.push('New')
+
+  console.log('=== CONVERSION DEBUG ===')
+  console.log('API Job ID:', apiJob._id)
+  console.log('API Job Title:', apiJob.title)
+  console.log('API Skills:', apiJob.skills, 'Type:', typeof apiJob.skills, 'Is Array:', Array.isArray(apiJob.skills))
+  console.log('API Custom Sections:', apiJob.customSections, 'Type:', typeof apiJob.customSections, 'Is Array:', Array.isArray(apiJob.customSections))
+  console.log('API Tags:', apiJob.tags, 'Type:', typeof apiJob.tags, 'Is Array:', Array.isArray(apiJob.tags))
+  console.log('API Requirements:', apiJob.requirements, 'Type:', typeof apiJob.requirements, 'Is Array:', Array.isArray(apiJob.requirements))
+  console.log('======================')
+
+  const converted: Job = {
+    id: apiJob._id,
+    title: apiJob.title || '',
+    company: typeof apiJob.company === 'object' && apiJob.company ? apiJob.company.name || '' : apiJob.company || '',
+    companyId: typeof apiJob.company === 'object' && apiJob.company ? apiJob.company._id : undefined,
+    location: apiJob.location || '',
+    employmentType: apiJob.employmentType || 'full-time',
+    experience: apiJob.experience || 'mid',
+    salaryMin: apiJob.salaryMin,
+    salaryMax: apiJob.salaryMax,
+    salaryPeriod: apiJob.salaryPeriod === 'yearly' ? 'year' : apiJob.salaryPeriod === 'hourly' ? 'hour' : apiJob.salaryPeriod === 'monthly' ? 'month' : apiJob.salaryPeriod === 'weekly' ? 'week' : apiJob.salaryPeriod,
+    postedTime: postedTimeText,
+    expiryDate: apiJob.expiresAt ? new Date(apiJob.expiresAt).toLocaleDateString() : undefined,
+    jobType: apiJob.employmentType ? apiJob.employmentType.charAt(0).toUpperCase() + apiJob.employmentType.slice(1) : 'Full-time',
+    salary: (apiJob.salaryMin && apiJob.salaryMax) ? `$${apiJob.salaryMin.toLocaleString()} - $${apiJob.salaryMax.toLocaleString()}${apiJob.salaryPeriod ? (
+      apiJob.salaryPeriod === 'yearly' ? '/year' :
+        apiJob.salaryPeriod === 'hourly' ? '/hour' :
+          apiJob.salaryPeriod === 'monthly' ? '/month' :
+            apiJob.salaryPeriod === 'weekly' ? '/week' :
+              `/${apiJob.salaryPeriod}`
+    ) : ''
+      }` : undefined,
+    description: apiJob.description || '',
+    fullDescription: apiJob.description || '',
+    requirements: Array.isArray(apiJob.requirements) ? apiJob.requirements : [],
+    benefits: Array.isArray(apiJob.tags) ? apiJob.tags : [],
+    badges: badges,
+    skills: Array.isArray(apiJob.skills) ? apiJob.skills : [],
+    customSections: Array.isArray(apiJob.customSections) ? apiJob.customSections : [],
+    industry: apiJob.industry,
+    category: apiJob.category,
+    isRemote: apiJob.remote || false,
+    hasVisaSupport: false,
+    isEntryLevel: apiJob.experience === 'entry',
+    isNew: diffDays <= 3,
+    applicationInstructions: 'Click Apply Now to submit your application.',
+    isBookmarked: false
+  }
+
+  console.log('=== CONVERTED JOB ===')
+  console.log('Converted Job ID:', converted.id)
+  console.log('Converted Skills:', converted.skills, 'Length:', converted.skills.length)
+  console.log('Converted Custom Sections:', converted.customSections, 'Length:', converted.customSections.length)
+  console.log('Converted Benefits:', converted.benefits, 'Length:', converted.benefits.length)
+  console.log('Converted Requirements:', converted.requirements, 'Length:', converted.requirements.length)
+  console.log('=====================')
+
+  return converted
+}
 
 export default function AdvancedJobSearch() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { isAuthenticated, token, user } = useAuth()
   const jobListRef = useRef<HTMLDivElement>(null)
   const detailPanelRef = useRef<HTMLDivElement>(null)
   const jobCardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
@@ -103,14 +249,14 @@ export default function AdvancedJobSearch() {
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false)
 
   // Jobs State
-  const [allJobs, setAllJobs] = useState<Job[]>(MOCK_SOFTWARE_ENGINEER_JOBS)
-  const [filteredJobs, setFilteredJobs] = useState<Job[]>(MOCK_SOFTWARE_ENGINEER_JOBS.slice(0, 10))
+  const [allJobs, setAllJobs] = useState<Job[]>([])
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([])
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [bookmarkedJobs, setBookmarkedJobs] = useState<Set<string>>(new Set())
   const [savedJobs, setSavedJobs] = useState<Job[]>([])
   const [showSavedJobs, setShowSavedJobs] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [totalResults, setTotalResults] = useState(MOCK_SOFTWARE_ENGINEER_JOBS.length)
+  const [totalResults, setTotalResults] = useState(0)
 
   // Filter State
   const [filters, setFilters] = useState<FilterState>({
@@ -126,29 +272,122 @@ export default function AdvancedJobSearch() {
 
   // Analytics
   const [scrollPosition, setScrollPosition] = useState(0)
+  const [showSignInModal, setShowSignInModal] = useState(false)
+  const [showSignUpModal, setShowSignUpModal] = useState(false)
+  const [showCompanyProfileModal, setShowCompanyProfileModal] = useState(false)
+  const [companyProfileData, setCompanyProfileData] = useState<any>(null)
+  const [companyProfileLoading, setCompanyProfileLoading] = useState(false)
+
+  // Enhanced Application System
+  const [showApplicationModal, setShowApplicationModal] = useState(false)
+  const [showApplicationDashboard, setShowApplicationDashboard] = useState(false)
+  const [showGamificationModal, setShowGamificationModal] = useState(false)
+  const [selectedJobForApplication, setSelectedJobForApplication] = useState<Job | null>(null)
+  const [userApplications, setUserApplications] = useState<any[]>([])
+  const [userProfile, setUserProfile] = useState<any>(null)
+  const [userStats, setUserStats] = useState({
+    level: 5,
+    xp: 1250,
+    xpToNext: 750,
+    applicationsThisWeek: 3,
+    streakDays: 7,
+    profileCompleteness: 85,
+    interviewsCompleted: 2,
+    totalApplications: 12
+  })
+  const [achievements, setAchievements] = useState<any[]>([
+    {
+      id: 'first_app',
+      title: 'First Step',
+      description: 'Submit your first job application',
+      icon: '🎯',
+      category: 'application',
+      rarity: 'common',
+      unlockedDate: new Date().toISOString(),
+      reward: '+100 XP'
+    },
+    {
+      id: 'profile_complete',
+      title: 'Profile Master',
+      description: 'Complete your profile to 100%',
+      icon: '⭐',
+      category: 'profile',
+      rarity: 'rare',
+      progress: 85,
+      maxProgress: 100
+    }
+  ])
+
+  // Mobile and Accessibility Enhancements
+  const { isMobile, hasTouch } = useMobileEnhancements()
+  const { lightTap, success, error } = useHaptic()
+  const { speak, isEnabled: voiceEnabled, toggle: toggleVoice } = useVoiceGuidance()
+  const { highContrast, largeText, announceToScreenReader } = useAccessibility()
 
   // Hooks for scroll management (AFTER all state declarations)
   const { saveScrollPosition, restoreScrollPosition } = useScrollPositionMemory('jobListScroll')
   const detailScrollRef = useScrollIntoView(!!selectedJobId, 50)
   const { ref: modalRef } = useFocusTrap(false) // Focus trap for future modal implementation
-  
+
   // Lock body scroll when needed (future: for mobile modal)
   useBodyScrollLock(false)
 
-  // Load saved jobs from localStorage on mount
+  // Fetch all jobs from database
+  const fetchAllJobs = useCallback(async () => {
+    setLoading(true)
+    try {
+      console.log('Fetching jobs from API...')
+      const response = await axios.get('/api/v1/jobs', {
+        params: { page: 1, limit: 50 }
+      })
+
+      console.log('API Response:', response.data)
+
+      let jobs: Job[] = []
+
+      if (Array.isArray(response.data)) {
+        jobs = response.data.map(convertApiJobToJob)
+      } else if (response.data.jobs && Array.isArray(response.data.jobs)) {
+        jobs = response.data.jobs.map(convertApiJobToJob)
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        jobs = response.data.data.map(convertApiJobToJob)
+      } else {
+        console.log('Unexpected API response format:', response.data)
+        jobs = []
+      }
+
+      console.log('Converted jobs:', jobs)
+
+      setAllJobs(jobs)
+      setFilteredJobs(jobs)
+      setTotalResults(jobs.length)
+
+      if (jobs.length > 0 && !selectedJobId) {
+        setSelectedJobId(jobs[0].id)
+      }
+    } catch (err) {
+      console.error('Failed to fetch jobs:', err)
+      setAllJobs([])
+      setFilteredJobs([])
+      setTotalResults(0)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Load saved jobs from localStorage and fetch jobs on mount
   useEffect(() => {
     const savedJobIds = localStorage.getItem('savedJobs')
     if (savedJobIds) {
       const ids = JSON.parse(savedJobIds) as string[]
-      const savedJobObjects = MOCK_SOFTWARE_ENGINEER_JOBS.filter(job => ids.includes(job.id))
-      setSavedJobs(savedJobObjects)
       setBookmarkedJobs(new Set(ids))
     }
-  }, [])
+    fetchAllJobs()
+  }, [fetchAllJobs])
 
   // Get selected job
-  const selectedJob = selectedJobId 
-    ? allJobs.find(job => job.id === selectedJobId) 
+  const selectedJob = selectedJobId
+    ? allJobs.find(job => job.id === selectedJobId)
     : filteredJobs[0] || null
 
   // Update selected job on page load
@@ -166,18 +405,126 @@ export default function AdvancedJobSearch() {
     true
   )
 
-  // Initialize from URL params
+  // Fetch company profile data when modal opens
+  useEffect(() => {
+    if (showCompanyProfileModal && selectedJob) {
+      const fetchCompanyProfile = async () => {
+        setCompanyProfileLoading(true)
+
+        try {
+          const companyId = selectedJob.companyId
+          if (!companyId) {
+            console.log('No company ID available for job:', selectedJob.id)
+            setCompanyProfileData(null)
+            setCompanyProfileLoading(false)
+            return
+          }
+
+          console.log('Fetching company profile for ID:', companyId)
+          const response = await axios.get(`/api/v1/companies/${companyId}`)
+          console.log('Company response:', response.data)
+
+          if (response.data.success && response.data.data) {
+            console.log('Setting company data:', response.data.data)
+            setCompanyProfileData(response.data.data)
+          } else {
+            console.log('No company data found')
+            setCompanyProfileData(null)
+          }
+        } catch (err: any) {
+          console.error('Failed to fetch company profile:', err.response?.status, err.message)
+          setCompanyProfileData(null)
+        } finally {
+          setCompanyProfileLoading(false)
+        }
+      }
+      fetchCompanyProfile()
+    } else {
+      setCompanyProfileData(null)
+      setCompanyProfileLoading(false)
+    }
+  }, [showCompanyProfileModal, selectedJob])
+
+  // Fetch User Profile for Application Modal
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!isAuthenticated || !token) {
+        setUserProfile(null);
+        return;
+      }
+
+      try {
+        // Fetch detailed profile
+        console.log('Fetching user profile for application...');
+
+        // Parallel fetch for efficiency
+        const [userResponse, profileResponse] = await Promise.all([
+          axios.get('/api/v1/users/me', { headers: { Authorization: `Bearer ${token}` } }).catch(e => ({ data: { data: {} } })),
+          axios.get('/api/v1/user-profiles/me', { headers: { Authorization: `Bearer ${token}` } }).catch(e => ({ data: { data: {} } }))
+        ]);
+
+        const userData = userResponse.data?.data || {};
+        const profileData = profileResponse.data?.data || {};
+
+        console.log('User Data:', userData);
+        console.log('Profile Data:', profileData);
+
+        // Construct a comprehensive profile object matching requirements
+        const constructedProfile = {
+          name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || profileData.name || 'Candidate',
+          email: userData.email || profileData.email || '',
+          phone: userData.phone || profileData.phone || '',
+          location: profileData.location || (profileData.city ? `${profileData.city}, ${profileData.province}` : '') || '',
+          summary: profileData.summary || profileData.bio || '',
+
+          // Map skills handling both string arrays and object arrays
+          skills: Array.isArray(profileData.skills)
+            ? profileData.skills.map((s: any) => typeof s === 'string' ? s : s.name || s.skill || '')
+            : [],
+
+          // Map experience handling both formats
+          experience: Array.isArray(profileData.experience)
+            ? profileData.experience.map((exp: any) => {
+              if (typeof exp === 'string') return exp;
+              return `${exp.position || exp.role} at ${exp.company}`;
+            })
+            : [],
+
+          // Map education
+          education: Array.isArray(profileData.education)
+            ? profileData.education.map((edu: any) => {
+              if (typeof edu === 'string') return edu;
+              return `${edu.degree} from ${edu.institution || edu.school}`;
+            })
+            : []
+        };
+
+        console.log('Constructed Profile for Application:', constructedProfile);
+        setUserProfile(constructedProfile);
+
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [isAuthenticated, token]);
+
+  // Initialize from URL params and fetch jobs
   useEffect(() => {
     const job = searchParams.get('job') || ''
     const location = searchParams.get('location') || ''
-    
+
     setJobQuery(job)
     setLocationQuery(location)
 
     if (job || location) {
       handleSearch(job, location, false)
+    } else {
+      // Always fetch all jobs on initial load
+      fetchAllJobs()
     }
-  }, [])
+  }, [fetchAllJobs])
 
   // Handle location suggestions
   const handleLocationChange = (value: string) => {
@@ -211,7 +558,7 @@ export default function AdvancedJobSearch() {
         const match = job.postedTime.match(/(\d+)/)
         if (!match) return true
         const days = parseInt(match[1])
-        
+
         switch (filterState.datePosted) {
           case '7':
             return days <= 7
@@ -243,7 +590,7 @@ export default function AdvancedJobSearch() {
 
     // Job type filter
     if (filterState.jobType.length > 0) {
-      filtered = filtered.filter(job => filterState.jobType.includes(job.jobType))
+      filtered = filtered.filter(job => filterState.jobType.includes(job.employmentType))
     }
 
     // Remote filter
@@ -259,36 +606,125 @@ export default function AdvancedJobSearch() {
     return filtered
   }, [])
 
+  // Enhanced client-side search for skills and job details
+  const enhancedJobSearch = useCallback((jobs: Job[], searchQuery: string): Job[] => {
+    if (!searchQuery.trim()) return jobs
+
+    const query = searchQuery.toLowerCase().trim()
+
+    return jobs.filter(job => {
+      // Search in job title
+      if (job.title.toLowerCase().includes(query)) return true
+
+      // Search in company name
+      if (job.company.toLowerCase().includes(query)) return true
+
+      // Search in skills array (e.g., "java", "react", "python")
+      if (job.skills.some(skill => skill.toLowerCase().includes(query))) return true
+
+      // Search in requirements
+      if (job.requirements.some(req => req.toLowerCase().includes(query))) return true
+
+      // Search in job description
+      if (job.description.toLowerCase().includes(query)) return true
+
+      // Search in benefits
+      if (job.benefits.some(benefit => benefit.toLowerCase().includes(query))) return true
+
+      // Search in custom sections content
+      if (job.customSections.some(section =>
+        section.title.toLowerCase().includes(query) ||
+        section.content.toLowerCase().includes(query)
+      )) return true
+
+      // Search in category and industry
+      if (job.category?.toLowerCase().includes(query)) return true
+      if (job.industry?.toLowerCase().includes(query)) return true
+
+      // Search in employment type
+      if (job.employmentType.toLowerCase().includes(query)) return true
+
+      return false
+    })
+  }, [])
+
   // Main search handler
   const handleSearch = useCallback(async (jobQ: string, locationQ: string, updateUrl = true) => {
     setLoading(true)
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 600))
+      let jobs: Job[] = []
+      let useClientSideSearch = false
 
-      let results = MOCK_SOFTWARE_ENGINEER_JOBS
+      if (jobQ.trim() || locationQ.trim()) {
+        console.log('Searching with params:', { keyword: jobQ.trim(), location: locationQ.trim() })
+        // Call search API
+        const response = await axios.get('/api/v1/jobs/search', {
+          params: {
+            keyword: jobQ.trim(),
+            location: locationQ.trim(),
+            page: 1,
+            limit: 50
+          }
+        })
 
-      if (jobQ.trim()) {
-        results = results.filter(job =>
-          job.title.toLowerCase().includes(jobQ.toLowerCase()) ||
-          job.company.toLowerCase().includes(jobQ.toLowerCase()) ||
-          job.description.toLowerCase().includes(jobQ.toLowerCase())
-        )
+        console.log('Search API Response:', response.data)
+
+        if (Array.isArray(response.data)) {
+          jobs = response.data.map(convertApiJobToJob)
+        } else if (response.data.jobs && Array.isArray(response.data.jobs)) {
+          jobs = response.data.jobs.map(convertApiJobToJob)
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          jobs = response.data.data.map(convertApiJobToJob)
+        }
+
+        // If API search returns no results but we have a search query, 
+        // fall back to fetching all jobs and use client-side search
+        if (jobs.length === 0 && jobQ.trim()) {
+          console.log('API search returned no results, falling back to client-side search')
+          const allJobsResponse = await axios.get('/api/v1/jobs', {
+            params: { page: 1, limit: 50 }
+          })
+
+          let allJobsData: Job[] = []
+          if (Array.isArray(allJobsResponse.data)) {
+            allJobsData = allJobsResponse.data.map(convertApiJobToJob)
+          } else if (allJobsResponse.data.jobs && Array.isArray(allJobsResponse.data.jobs)) {
+            allJobsData = allJobsResponse.data.jobs.map(convertApiJobToJob)
+          } else if (allJobsResponse.data.data && Array.isArray(allJobsResponse.data.data)) {
+            allJobsData = allJobsResponse.data.data.map(convertApiJobToJob)
+          }
+
+          setAllJobs(allJobsData)
+          jobs = allJobsData
+          useClientSideSearch = true
+        } else {
+          setAllJobs(jobs)
+        }
+      } else {
+        // If no search terms, fetch all jobs
+        await fetchAllJobs()
+        return
       }
 
-      if (locationQ.trim()) {
-        results = results.filter(job =>
-          job.location.toLowerCase().includes(locationQ.toLowerCase())
-        )
+      // Apply enhanced search and filters
+      let searchAndFilteredResults: Job[]
+
+      if (useClientSideSearch && jobQ.trim()) {
+        // Use client-side search on all jobs
+        searchAndFilteredResults = applyFilters(enhancedJobSearch(jobs, jobQ), filters)
+        console.log('Applied client-side search for:', jobQ, 'Results:', searchAndFilteredResults.length)
+      } else if (jobQ.trim()) {
+        // Use API results with additional client-side search enhancement
+        searchAndFilteredResults = applyFilters(enhancedJobSearch(jobs, jobQ), filters)
+      } else {
+        // No search query, just apply filters
+        searchAndFilteredResults = applyFilters(jobs, filters)
       }
 
-      // Apply filters
-      const filteredResults = applyFilters(results, filters)
-
-      setAllJobs(results)
-      setFilteredJobs(filteredResults)
-      setTotalResults(results.length)
-      setSelectedJobId(null)
+      setFilteredJobs(searchAndFilteredResults)
+      setTotalResults(searchAndFilteredResults.length)
+      setSelectedJobId(searchAndFilteredResults.length > 0 ? searchAndFilteredResults[0].id : null)
 
       if (updateUrl) {
         const params = new URLSearchParams()
@@ -297,17 +733,27 @@ export default function AdvancedJobSearch() {
         const queryString = params.toString()
         router.push(queryString ? `?${queryString}` : '/', { scroll: false })
       }
+    } catch (err) {
+      console.error('Search error:', err)
+      // Fallback to fetch all jobs
+      await fetchAllJobs()
     } finally {
       setLoading(false)
     }
-  }, [applyFilters, filters, router])
+  }, [applyFilters, filters, router, fetchAllJobs])
 
   // Handle filter changes
   const handleFilterChange = useCallback((newFilters: FilterState) => {
+    console.log('Filter changed:', newFilters)
     setFilters(newFilters)
 
-    const filtered = applyFilters(allJobs, newFilters)
-    setFilteredJobs(filtered)
+    // Apply both search and filters
+    const searchAndFiltered = jobQuery.trim() ?
+      applyFilters(enhancedJobSearch(allJobs, jobQuery), newFilters) :
+      applyFilters(allJobs, newFilters)
+
+    console.log('Filtered results:', searchAndFiltered.length)
+    setFilteredJobs(searchAndFiltered)
 
     // Calculate active filters
     const activeCount = [
@@ -320,7 +766,7 @@ export default function AdvancedJobSearch() {
     ].filter(Boolean).length
 
     setActiveFilterCount(activeCount)
-  }, [applyFilters, allJobs])
+  }, [applyFilters, enhancedJobSearch, allJobs, jobQuery])
 
   const handleBookmark = (jobId: string, e?: React.MouseEvent) => {
     e?.stopPropagation()
@@ -357,7 +803,7 @@ export default function AdvancedJobSearch() {
   const handleJobSelect = useCallback((jobId: string) => {
     // Save current scroll position before switching jobs
     saveScrollPosition()
-    
+
     // Update selected job
     setSelectedJobId(jobId)
 
@@ -384,7 +830,80 @@ export default function AdvancedJobSearch() {
   }
 
   const handleApply = (job: Job) => {
-    router.push('/login')
+    lightTap() // Haptic feedback
+
+    if (isAuthenticated) {
+      // User is already signed in, open advanced application modal
+      setSelectedJobForApplication(job)
+      setShowApplicationModal(true)
+      announceToScreenReader(`Opening smart application for ${job.title} at ${job.company}`)
+      speak(`Starting application process for ${job.title}`)
+    } else {
+      // User not signed in, show signin modal
+      setShowSignInModal(true)
+      speak('Please sign in to apply for jobs')
+    }
+  }
+
+  const handleApplicationSubmit = async (applicationData: any) => {
+    try {
+      const token = localStorage.getItem('token');
+      // Real API call to submit application with resume and cover letter
+      const response = await axios.post(`/api/v1/applications/${selectedJobForApplication?.id}`, {
+        resume: applicationData.resumeId, // From optimized resume or default
+        coverLetter: applicationData.coverLetter
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      // Add to user applications
+      const newApplication = {
+        id: response.data.data._id || Date.now().toString(),
+        jobTitle: selectedJobForApplication?.title,
+        company: selectedJobForApplication?.company,
+        location: selectedJobForApplication?.location,
+        appliedDate: new Date().toISOString(),
+        status: 'submitted',
+        matchScore: 87,
+        aiTips: [
+          'Your profile matches 87% of the requirements',
+          'Consider adding React certification to improve your chances',
+          'Follow up in 3-5 business days for best results'
+        ]
+      }
+
+      setUserApplications(prev => [newApplication, ...prev])
+
+      // Update stats and achievements
+      setUserStats(prev => ({
+        ...prev,
+        totalApplications: prev.totalApplications + 1,
+        applicationsThisWeek: prev.applicationsThisWeek + 1,
+        xp: prev.xp + 100
+      }))
+
+      // Success feedback
+      success()
+      announceToScreenReader(`Application submitted successfully for ${selectedJobForApplication?.title}`)
+      speak('Application submitted successfully! You earned 100 XP.')
+
+    } catch (err) {
+      console.error(err);
+      error() // Haptic error feedback
+      throw err
+    }
+  }
+
+  const handleClaimReward = (achievementId: string) => {
+    setAchievements(prev =>
+      prev.map(achievement =>
+        achievement.id === achievementId
+          ? { ...achievement, claimed: true }
+          : achievement
+      )
+    )
+    success()
+    speak('Reward claimed successfully!')
   }
 
   const handleClearFilters = () => {
@@ -432,7 +951,7 @@ export default function AdvancedJobSearch() {
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3.5 h-5 w-5 text-gray-400" />
               <Input
-                placeholder="Job title, keyword, or company"
+                placeholder="Job title, skills (e.g., Java, Python), company, or keywords"
                 value={jobQuery}
                 onChange={(e) => setJobQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
@@ -493,10 +1012,10 @@ export default function AdvancedJobSearch() {
 
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-300px)]">
-          
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[calc(100vh-200px)]">
+
           {/* ========== LEFT PANEL: JOB LIST ========== */}
-          <div className="lg:col-span-1 flex flex-col">
+          <div className={`${selectedJobId ? 'hidden lg:flex' : 'flex'} lg:col-span-1 flex-col`}>
             {/* ===== JOB COUNT (LEFT) ===== */}
             <div className="mb-4 flex items-center gap-2">
               <Filter className="h-5 w-5 text-gray-600 shrink-0" />
@@ -512,9 +1031,51 @@ export default function AdvancedJobSearch() {
 
             {/* ===== FLOATING BUTTONS (RIGHT BOTTOM CORNER) ===== */}
             <div className="fixed bottom-6 right-6 z-20 flex flex-col gap-3">
+              {/* Application Dashboard Button */}
+              {isAuthenticated && (
+                <button
+                  onClick={() => {
+                    lightTap()
+                    setShowApplicationDashboard(true)
+                    speak('Opening application dashboard')
+                  }}
+                  className="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                  title="Application Dashboard"
+                >
+                  <BarChart3 className="h-5 w-5" />
+                  {userApplications.length > 0 && (
+                    <span className="bg-white text-blue-600 text-xs font-bold rounded-full px-2 py-0.5">
+                      {userApplications.length}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {/* Gamification Button */}
+              {isAuthenticated && (
+                <button
+                  onClick={() => {
+                    lightTap()
+                    setShowGamificationModal(true)
+                    speak(`Opening career quest. You are level ${userStats.level}`)
+                  }}
+                  className="flex items-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                  title="Career Quest"
+                >
+                  <Trophy className="h-5 w-5" />
+                  <span className="bg-white text-purple-600 text-xs font-bold rounded-full px-2 py-0.5">
+                    {userStats.level}
+                  </span>
+                </button>
+              )}
+
               {/* Saved Jobs Button */}
               <button
-                onClick={() => setShowSavedJobs(!showSavedJobs)}
+                onClick={() => {
+                  lightTap()
+                  setShowSavedJobs(!showSavedJobs)
+                  speak(showSavedJobs ? 'Closing saved jobs' : `Opening saved jobs. You have ${savedJobs.length} saved jobs`)
+                }}
                 aria-expanded={showSavedJobs}
                 aria-controls="saved-jobs-panel"
                 className="flex items-center gap-2 px-4 py-3 bg-amber-700 hover:bg-amber-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
@@ -527,23 +1088,32 @@ export default function AdvancedJobSearch() {
                 )}
               </button>
 
-              {/* Filter Button */}
+              {/* Enhanced Filter Button with Voice */}
               <button
-                onClick={() => setShowFilters(!showFilters)}
+                onClick={() => {
+                  lightTap()
+                  setShowFilters(!showFilters)
+                  speak(showFilters ? 'Closing filters' : `Opening filters. ${activeFilterCount} filters active`)
+                }}
                 aria-expanded={showFilters}
                 aria-controls="filter-panel"
-                className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold"
+                className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-800 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 font-semibold relative"
               >
                 <Sliders className="h-5 w-5" />
+                <span>Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
                 <ChevronDown
-                  className={`h-5 w-5 transition-transform duration-300 ${
-                    showFilters ? 'rotate-180' : 'rotate-0'
-                  }`}
+                  className={`h-5 w-5 transition-transform duration-300 ${showFilters ? 'rotate-180' : 'rotate-0'
+                    }`}
                 />
               </button>
             </div>
 
-            {/* ===== EXPANDABLE FILTER PANEL (RIGHT SIDE) ===== */}
+            {/* ===== EXPANDABLE FILTER PANEL (RIGHT SIDE BELOW HEADER) ===== */}
             {showFilters && (
               <>
                 {/* Backdrop */}
@@ -576,7 +1146,7 @@ export default function AdvancedJobSearch() {
                       )}
 
                       {/* Filter Panel Content */}
-                      <FilterPanel 
+                      <FilterPanel
                         filters={filters}
                         onFilterChange={handleFilterChange}
                         jobTypes={JOB_TYPES}
@@ -757,12 +1327,27 @@ export default function AdvancedJobSearch() {
           </div>
 
           {/* ========== RIGHT PANEL: JOB DETAIL ========== */}
-          <div 
+          <div
             ref={detailPanelRef}
-            className="hidden lg:flex lg:col-span-2 flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+            className={`${selectedJobId ? 'flex col-span-1' : 'hidden lg:flex'} lg:col-span-2 flex-col bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden`}
           >
             {selectedJob ? (
               <>
+                {/* Mobile Back Button */}
+                <div className="lg:hidden border-b border-gray-200 px-4 py-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedJobId(null)}
+                    className="flex items-center gap-2 text-gray-600"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to Jobs
+                  </Button>
+                </div>
+
                 {/* Detail Header */}
                 <div className="bg-linear-to-r from-slate-50 to-amber-50 border-b border-gray-200 px-6 py-6">
                   <div className="flex items-start justify-between mb-4">
@@ -780,6 +1365,15 @@ export default function AdvancedJobSearch() {
                       <p className="text-lg text-gray-600">{selectedJob.company}</p>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        onClick={() => setShowCompanyProfileModal(true)}
+                        variant="outline"
+                        size="sm"
+                        className="text-slate-600 hover:text-slate-800"
+                      >
+                        <Building2 className="h-4 w-4 mr-1" />
+                        Company Profile
+                      </Button>
                       <Button
                         onClick={(e) => handleBookmark(selectedJob.id, e)}
                         variant="outline"
@@ -859,6 +1453,22 @@ export default function AdvancedJobSearch() {
                       ))}
                     </ul>
                   </div>
+                  {/* Skills */}
+                  {selectedJob.skills && selectedJob.skills.length > 0 && (
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900 mb-3">Required Skills</h2>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedJob.skills.map((skill, index) => (
+                          <Badge
+                            key={index}
+                            className="bg-blue-50 text-blue-700 border border-blue-200 font-medium"
+                          >
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Benefits */}
                   {selectedJob.benefits && selectedJob.benefits.length > 0 && (
@@ -873,6 +1483,31 @@ export default function AdvancedJobSearch() {
                         ))}
                       </ul>
                     </div>
+                  )}
+
+                  {/* Custom Sections */}
+                  {selectedJob.customSections && selectedJob.customSections.length > 0 && (
+                    <>
+                      {selectedJob.customSections.map((section, index) => (
+                        <div key={section._id || index}>
+                          <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                            {section.title.includes('Perks') && <TrendingUp className="h-5 w-5 text-green-600" />}
+                            {section.title.includes('🔧') && <CheckCircle2 className="h-5 w-5 text-blue-600" />}
+                            {section.title.includes('🧠') && <Award className="h-5 w-5 text-purple-600" />}
+                            {!section.title.includes('Perks') && !section.title.includes('🔧') && !section.title.includes('🧠') && <CheckCircle2 className="h-5 w-5 text-amber-700" />}
+                            {section.title}
+                          </h2>
+                          <div className="space-y-3">
+                            {section.content.split('\n\n').filter(item => item.trim()).map((item, itemIndex) => (
+                              <div key={itemIndex} className="flex items-start gap-3">
+                                <div className="h-2 w-2 bg-amber-700 rounded-full shrink-0 mt-2.5"></div>
+                                <span className="text-gray-700 leading-relaxed">{item.trim()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </>
                   )}
 
                   {/* Application Instructions */}
@@ -893,14 +1528,14 @@ export default function AdvancedJobSearch() {
                     className="flex-1 bg-amber-700 hover:bg-amber-800 text-white font-semibold h-12 rounded-lg flex items-center justify-center gap-2"
                   >
                     <LogIn className="h-5 w-5" />
-                    Sign In to Apply
+                    {isAuthenticated ? 'Apply Now' : 'Sign In to Apply'}
                   </Button>
-                  <Button
+                  {/* <Button
                     variant="outline"
                     className="h-12 px-6 rounded-lg"
                   >
                     Learn More
-                  </Button>
+                  </Button> */}
                 </div>
               </>
             ) : (
@@ -913,6 +1548,144 @@ export default function AdvancedJobSearch() {
           </div>
         </div>
       </div>
+
+      {/* Sign In Modal */}
+      {showSignInModal && (
+        <SignIn
+          onClose={() => setShowSignInModal(false)}
+          onSwitchToSignUp={() => {
+            setShowSignInModal(false)
+            setShowSignUpModal(true)
+          }}
+        />
+      )}
+
+      {/* Sign Up Modal */}
+      {showSignUpModal && (
+        <SignUp
+          onClose={() => setShowSignUpModal(false)}
+          onSwitchToSignIn={() => {
+            setShowSignUpModal(false)
+            setShowSignInModal(true)
+          }}
+        />
+      )}
+
+      {/* Company Profile Modal */}
+      {showCompanyProfileModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-slate-600" />
+              Company Profile
+            </h2>
+            {!isAuthenticated ? (
+              <div className="text-center py-8">
+                <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600 mb-4">Please sign in to view company profiles</p>
+                <Button onClick={() => { setShowCompanyProfileModal(false); setShowSignInModal(true); }} className="bg-slate-600 hover:bg-slate-700">
+                  Sign In
+                </Button>
+              </div>
+            ) : companyProfileLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-slate-600 border-t-transparent"></div>
+                <span className="ml-2 text-gray-600">Loading company profile...</span>
+              </div>
+            ) : companyProfileData?.error === 'forbidden' ? (
+              <div className="text-center py-8">
+                <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600">Please sign in to view company profiles</p>
+              </div>
+            ) : companyProfileData ? (
+              <div className="space-y-4">
+                <div>
+                  <strong>Name:</strong> {companyProfileData.name || selectedJob?.company}
+                </div>
+                <div>
+                  <strong>Location:</strong> {companyProfileData.location || selectedJob?.location}
+                </div>
+                {companyProfileData.website && (
+                  <div>
+                    <strong>Website:</strong> <a href={companyProfileData.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{companyProfileData.website}</a>
+                  </div>
+                )}
+                {companyProfileData.description && (
+                  <div>
+                    <strong>Description:</strong> <p className="mt-1 text-gray-700">{companyProfileData.description}</p>
+                  </div>
+                )}
+                <div>
+                  <strong>Industry:</strong> {companyProfileData.industry || 'Not specified'}
+                </div>
+                {companyProfileData.size && (
+                  <div>
+                    <strong>Company Size:</strong> {companyProfileData.size}
+                  </div>
+                )}
+                {companyProfileData.foundedYear && (
+                  <div>
+                    <strong>Founded Year:</strong> {companyProfileData.foundedYear}
+                  </div>
+                )}
+                {companyProfileData.socialLinks && (
+                  <div>
+                    <strong>Social Links:</strong>
+                    <div className="mt-2 space-y-1">
+                      {companyProfileData.socialLinks.linkedin && (
+                        <a href={companyProfileData.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="block text-blue-600 hover:underline">LinkedIn</a>
+                      )}
+                      {companyProfileData.socialLinks.twitter && (
+                        <a href={companyProfileData.socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="block text-blue-600 hover:underline">Twitter</a>
+                      )}
+                      {companyProfileData.socialLinks.facebook && (
+                        <a href={companyProfileData.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="block text-blue-600 hover:underline">Facebook</a>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-600">Company profile not available</p>
+              </div>
+            )}
+            <button onClick={() => setShowCompanyProfileModal(false)} className="mt-6 px-4 py-2 bg-gray-600 text-white rounded w-full">Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* Enhanced Application Modal */}
+      {selectedJobForApplication && (
+        <ApplicationModal
+          job={selectedJobForApplication}
+          isOpen={showApplicationModal}
+          onClose={() => {
+            setShowApplicationModal(false)
+            setSelectedJobForApplication(null)
+          }}
+          onSubmit={handleApplicationSubmit}
+          userProfile={userProfile}
+          isAuthenticated={isAuthenticated}
+        />
+      )}
+
+      {/* Application Dashboard */}
+      <ApplicationDashboard
+        isOpen={showApplicationDashboard}
+        onClose={() => setShowApplicationDashboard(false)}
+        applications={userApplications}
+      />
+
+      {/* Gamification System */}
+      <GamificationSystem
+        isOpen={showGamificationModal}
+        onClose={() => setShowGamificationModal(false)}
+        userStats={userStats}
+        achievements={achievements}
+        onClaimReward={handleClaimReward}
+      />
     </div>
   )
 }
@@ -948,11 +1721,10 @@ function JobCardItem({ job, isSelected, isBookmarked, onClick, onBookmark }: Job
     <Card
       ref={cardRef}
       onClick={onClick}
-      className={`p-4 cursor-pointer transition-all duration-200 border-2 ${
-        isSelected
-          ? 'border-slate-700 bg-slate-50 shadow-md'
-          : 'border-transparent hover:border-gray-300 hover:shadow-md'
-      }`}
+      className={`p-4 cursor-pointer transition-all duration-200 border-2 ${isSelected
+        ? 'border-slate-700 bg-slate-50 shadow-md'
+        : 'border-transparent hover:border-gray-300 hover:shadow-md'
+        }`}
     >
       <CardContent className="p-0 space-y-3">
         {/* Title & Badges */}
@@ -982,11 +1754,10 @@ function JobCardItem({ job, isSelected, isBookmarked, onClick, onBookmark }: Job
             className="p-1 shrink-0"
           >
             <BookmarkIcon
-              className={`h-5 w-5 ${
-                isBookmarked
-                  ? 'fill-yellow-500 text-yellow-500'
-                  : 'text-gray-400 hover:text-yellow-500'
-              }`}
+              className={`h-5 w-5 ${isBookmarked
+                ? 'fill-yellow-500 text-yellow-500'
+                : 'text-gray-400 hover:text-yellow-500'
+                }`}
             />
           </Button>
         </div>
@@ -1110,11 +1881,10 @@ function FilterPanel({ filters, onFilterChange, jobTypes }: FilterPanelProps) {
             <button
               key={option.value}
               onClick={() => handleDateChange(option.value)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                filters.datePosted === option.value
-                  ? 'bg-slate-100 text-slate-700 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${filters.datePosted === option.value
+                ? 'bg-slate-100 text-slate-700 font-semibold'
+                : 'text-gray-700 hover:bg-gray-100'
+                }`}
             >
               {option.label}
             </button>

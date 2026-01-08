@@ -20,13 +20,14 @@ import {
   TrendingUp,
   UserCheck,
   Clock,
+  Lock,
 } from "lucide-react";
 
 interface Company {
   name: string;
   email: string;
   phone: string;
-  plan: "Free" | "Professional" | "Enterprise";
+  plan: string;
   logo: string;
   industry: string;
   size: string;
@@ -39,6 +40,11 @@ interface EmployerSidebarProps {
   onNavigate: (section: string) => void;
   onLogout: () => void;
   onUpgrade: () => void;
+  stats?: {
+    activeJobs: number;
+    totalApplications: number;
+    hiresMade?: number;
+  };
 }
 
 const navigationItems = [
@@ -52,7 +58,7 @@ const navigationItems = [
   { id: "settings", label: "Account Settings", icon: Settings, description: "Team & preferences" },
 ];
 
-function SidebarContent({ company, activeSection, onNavigate, onLogout, onUpgrade }: EmployerSidebarProps) {
+function SidebarContent({ company, activeSection, onNavigate, onLogout, onUpgrade, stats }: EmployerSidebarProps) {
   return (
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
       {/* Company Profile Section */}
@@ -73,18 +79,18 @@ function SidebarContent({ company, activeSection, onNavigate, onLogout, onUpgrad
           </div>
         </div>
 
-        {/* Quick Stats */}
+        {/* Quick Stats - Real Data */}
         <div className="grid grid-cols-3 gap-3 mb-4">
           <div className="text-center">
-            <p className="text-lg font-bold text-blue-600">12</p>
+            <p className="text-lg font-bold text-blue-600">{stats?.activeJobs || 0}</p>
             <p className="text-xs text-gray-600">Active Jobs</p>
           </div>
           <div className="text-center">
-            <p className="text-lg font-bold text-green-600">145</p>
+            <p className="text-lg font-bold text-green-600">{stats?.totalApplications || 0}</p>
             <p className="text-xs text-gray-600">Applications</p>
           </div>
           <div className="text-center">
-            <p className="text-lg font-bold text-purple-600">8</p>
+            <p className="text-lg font-bold text-purple-600">{stats?.hiresMade || 0}</p>
             <p className="text-xs text-gray-600">Hired</p>
           </div>
         </div>
@@ -108,32 +114,57 @@ function SidebarContent({ company, activeSection, onNavigate, onLogout, onUpgrad
         </div>
       </div>
 
-      {/* Navigation Items */}
       <div className="flex-1 p-4">
         <nav className="space-y-1">
           {navigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeSection === item.id;
-            
+
+            // Lock logic: Free users can only access Overview, Job Posts, Profile, Billing, Settings.
+            // Restricted: Applicants, Interviews, Messages.
+
+            // Normalize plan string
+            const normalizedPlan = (company.plan || "").toLowerCase();
+            const isFree = normalizedPlan === "free";
+
+            // If user is paid, status should be unlocking everything
+            // User provided metadata: { plan: "free", status: "inactive" }
+
+            const restrictedTabs = ["applicants", "interviews", "messages", "analytics"];
+            const isRestricted = isFree && restrictedTabs.includes(item.id);
+
+            // Debug log to trace why it might be failing
+            // useEffect(() => { console.log("Plan:", company.plan, "Normalized:", normalizedPlan, "Restricted:", isRestricted); }, [company.plan]);
+
             return (
               <Button
                 key={item.id}
                 variant="ghost"
-                className={`w-full justify-start h-auto p-3 ${
-                  isActive 
-                    ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600" 
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
-                onClick={() => onNavigate(item.id)}
+                disabled={isRestricted}
+                className={`w-full justify-start h-auto p-3 group relative ${isActive
+                  ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
+                  : "text-gray-700 hover:bg-gray-50"
+                  } ${isRestricted ? "opacity-50 cursor-not-allowed" : ""}`}
+                onClick={() => !isRestricted && onNavigate(item.id)}
               >
                 <div className="flex items-center gap-3 w-full">
                   <Icon className={`h-5 w-5 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
                   <div className="flex-1 text-left">
-                    <p className="font-medium">{item.label}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{item.label}</p>
+                      {isRestricted && <Lock className="h-3 w-3 text-gray-400" />}
+                    </div>
                     <p className="text-xs text-gray-500">{item.description}</p>
                   </div>
                   {isActive && <ChevronRight className="h-4 w-4 text-blue-600" />}
                 </div>
+
+                {/* Tooltip for restricted items */}
+                {isRestricted && (
+                  <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 w-48 bg-gray-900 text-white text-xs p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity z-50 pointer-events-none">
+                    Upgrade to Professional plan to unlock {item.label}.
+                  </div>
+                )}
               </Button>
             );
           })}
@@ -184,7 +215,7 @@ export function EmployerSidebar(props: EmployerSidebarProps) {
     <>
       {/* Desktop Sidebar */}
       <div className="hidden lg:block w-80 h-screen sticky top-0">
-        <SidebarContent {...props} />
+        <SidebarContent {...props} stats={props.stats} />
       </div>
 
       {/* Mobile Sidebar */}
@@ -196,7 +227,7 @@ export function EmployerSidebar(props: EmployerSidebarProps) {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="p-0 w-80">
-            <SidebarContent {...props} />
+            <SidebarContent {...props} stats={props.stats} />
           </SheetContent>
         </Sheet>
       </div>

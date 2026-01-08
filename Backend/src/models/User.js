@@ -13,7 +13,9 @@ const userSchema = new mongoose.Schema(
     },
     lastName: {
       type: String,
-      required: [true, 'Last name is required'],
+      required: function () {
+        return this.role !== 'employer';
+      },
       trim: true,
     },
     email: {
@@ -56,6 +58,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    profileCompleted: {
+      type: Boolean,
+      default: false,
+    },
     emailVerificationToken: String,
     emailVerificationExpires: Date,
     passwordResetToken: String,
@@ -89,6 +95,12 @@ const userSchema = new mongoose.Schema(
       startDate: Date,
       endDate: Date,
       stripeId: String,
+      credits: { type: Number, default: 0 },
+      status: {
+        type: String,
+        enum: ['active', 'inactive'],
+        default: 'inactive'
+      }
     },
     stats: {
       views: { type: Number, default: 0 },
@@ -110,7 +122,7 @@ const userSchema = new mongoose.Schema(
 );
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
 
   try {
@@ -123,19 +135,19 @@ userSchema.pre('save', async function(next) {
 });
 
 // Match password method
-userSchema.methods.matchPassword = async function(enteredPassword) {
+userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
 // Generate JWT token
-userSchema.methods.getSignedJwt = function() {
+userSchema.methods.getSignedJwt = function () {
   return jwt.sign({ id: this._id }, config.JWT_SECRET, {
     expiresIn: config.JWT_EXPIRE,
   });
 };
 
 // Virtual for full name
-userSchema.virtual('fullName').get(function() {
+userSchema.virtual('fullName').get(function () {
   return `${this.firstName} ${this.lastName}`;
 });
 

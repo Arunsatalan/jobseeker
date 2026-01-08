@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,96 +36,94 @@ import {
   Eye,
   UserPlus,
   Building2,
+  RefreshCw,
 } from "lucide-react";
-
-// Mock data for demonstration
-const mockStats = {
-  totalUsers: 12450,
-  totalEmployers: 850,
-  totalJobSeekers: 11600,
-  activeJobs: 1234,
-  totalApplications: 8950,
-  monthlyRevenue: 45800,
-  dailyActiveUsers: 2340,
-  newRegistrations: 156,
-};
-
-const userGrowthData = [
-  { month: 'Jan', jobSeekers: 8500, employers: 650, applications: 5200 },
-  { month: 'Feb', jobSeekers: 9200, employers: 680, applications: 5800 },
-  { month: 'Mar', jobSeekers: 9800, employers: 720, applications: 6400 },
-  { month: 'Apr', jobSeekers: 10400, employers: 750, applications: 7100 },
-  { month: 'May', jobSeekers: 11000, employers: 800, applications: 7800 },
-  { month: 'Jun', jobSeekers: 11600, employers: 850, applications: 8950 },
-];
-
-const jobCategoryData = [
-  { name: 'Technology', value: 35, color: '#02243b' },
-  { name: 'Healthcare', value: 20, color: '#8a4b04' },
-  { name: 'Finance', value: 15, color: '#10b981' },
-  { name: 'Marketing', value: 12, color: '#f59e0b' },
-  { name: 'Education', value: 8, color: '#ef4444' },
-  { name: 'Others', value: 10, color: '#6b7280' },
-];
-
-const revenueData = [
-  { month: 'Jan', revenue: 32000, subscriptions: 180 },
-  { month: 'Feb', revenue: 35000, subscriptions: 195 },
-  { month: 'Mar', revenue: 38000, subscriptions: 210 },
-  { month: 'Apr', revenue: 41000, subscriptions: 225 },
-  { month: 'May', revenue: 43000, subscriptions: 240 },
-  { month: 'Jun', revenue: 45800, subscriptions: 265 },
-];
-
-const geoData = [
-  { province: 'Ontario', users: 4200, percentage: 34 },
-  { province: 'Quebec', users: 2800, percentage: 22 },
-  { province: 'British Columbia', users: 2100, percentage: 17 },
-  { province: 'Alberta', users: 1600, percentage: 13 },
-  { province: 'Manitoba', users: 800, percentage: 6 },
-  { province: 'Others', users: 950, percentage: 8 },
-];
-
-const recentActivities = [
-  {
-    id: 1,
-    type: 'user_registration',
-    message: 'Sarah Johnson registered as a job seeker',
-    timestamp: '2 minutes ago',
-    severity: 'info',
-  },
-  {
-    id: 2,
-    type: 'job_posted',
-    message: 'TechCorp posted "Senior Developer" position',
-    timestamp: '5 minutes ago',
-    severity: 'success',
-  },
-  {
-    id: 3,
-    type: 'flagged_content',
-    message: 'Job post flagged for review',
-    timestamp: '12 minutes ago',
-    severity: 'warning',
-  },
-  {
-    id: 4,
-    type: 'payment_received',
-    message: 'Premium subscription payment received',
-    timestamp: '18 minutes ago',
-    severity: 'success',
-  },
-  {
-    id: 5,
-    type: 'application_submitted',
-    message: '15 new applications submitted',
-    timestamp: '25 minutes ago',
-    severity: 'info',
-  },
-];
+import { useToast } from "@/components/ui/use-toast";
 
 export function OverviewDashboard() {
   const [dateRange, setDateRange] = useState('30d');
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const { toast } = useToast();
+
+  // State for data
+  const [overviewStats, setOverviewStats] = useState<any>(null);
+  const [revenueData, setRevenueData] = useState<any[]>([]);
+  const [userGrowthData, setUserGrowthData] = useState<any[]>([]);
+  const [geoData, setGeoData] = useState<any[]>([]);
+  const [jobCategoryData, setJobCategoryData] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+  const fetchData = async () => {
+    setLoading(true);
+    setErrorMessage("");
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      const [
+        overviewRes,
+        revenueRes,
+        growthRes,
+        geoRes,
+        activitiesRes
+      ] = await Promise.all([
+        axios.get(`${apiUrl}/api/v1/admin/stats/overview`, config),
+        axios.get(`${apiUrl}/api/v1/admin/stats/revenue`, config),
+        axios.get(`${apiUrl}/api/v1/admin/stats/user-growth`, config),
+        axios.get(`${apiUrl}/api/v1/admin/stats/geography`, config),
+        axios.get(`${apiUrl}/api/v1/admin/stats/activities/recent`, config),
+      ]);
+
+      if (overviewRes.data.success) {
+        setOverviewStats(overviewRes.data.data);
+        setJobCategoryData(
+          overviewRes.data.data.jobStats.categories.map((c: any, index: number) => ({
+            ...c,
+            color: ['#02243b', '#8a4b04', '#10b981', '#f59e0b', '#ef4444'][index % 5]
+          }))
+        );
+      }
+      if (revenueRes.data.success) setRevenueData(revenueRes.data.data);
+      if (growthRes.data.success) setUserGrowthData(growthRes.data.data);
+      if (geoRes.data.success) {
+        // Normalize geo data for display percentage, simplified logic for now
+        // Assuming backend returns { name, value }
+        const total = geoRes.data.data.reduce((acc: number, item: any) => acc + item.value, 0);
+        setGeoData(geoRes.data.data.map((item: any) => ({
+          province: item.name || 'Unknown',
+          users: item.value,
+          percentage: total > 0 ? Math.round((item.value / total) * 100) : 0
+        })));
+      }
+      if (activitiesRes.data.success) {
+        // Map activity types to UI colors/messages if needed
+        setRecentActivities(activitiesRes.data.data.map((a: any) => ({
+          ...a,
+          timestamp: new Date(a.time).toLocaleString(), // Simple formatting
+          message: a.action, // Backend returns 'action'
+          severity: a.type === 'job' ? 'success' : a.type === 'user' ? 'info' : 'warning'
+        })));
+      }
+
+    } catch (error: any) {
+      console.error("Failed to fetch admin stats:", error);
+      setErrorMessage("Failed to load dashboard data. Please try again.");
+      toast({
+        title: "Error",
+        description: "Could not fetch dashboard statistics.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const StatCard = ({ title, value, change, changeType, icon: Icon, color }: any) => (
     <Card>
@@ -135,19 +134,45 @@ export function OverviewDashboard() {
       <CardContent>
         <div className="text-2xl font-bold" style={{ color }}>{value}</div>
         <div className="flex items-center text-xs text-gray-500 mt-1">
-          {changeType === 'positive' ? (
-            <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
-          ) : (
-            <TrendingDown className="h-3 w-3 text-red-500 mr-1" />
+          {changeType && (
+            <>
+              {changeType === 'positive' ? (
+                <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
+              ) : (
+                <TrendingDown className="h-3 w-3 text-red-500 mr-1" />
+              )}
+              <span className={changeType === 'positive' ? 'text-green-600' : 'text-red-600'}>
+                {change}
+              </span>
+              <span className="ml-1">from last month</span>
+            </>
           )}
-          <span className={changeType === 'positive' ? 'text-green-600' : 'text-red-600'}>
-            {change}
-          </span>
-          <span className="ml-1">from last month</span>
         </div>
       </CardContent>
     </Card>
   );
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-gray-500">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (errorMessage && !overviewStats) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="text-center text-red-500">
+          <p>{errorMessage}</p>
+          <Button onClick={fetchData} className="mt-4" variant="outline">Retry</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -160,12 +185,16 @@ export function OverviewDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={fetchData}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
           <Button variant="outline" size="sm">
             <Calendar className="h-4 w-4 mr-2" />
             Last 30 days
           </Button>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             style={{ backgroundColor: 'var(--admin-primary)', color: 'white' }}
           >
             Export Report
@@ -177,34 +206,34 @@ export function OverviewDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Users"
-          value={mockStats.totalUsers.toLocaleString()}
-          change="+12.3%"
+          value={overviewStats?.userStats?.totalUsers?.toLocaleString() || 0}
+          change={`+${overviewStats?.userStats?.newRegistrations || 0} New`}
           changeType="positive"
           icon={Users}
           color="var(--admin-primary)"
         />
         <StatCard
           title="Active Jobs"
-          value={mockStats.activeJobs.toLocaleString()}
-          change="+8.7%"
+          value={overviewStats?.jobStats?.activeJobs?.toLocaleString() || 0}
+          // change="+8.7%" // We don't have historical job data yet for "change"
           changeType="positive"
           icon={Briefcase}
           color="var(--admin-secondary)"
         />
         <StatCard
           title="Applications"
-          value={mockStats.totalApplications.toLocaleString()}
-          change="+15.2%"
+          value={overviewStats?.jobStats?.totalApplications?.toLocaleString() || 0}
+          // change="+15.2%"
           changeType="positive"
           icon={FileText}
           color="#10b981"
         />
         <StatCard
-          title="Monthly Revenue"
-          value={`$${(mockStats.monthlyRevenue / 1000).toFixed(1)}k`}
-          change="+6.5%"
+          title="Daily Active Users" // Swapped from Revenue as Revenue might be 0 initially
+          value={overviewStats?.userStats?.dailyActiveUsers?.toLocaleString() || 0}
+          change="~24h"
           changeType="positive"
-          icon={DollarSign}
+          icon={Activity}
           color="#f59e0b"
         />
       </div>
@@ -215,30 +244,22 @@ export function OverviewDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>User Growth Trend</CardTitle>
-            <CardDescription>Monthly growth in job seekers and employers</CardDescription>
+            <CardDescription>Monthly growth in users (Registered)</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={userGrowthData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
+                <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
-                <Area 
-                  type="monotone" 
-                  dataKey="jobSeekers" 
-                  stackId="1" 
-                  stroke="var(--admin-primary)" 
+                <Area
+                  type="monotone"
+                  dataKey="users"
+                  name="New Users"
+                  stroke="var(--admin-primary)"
                   fill="var(--admin-primary)"
                   fillOpacity={0.6}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="employers" 
-                  stackId="1" 
-                  stroke="var(--admin-secondary)" 
-                  fill="var(--admin-secondary)"
-                  fillOpacity={0.8}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -253,23 +274,27 @@ export function OverviewDashboard() {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={jobCategoryData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, percentage }) => `${name} ${percentage}%`}
-                >
-                  {jobCategoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
+              {jobCategoryData.length > 0 ? (
+                <PieChart>
+                  <Pie
+                    data={jobCategoryData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {jobCategoryData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color || '#cccccc'} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">No job data available</div>
+              )}
             </ResponsiveContainer>
           </CardContent>
         </Card>
@@ -284,29 +309,35 @@ export function OverviewDashboard() {
             <CardDescription>Monthly revenue and subscription growth</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Bar 
-                  yAxisId="right"
-                  dataKey="subscriptions" 
-                  fill="var(--admin-accent-500)"
-                  opacity={0.3}
-                />
-                <Line 
-                  yAxisId="left"
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="var(--admin-primary)" 
-                  strokeWidth={3}
-                  dot={{ fill: 'var(--admin-primary)' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="h-[250px] w-full">
+              {revenueData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Bar
+                      yAxisId="right"
+                      dataKey="subscriptions"
+                      fill="var(--admin-accent-500)"
+                      opacity={0.3}
+                    />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="var(--admin-primary)"
+                      strokeWidth={3}
+                      dot={{ fill: 'var(--admin-primary)' }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">No revenue data available yet</div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -314,29 +345,33 @@ export function OverviewDashboard() {
         <Card>
           <CardHeader>
             <CardTitle>Geographic Distribution</CardTitle>
-            <CardDescription>Users by province</CardDescription>
+            <CardDescription>Users by location</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {geoData.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-3 w-3 text-gray-400" />
-                    <span className="text-sm font-medium">{item.province}</span>
+              {geoData.length > 0 ? (
+                geoData.map((item, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-3 w-3 text-gray-400" />
+                      <span className="text-sm font-medium truncate w-24" title={item.province}>{item.province}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-2 rounded-full"
+                        style={{
+                          width: `${Math.min(item.percentage * 2, 80)}px`,
+                          backgroundColor: 'var(--admin-primary)',
+                          opacity: 0.7
+                        }}
+                      />
+                      <span className="text-xs text-gray-500 w-8">{item.percentage}%</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="h-2 rounded-full"
-                      style={{ 
-                        width: `${item.percentage * 2}px`,
-                        backgroundColor: 'var(--admin-primary)',
-                        opacity: 0.7
-                      }}
-                    />
-                    <span className="text-xs text-gray-500 w-8">{item.percentage}%</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-8">No location data found</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -352,23 +387,26 @@ export function OverviewDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentActivities.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
-                  <div 
-                    className={`h-2 w-2 rounded-full mt-2 ${
-                      activity.severity === 'success' ? 'bg-green-500' :
-                      activity.severity === 'warning' ? 'bg-yellow-500' :
-                      'bg-blue-500'
-                    }`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">
-                      {activity.message}
-                    </p>
-                    <p className="text-xs text-gray-500">{activity.timestamp}</p>
+              {recentActivities.length > 0 ? (
+                recentActivities.map((activity, index) => (
+                  <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
+                    <div
+                      className={`h-2 w-2 rounded-full mt-2 ${activity.severity === 'success' ? 'bg-green-500' :
+                          activity.severity === 'warning' ? 'bg-yellow-500' :
+                            'bg-blue-500'
+                        }`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">
+                        {activity.message} <span className="text-gray-400 text-xs">by {activity.user}</span>
+                      </p>
+                      <p className="text-xs text-gray-500">{activity.timestamp}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">No recent activity</p>
+              )}
             </div>
             <Button variant="outline" className="w-full mt-4">
               <Activity className="h-4 w-4 mr-2" />
@@ -385,16 +423,16 @@ export function OverviewDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-start"
                 style={{ borderColor: 'var(--admin-primary)', color: 'var(--admin-primary)' }}
               >
                 <UserPlus className="h-4 w-4 mr-2" />
                 Add New Admin
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full justify-start"
                 style={{ borderColor: 'var(--admin-secondary)', color: 'var(--admin-secondary)' }}
               >
@@ -410,7 +448,7 @@ export function OverviewDashboard() {
                 Platform Settings
               </Button>
             </div>
-            
+
             <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
               <h4 className="font-semibold text-sm text-gray-900">System Health</h4>
               <p className="text-xs text-gray-600 mt-1">All systems operational</p>
